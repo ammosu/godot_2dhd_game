@@ -24,14 +24,15 @@ func _process(delta: float) -> void:
 	if _target == null:
 		return
 
-	if Input.is_action_just_pressed("camera_rotate_left"):
-		_target_yaw += deg_to_rad(orbit_step_degrees)
-	if Input.is_action_just_pressed("camera_rotate_right"):
-		_target_yaw -= deg_to_rad(orbit_step_degrees)
-	if Input.is_action_just_pressed("camera_zoom_in"):
-		_distance = maxf(7.0, _distance - 1.25)
-	if Input.is_action_just_pressed("camera_zoom_out"):
-		_distance = minf(15.0, _distance + 1.25)
+	if not GameState.is_input_locked():
+		if Input.is_action_just_pressed("camera_rotate_left"):
+			_target_yaw += deg_to_rad(orbit_step_degrees)
+		if Input.is_action_just_pressed("camera_rotate_right"):
+			_target_yaw -= deg_to_rad(orbit_step_degrees)
+		if Input.is_action_just_pressed("camera_zoom_in"):
+			_distance = maxf(7.0, _distance - 1.25)
+		if Input.is_action_just_pressed("camera_zoom_out"):
+			_distance = minf(15.0, _distance + 1.25)
 
 	var follow_weight := 1.0 - exp(-delta * 7.5)
 	global_position = global_position.lerp(_target.global_position, follow_weight)

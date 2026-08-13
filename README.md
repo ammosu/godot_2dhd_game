@@ -1,15 +1,34 @@
-# Wanderlight HD-2D Prototype
+# Wanderlight: Moon Shard
 
 這是一個以 Godot 4.7 建立的原創 HD-2D 技術基線，參考
 [SimpleHD2D](https://github.com/GSansigolo/SimpleHD2D) 的核心方向：把清晰的 2D 角色放進有光影、透視與景深的 3D 世界。
 
-目前可直接執行的內容：
+目前是一個可以從頭玩到任務完成的 HD-2D JRPG vertical slice：
 
 - CC0 四方向像素角色、行走動畫與相機相對移動
 - 可平滑旋轉、縮放並追蹤玩家的透視相機
-- 程序化 3D 測試場景、碰撞、燈光、薄霧、發光物件與微量景深
+- 暮光村與北境遺跡兩張地圖、碰撞、燈光、薄霧、發光物件與景深
 - CC0 像素場景裝飾／HUD、最近鄰取樣與輕量色調／暗角 shader
-- 鍵盤操作：`WASD`／方向鍵移動、`Q`／`E` 旋轉、`R`／`F` 縮放
+- NPC 對話、主線任務、任務目標與完成獎勵
+- 回合制戰鬥：攻擊、技能、藥水、防禦、勝利與戰敗流程
+- JSON 存檔／讀檔，保存地圖、位置、任務、旗標、道具、HP 與 MP
+
+## 遊玩流程
+
+1. 在暮光村與廣場左側的長老交談。
+2. 接受「月光碎片」任務，從北方藍色門扉前往北境遺跡。
+3. 與遺跡守衛互動並贏得戰鬥。
+4. 從南方門扉返回村莊，將月光碎片交給長老。
+
+## 操作
+
+- `WASD`／方向鍵：移動
+- `Space`／`Enter`：互動、繼續對話
+- `Q`／`E`：旋轉鏡頭
+- `R`／`F`：縮放鏡頭
+- `F5`：儲存遊戲
+- `F9`：讀取遊戲
+- 戰鬥中按 `1`～`4`：攻擊、月影斬、藥水、防禦
 
 ## 執行
 
@@ -18,6 +37,22 @@
 ```bash
 godot --path .
 ```
+
+完整 playthrough smoke test：
+
+```bash
+godot --headless --path . -- --playthrough-test
+```
+
+通過時會輸出：`PLAYTHROUGH_TEST_PASS dialogue quest maps save battle`。
+
+## 系統結構
+
+- `scripts/systems/game_state.gd`：任務、玩家數值、道具、地圖狀態及 JSON 存讀檔
+- `scripts/ui/dialogue_ui.gd`：多段式對話與輸入鎖定
+- `scripts/ui/battle_ui.gd`：回合制指令、敵方回合與勝敗處理
+- `scripts/gameplay/interactable_3d.gd`：NPC、門扉與敵人的統一互動介面
+- `scripts/world.gd`：兩張地圖、事件配置及完整主線流程
 
 目前桌面預設使用 Forward+，以呈現景深、進階光影與高品質 bloom；行動裝置預設使用 Mobile。若目標包含 Web／舊硬體，需另做 Compatibility 畫質配置，並停用不支援的景深效果。正式製作應建立低／中／高三組畫質設定。
 
@@ -35,4 +70,4 @@ godot --path .
 6. **後製預算**：Glow、SSAO、SSIL、景深、陰影與體積霧不能一次全部拉滿。透明 Sprite3D 也容易遇到排序、景深邊緣與陰影不一致，應在每個目標平台做 GPU profile。
 7. **專案衛生**：不提交 `.godot/` 匯入快取與 `.DS_Store`；CI 至少執行 headless import／啟動測試，避免升級後場景或 shader 靜默失效。
 
-更完整的製作方向與里程碑見 [docs/ROADMAP.md](docs/ROADMAP.md)。
+後續 production 方向見 [docs/ROADMAP.md](docs/ROADMAP.md)。

@@ -1,8 +1,10 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/world.gd" id="1_world"]
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="2_player"]
 [ext_resource type="Script" path="res://scripts/camera_rig.gd" id="3_camera"]
+[ext_resource type="Script" path="res://scripts/ui/dialogue_ui.gd" id="4_dialogue"]
+[ext_resource type="Script" path="res://scripts/ui/battle_ui.gd" id="5_battle"]
 
 [sub_resource type="CameraAttributesPractical" id="CameraAttributes_hd2d"]
 dof_blur_far_enabled = true
@@ -30,3 +32,9 @@ fov = 34.0
 near = 0.15
 far = 80.0
 attributes = SubResource("CameraAttributes_hd2d")
+
+[node name="DialogueUI" type="CanvasLayer" parent="."]
+script = ExtResource("4_dialogue")
+
+[node name="BattleUI" type="CanvasLayer" parent="."]
+script = ExtResource("5_battle")

@@ -10,14 +10,24 @@ var _gravity: float = float(ProjectSettings.get_setting("physics/3d/default_grav
 var _walk_time: float = 0.0
 var _sprite_rest_height: float
 var _facing_column: int = 0
+var _interaction_area: Area3D
 
 
 func _ready() -> void:
 	_sprite_rest_height = sprite.position.y
 	_create_contact_shadow()
+	_create_interaction_detector()
 
 
 func _physics_process(delta: float) -> void:
+	if GameState.is_input_locked():
+		velocity.x = move_toward(velocity.x, 0.0, acceleration * delta)
+		velocity.z = move_toward(velocity.z, 0.0, acceleration * delta)
+		if not is_on_floor():
+			velocity.y -= _gravity * delta
+		move_and_slide()
+		_update_sprite(Vector2.ZERO, Vector3.ZERO, delta)
+		return
 	var input_vector := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var move_direction := _camera_relative_direction(input_vector)
 	var target_velocity := move_direction * move_speed
@@ -31,6 +41,35 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 	_update_sprite(input_vector, move_direction, delta)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if GameState.is_input_locked() or event.is_echo():
+		return
+	if event.is_action_pressed("interact"):
+		var target := get_nearest_interactable()
+		if target != null:
+			target.interact()
+			get_viewport().set_input_as_handled()
+
+
+func get_nearest_interactable() -> Interactable3D:
+	if _interaction_area == null:
+		return null
+	var nearest: Interactable3D
+	var nearest_distance := INF
+	for area in _interaction_area.get_overlapping_areas():
+		if area is Interactable3D:
+			var distance := global_position.distance_squared_to(area.global_position)
+			if distance < nearest_distance:
+				nearest = area
+				nearest_distance = distance
+	return nearest
+
+
+func get_interaction_prompt() -> String:
+	var target := get_nearest_interactable()
+	return target.prompt_text if target != null else ""
 
 
 func _camera_relative_direction(input_vector: Vector2) -> Vector3:
@@ -90,3 +129,18 @@ func _create_contact_shadow() -> void:
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	shadow.material_override = material
 	add_child(shadow)
+
+
+func _create_interaction_detector() -> void:
+	_interaction_area = Area3D.new()
+	_interaction_area.name = "InteractionDetector"
+	_interaction_area.collision_layer = 0
+	_interaction_area.collision_mask = 8
+	_interaction_area.monitoring = true
+	var shape_node := CollisionShape3D.new()
+	shape_node.position.y = 0.65
+	var shape := SphereShape3D.new()
+	shape.radius = 1.65
+	shape_node.shape = shape
+	_interaction_area.add_child(shape_node)
+	add_child(_interaction_area)
