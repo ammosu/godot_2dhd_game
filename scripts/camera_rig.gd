@@ -16,8 +16,25 @@ func _ready() -> void:
 	_target = get_node_or_null(target_path) as Node3D
 	_distance = starting_distance
 	rotation.y = _target_yaw
+	_configure_camera_attributes()
 	camera.current = true
 	_update_camera_local_position()
+
+
+func _configure_camera_attributes() -> void:
+	if RenderingServer.get_current_rendering_method() == "gl_compatibility":
+		camera.attributes = null
+		return
+
+	var attributes := CameraAttributesPractical.new()
+	attributes.dof_blur_far_enabled = true
+	attributes.dof_blur_far_distance = 13.0
+	attributes.dof_blur_far_transition = 6.0
+	attributes.dof_blur_near_enabled = true
+	attributes.dof_blur_near_distance = 5.0
+	attributes.dof_blur_near_transition = 3.0
+	attributes.dof_blur_amount = 0.12
+	camera.attributes = attributes
 
 
 func _process(delta: float) -> void:

@@ -540,6 +540,7 @@ func _build_hud() -> void:
 	var panel := PanelContainer.new()
 	panel.position = Vector2(24.0, 24.0)
 	panel.custom_minimum_size = Vector2(530.0, 0.0)
+	panel.theme = GameState.ui_theme
 	hud.add_child(panel)
 	var panel_style := StyleBoxTexture.new()
 	panel_style.texture = load("res://assets/third_party/ninja_adventure/ui/panel.png") as Texture2D
@@ -598,6 +599,7 @@ func _build_hud() -> void:
 	_prompt_label.add_theme_color_override("font_outline_color", Color("171326"))
 	_prompt_label.add_theme_constant_override("outline_size", 8)
 	_prompt_label.add_theme_font_size_override("font_size", 20)
+	_prompt_label.theme = GameState.ui_theme
 	hud.add_child(_prompt_label)
 
 	_notice_label = Label.new()
@@ -612,6 +614,7 @@ func _build_hud() -> void:
 	_notice_label.add_theme_color_override("font_outline_color", Color("171326"))
 	_notice_label.add_theme_constant_override("outline_size", 8)
 	_notice_label.add_theme_font_size_override("font_size", 21)
+	_notice_label.theme = GameState.ui_theme
 	hud.add_child(_notice_label)
 	_refresh_hud()
 

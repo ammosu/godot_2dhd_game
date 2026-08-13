@@ -69,6 +69,7 @@ func _build_ui() -> void:
 	_root.name = "DialogueRoot"
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.theme = GameState.ui_theme
 	add_child(_root)
 
 	var shade := ColorRect.new()

@@ -180,6 +180,7 @@ func _make_action_button(text: String, action: String) -> Button:
 func _build_ui() -> void:
 	_root = Control.new()
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_root.theme = GameState.ui_theme
 	add_child(_root)
 
 	var backdrop := ColorRect.new()

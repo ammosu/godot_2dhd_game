@@ -21,3 +21,16 @@
 - `ui/heart.png`、`panel.png`：HUD
 
 完整授權說明見 [assets/third_party/ninja_adventure/LICENSE.md](assets/third_party/ninja_adventure/LICENSE.md)。
+
+## Cubic 11（俐方體11號）
+
+- **作者／專案**：ACh-K／Cubic 11，衍生自 M⁺ gothic 12r
+- **來源**：<https://github.com/ACh-K/Cubic-11>
+- **來源 commit**：`4c566f7d6cc5c05ee360fe9cff56b5da1fcafd4d`
+- **取得日期**：2026-08-13
+- **授權**：SIL Open Font License 1.1
+- **用途**：提供桌面與 Web 版一致的繁體中文 UI 字形
+- **實際檔案**：`assets/fonts/Cubic_11.ttf`
+- **SHA-256**：`0193f5f033612496df6b45ee92ac3b335bc6a5a24ff95da55ca87b33e57dcf62`
+
+完整授權說明見 [assets/fonts/CUBIC_11_LICENSE.txt](assets/fonts/CUBIC_11_LICENSE.txt)。

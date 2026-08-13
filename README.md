@@ -46,6 +46,16 @@ godot --headless --path . -- --playthrough-test
 
 通過時會輸出：`PLAYTHROUGH_TEST_PASS dialogue quest maps save battle`。
 
+## Web 版與 GitHub Pages
+
+專案保留桌面版的 Forward+ renderer，Web 匯出會自動改用 Compatibility renderer，並使用不需要跨來源隔離標頭的單執行緒版本。
+
+推送到 `main` 後，GitHub Actions 會執行 smoke test、匯出 Web 版並部署至：
+
+<https://ammosu.github.io/godot_2dhd_game/>
+
+首次部署前，請在 GitHub repository 的 **Settings → Pages → Build and deployment → Source** 選擇 **GitHub Actions**。
+
 ## 系統結構
 
 - `scripts/systems/game_state.gd`：任務、玩家數值、道具、地圖狀態及 JSON 存讀檔
