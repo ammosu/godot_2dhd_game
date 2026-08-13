@@ -20,6 +20,8 @@ var _map_root: Node3D
 var _environment: Environment
 var _animated_sprites: Array[Sprite3D] = []
 var _ambient_time: float = 0.0
+var _moon_lamp_core: MeshInstance3D
+var _moon_lamp_light: OmniLight3D
 
 var _map_label: Label
 var _quest_label: Label
@@ -59,6 +61,13 @@ func _process(delta: float) -> void:
 	for animated_sprite in _animated_sprites:
 		if is_instance_valid(animated_sprite):
 			animated_sprite.frame = animation_frame
+	if is_instance_valid(_moon_lamp_core):
+		_moon_lamp_core.rotation.y += delta * 0.45
+	if is_instance_valid(_moon_lamp_light):
+		var lamp_is_restored := GameState.quest_state == GameState.QuestState.COMPLETE
+		var base_energy := 4.2 if lamp_is_restored else 0.28
+		var pulse_strength := 0.45 if lamp_is_restored else 0.08
+		_moon_lamp_light.light_energy = base_energy + sin(_ambient_time * 2.2) * pulse_strength
 	if _prompt_label != null:
 		var prompt := player.get_interaction_prompt() if GameState.mode == GameState.Mode.EXPLORE else ""
 		_prompt_label.text = "Space：%s" % prompt if not prompt.is_empty() else ""
@@ -78,8 +87,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _show_intro() -> void:
 	dialogue_ui.show_dialogue([
-		{"speaker": "旁白", "text": "月光逐漸從暮光村消失，北境的古老封印也開始鬆動。"},
-		{"speaker": "旁白", "text": "先與廣場左側的長老交談。靠近可互動目標後按下 Space。"},
+		{"speaker": "旁白", "text": "月光已經連續三晚沒有照進暮光村。村莊中央的月燈，也只剩最後一點微光。"},
+		{"speaker": "旁白", "text": "夜霧正在村外聚集。先四處看看，再與廣場左側的長老交談。"},
+		{"speaker": "系統", "text": "使用 WASD 或方向鍵移動；靠近頭上有記號的人或物件後，按 Space 互動。"},
 	])
 
 
@@ -90,6 +100,8 @@ func _on_map_change_requested(map_id: String, spawn_id: String) -> void:
 func _load_map(map_id: String, spawn_id: String) -> void:
 	if _map_root != null and is_instance_valid(_map_root):
 		_map_root.free()
+	_moon_lamp_core = null
+	_moon_lamp_light = null
 	_map_root = Node3D.new()
 	_map_root.name = "Map_%s" % map_id.capitalize()
 	add_child(_map_root)
@@ -158,7 +170,10 @@ func _build_village() -> void:
 		_add_pixel_prop("res://assets/third_party/ninja_adventure/props/grass.png", grass_position, 0.045, "PixelGrass")
 	_add_pixel_prop("res://assets/third_party/ninja_adventure/characters/pig.png", Vector3(4.4, 0.46, 4.1), 0.058, "PixelPig", 2, true)
 
+	_add_moon_lamp(Vector3(0.0, 0.0, 0.0))
 	_add_actor_interactable("elder", "與長老交談", Vector3(-2.0, 0.0, 0.9), "res://assets/characters/wanderer.svg", 0.026, Color("e4b7ff"))
+	_add_actor_interactable("rumi", "與露米交談", Vector3(4.2, 0.0, 2.2), "res://assets/characters/wanderer.svg", 0.021, Color("ffd18a"))
+	_add_actor_interactable("noah", "與守門人交談", Vector3(1.9, 0.0, -4.5), "res://assets/characters/wanderer.svg", 0.027, Color("a9d8ff"))
 	_add_portal("portal_to_ruins", "前往北境遺跡", Vector3(0.0, 0.0, -6.0), Color("86d9ff"))
 
 
@@ -178,6 +193,8 @@ func _build_ruins() -> void:
 	for rubble_position in [Vector3(-2.6, 0.42, 4.0), Vector3(2.9, 0.42, 3.6), Vector3(-5.2, 0.42, -5.1)]:
 		_add_pixel_prop("res://assets/third_party/ninja_adventure/props/crate.png", rubble_position, 0.052, "RuinSupply")
 
+	_add_pedestal_interactable("ruin_tablet", "閱讀風化石碑", Vector3(-2.8, 0.0, 1.8), Color("8f86ac"))
+	_add_pedestal_interactable("moon_spring", "觸碰月泉", Vector3(2.8, 0.0, 1.8), Color("76e5d5"))
 	_add_portal("portal_to_village", "返回暮光村", Vector3(0.0, 0.0, 6.1), Color("efb56d"))
 	if not bool(GameState.flags.get("guardian_defeated", false)):
 		_add_actor_interactable(
@@ -197,47 +214,146 @@ func _handle_interaction(interaction_id: String) -> void:
 	match interaction_id:
 		"elder":
 			_talk_to_elder()
+		"rumi":
+			_talk_to_rumi()
+		"noah":
+			_talk_to_noah()
+		"moon_lamp":
+			_inspect_moon_lamp()
 		"portal_to_ruins":
 			if GameState.quest_state == GameState.QuestState.NOT_STARTED:
-				dialogue_ui.show_dialogue([{"speaker": "古老門扉", "text": "門扉沒有回應。也許應該先詢問村莊長老。"}])
+				dialogue_ui.show_dialogue([
+					{"speaker": "古老門扉", "text": "藍色紋路一閃即逝，門扉沒有開啟。"},
+					{"speaker": "守門人・諾亞", "text": "它只聽從長老的月印。先去廣場找艾爾長老吧。"},
+				])
 			else:
 				GameState.request_map("ruins", "from_village")
 		"portal_to_village":
 			GameState.request_map("village", "from_ruins")
+		"ruin_tablet":
+			_read_ruin_tablet()
+		"moon_spring":
+			_rest_at_moon_spring()
 		"guardian":
-			dialogue_ui.show_dialogue([
-				{"speaker": "遺跡守衛", "text": "月光碎片只會交給能承受試煉之人。"},
-				{"speaker": "旅人", "text": "那就開始吧。"},
-			], _start_guardian_battle)
+			_talk_to_guardian()
 
 
 func _talk_to_elder() -> void:
 	match GameState.quest_state:
 		GameState.QuestState.NOT_STARTED:
 			dialogue_ui.show_dialogue([
-				{"speaker": "長老・艾爾", "text": "旅人，村中的月燈正在熄滅。只有北境遺跡的月光碎片能重新點亮它。"},
-				{"speaker": "長老・艾爾", "text": "穿過北方的藍色門扉，擊敗守護碎片的古老守衛。"},
-				{"speaker": "旅人", "text": "我會把月光帶回來。"},
+				{"speaker": "長老・艾爾", "text": "旅人，你也看見夜霧了吧。月燈若在今晚熄滅，霧就會越過村界。"},
+				{"speaker": "長老・艾爾", "text": "北境遺跡保存著一枚月光碎片。只有它能讓月燈重新燃起。"},
+				{"speaker": "長老・艾爾", "text": "我會用月印開啟北方門扉。遺跡守衛或許會試探你，務必準備好藥水。"},
+				{"speaker": "旅人", "text": "我會在月燈熄滅以前，把碎片帶回來。"},
 			], GameState.start_quest)
 		GameState.QuestState.ACTIVE:
-			dialogue_ui.show_dialogue([{"speaker": "長老・艾爾", "text": "北方門扉已經開啟。月光碎片就在遺跡深處。"}])
+			dialogue_ui.show_dialogue([
+				{"speaker": "長老・艾爾", "text": "北方門扉已經開啟。沿著遺跡中的月紋石路前進，就能找到守衛。"},
+				{"speaker": "長老・艾爾", "text": "若受了傷，找找遺跡裡仍在發光的月泉。"},
+			])
 		GameState.QuestState.READY_TO_TURN_IN:
 			dialogue_ui.show_dialogue([
 				{"speaker": "旅人", "text": "我帶回月光碎片了。"},
-				{"speaker": "長老・艾爾", "text": "太好了。暮光村會記住你的勇氣。"},
+				{"speaker": "長老・艾爾", "text": "太好了。把它放進月燈的燈心，讓我們看看月光是否還願意回應。"},
 			], _complete_main_quest)
 		GameState.QuestState.COMPLETE:
-			dialogue_ui.show_dialogue([{"speaker": "長老・艾爾", "text": "月燈再次閃耀。謝謝你，暮光村的朋友。"}])
+			dialogue_ui.show_dialogue([
+				{"speaker": "長老・艾爾", "text": "月燈再次閃耀，夜霧也退回了森林。謝謝你，暮光村的朋友。"},
+				{"speaker": "長老・艾爾", "text": "只是那枚碎片上的陌生紋章令我不安。這場黑夜恐怕還沒有真正結束。"},
+			])
+
+
+func _talk_to_rumi() -> void:
+	match GameState.quest_state:
+		GameState.QuestState.NOT_STARTED:
+			dialogue_ui.show_dialogue([
+				{"speaker": "村童・露米", "text": "以前月燈亮起來時，整個廣場都像白天一樣。現在連小豬都不敢靠近村口了。"},
+				{"speaker": "村童・露米", "text": "艾爾爺爺好像知道發生了什麼。你可以替我們問問他嗎？"},
+			])
+		GameState.QuestState.ACTIVE:
+			dialogue_ui.show_dialogue([{"speaker": "村童・露米", "text": "請小心回來。我會在這裡守著月燈最後的光。"}])
+		GameState.QuestState.READY_TO_TURN_IN:
+			dialogue_ui.show_dialogue([{"speaker": "村童・露米", "text": "你的行囊在發光！快把碎片交給艾爾爺爺！"}])
+		GameState.QuestState.COMPLETE:
+			dialogue_ui.show_dialogue([{"speaker": "村童・露米", "text": "你看，連小豬都跑回來了！謝謝你把月光帶回家。"}])
+
+
+func _talk_to_noah() -> void:
+	match GameState.quest_state:
+		GameState.QuestState.NOT_STARTED:
+			dialogue_ui.show_dialogue([{"speaker": "守門人・諾亞", "text": "北方門扉已沉睡多年。若長老沒有下令，我不能讓任何人冒險進去。"}])
+		GameState.QuestState.ACTIVE:
+			dialogue_ui.show_dialogue([
+				{"speaker": "守門人・諾亞", "text": "月印已經生效。門後就是北境遺跡。"},
+				{"speaker": "守門人・諾亞", "text": "戰鬥時可用數字鍵 1 攻擊、2 施展月影斬、3 使用藥水、4 防禦。"},
+			])
+		GameState.QuestState.READY_TO_TURN_IN:
+			dialogue_ui.show_dialogue([{"speaker": "守門人・諾亞", "text": "我看見門扉重新亮起，就知道你成功了。長老正在月燈旁等你。"}])
+		GameState.QuestState.COMPLETE:
+			dialogue_ui.show_dialogue([{"speaker": "守門人・諾亞", "text": "夜霧退去了，但遺跡的門仍在低鳴。我會繼續守著這裡。"}])
+
+
+func _inspect_moon_lamp() -> void:
+	match GameState.quest_state:
+		GameState.QuestState.NOT_STARTED:
+			dialogue_ui.show_dialogue([{"speaker": "月燈", "text": "燈心裡只剩一點冰冷的銀光，彷彿隨時會被風吹熄。"}])
+		GameState.QuestState.ACTIVE:
+			dialogue_ui.show_dialogue([{"speaker": "月燈", "text": "微光比剛才更弱了。必須盡快從北境遺跡帶回月光碎片。"}])
+		GameState.QuestState.READY_TO_TURN_IN:
+			dialogue_ui.show_dialogue([{"speaker": "月燈", "text": "行囊中的月光碎片正與燈心共鳴。先讓長老確認它的力量。"}])
+		GameState.QuestState.COMPLETE:
+			dialogue_ui.show_dialogue([{"speaker": "月燈", "text": "溫暖的月光灑滿廣場。燈心深處偶爾浮現一枚從未見過的環形紋章。"}])
+
+
+func _read_ruin_tablet() -> void:
+	GameState.flags["ruin_tablet_read"] = true
+	GameState.state_changed.emit()
+	dialogue_ui.show_dialogue([
+		{"speaker": "風化石碑", "text": "『月光並非驅散黑暗，而是指引迷途之人穿過黑暗。』"},
+		{"speaker": "旅人", "text": "下方刻著一枚環形紋章……它不像暮光村的文字。"},
+	])
+
+
+func _rest_at_moon_spring() -> void:
+	var needs_rest := GameState.player_hp < GameState.player_max_hp or GameState.player_mp < GameState.player_max_mp
+	if needs_rest:
+		GameState.restore_player()
+		dialogue_ui.show_dialogue([
+			{"speaker": "月泉", "text": "清澈的光流過全身。HP 與 MP 已完全恢復。"},
+			{"speaker": "系統", "text": "遺跡守衛就在前方。戰鬥中按 3 可使用藥水，按 4 可減輕下一次傷害。"},
+		])
+	else:
+		dialogue_ui.show_dialogue([{"speaker": "月泉", "text": "泉水映著沒有月亮的天空。你目前不需要休息。"}])
+
+
+func _talk_to_guardian() -> void:
+	var lines: Array[Dictionary] = []
+	if bool(GameState.flags.get("ruin_tablet_read", false)):
+		lines.append({"speaker": "遺跡守衛", "text": "你讀過引路人的誓言，也看見了那枚被抹去的紋章。"})
+	else:
+		lines.append({"speaker": "遺跡守衛", "text": "月光碎片只會交給能承受試煉之人。"})
+	lines.append({"speaker": "遺跡守衛", "text": "證明你帶回村莊的是希望，而不是另一場災厄。"})
+	lines.append({"speaker": "旅人", "text": "那就開始吧。"})
+	dialogue_ui.show_dialogue(lines, _start_guardian_battle)
 
 
 func _complete_main_quest() -> void:
 	GameState.complete_quest()
+	_update_moon_lamp_state()
 	GameState.remember_player_position(player.global_position)
 	if not _test_mode:
 		GameState.save_game(GameState.SAVE_PATH, false)
-	dialogue_ui.show_dialogue([
-		{"speaker": "旁白", "text": "主線任務完成！你仍可自由探索兩張地圖，或按 F9 讀取存檔。"},
-	])
+	var ending_lines: Array[Dictionary] = [
+		{"speaker": "旁白", "text": "碎片融入燈心。銀白光芒沿著廣場的石縫擴散，村外的夜霧開始退去。"},
+		{"speaker": "村童・露米", "text": "月光回來了！"},
+		{"speaker": "長老・艾爾", "text": "等等……碎片上浮現的環形紋章，我從未在村中的紀錄裡見過。"},
+	]
+	if bool(GameState.flags.get("ruin_tablet_read", false)):
+		ending_lines.append({"speaker": "旅人", "text": "我在遺跡的石碑上看過相同的紋章。有人刻意抹去了它的名字。"})
+	ending_lines.append({"speaker": "旁白", "text": "遠方的夜霧中，某種沉睡已久的事物睜開了眼睛。"})
+	ending_lines.append({"speaker": "系統", "text": "序章〈熄滅的月燈〉完成。你仍可自由探索，或按 F9 讀取存檔。"})
+	dialogue_ui.show_dialogue(ending_lines)
 
 
 func _start_guardian_battle() -> void:
@@ -305,6 +421,152 @@ func _add_actor_interactable(interaction_id: String, prompt: String, world_posit
 	marker.outline_size = 10
 	marker.modulate = Color("ffe08a")
 	actor.add_child(marker)
+
+
+func _add_moon_lamp(world_position: Vector3) -> void:
+	var lamp := Interactable3D.new()
+	lamp.name = "MoonLamp"
+	lamp.interaction_id = "moon_lamp"
+	lamp.prompt_text = "查看中央月燈"
+	lamp.position = world_position
+	lamp.collision_layer = 8
+	lamp.collision_mask = 0
+	lamp.activated.connect(_handle_interaction)
+	_map_root.add_child(lamp)
+
+	var interaction_shape := CollisionShape3D.new()
+	interaction_shape.position.y = 0.85
+	var sphere_shape := SphereShape3D.new()
+	sphere_shape.radius = 0.9
+	interaction_shape.shape = sphere_shape
+	lamp.add_child(interaction_shape)
+
+	var base := MeshInstance3D.new()
+	base.position.y = 0.16
+	var base_mesh := CylinderMesh.new()
+	base_mesh.top_radius = 0.72
+	base_mesh.bottom_radius = 0.82
+	base_mesh.height = 0.32
+	base_mesh.radial_segments = 10
+	base.mesh = base_mesh
+	base.material_override = _make_material(PALETTE.stone_dark, 0.78, 0.35)
+	lamp.add_child(base)
+
+	var cradle := MeshInstance3D.new()
+	cradle.position.y = 0.82
+	var cradle_mesh := CylinderMesh.new()
+	cradle_mesh.top_radius = 0.12
+	cradle_mesh.bottom_radius = 0.28
+	cradle_mesh.height = 1.15
+	cradle_mesh.radial_segments = 8
+	cradle.mesh = cradle_mesh
+	cradle.material_override = _make_material(PALETTE.gold.darkened(0.38), 0.5, 0.62)
+	lamp.add_child(cradle)
+
+	_moon_lamp_core = MeshInstance3D.new()
+	_moon_lamp_core.name = "MoonLampCore"
+	_moon_lamp_core.position.y = 1.52
+	_moon_lamp_core.rotation_degrees = Vector3(0.0, 0.0, 45.0)
+	var core_mesh := PrismMesh.new()
+	core_mesh.size = Vector3(0.55, 0.9, 0.55)
+	_moon_lamp_core.mesh = core_mesh
+	lamp.add_child(_moon_lamp_core)
+
+	var halo := MeshInstance3D.new()
+	halo.position.y = 1.52
+	halo.rotation_degrees.x = 90.0
+	var halo_mesh := TorusMesh.new()
+	halo_mesh.inner_radius = 0.56
+	halo_mesh.outer_radius = 0.66
+	halo_mesh.rings = 12
+	halo_mesh.ring_segments = 8
+	halo.mesh = halo_mesh
+	halo.material_override = _make_material(PALETTE.gold, 0.35, 0.55, PALETTE.gold, 1.2)
+	lamp.add_child(halo)
+
+	_moon_lamp_light = OmniLight3D.new()
+	_moon_lamp_light.name = "MoonLampLight"
+	_moon_lamp_light.position.y = 1.52
+	_moon_lamp_light.omni_range = 7.5
+	lamp.add_child(_moon_lamp_light)
+
+	var marker := Label3D.new()
+	marker.text = "◇"
+	marker.position.y = 2.35
+	marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	marker.font_size = 48
+	marker.outline_size = 10
+	marker.modulate = Color("d9d2ff")
+	lamp.add_child(marker)
+	_update_moon_lamp_state()
+
+
+func _update_moon_lamp_state() -> void:
+	if not is_instance_valid(_moon_lamp_core) or not is_instance_valid(_moon_lamp_light):
+		return
+	var lamp_is_restored := GameState.quest_state == GameState.QuestState.COMPLETE
+	if lamp_is_restored:
+		_moon_lamp_core.material_override = _make_material(Color("fff1bd"), 0.12, 0.0, Color("a9fff1"), 5.2)
+		_moon_lamp_light.light_color = Color("b9fff0")
+		_moon_lamp_light.light_energy = 4.2
+	else:
+		_moon_lamp_core.material_override = _make_material(Color("77708f"), 0.6, 0.0, Color("625d82"), 0.45)
+		_moon_lamp_light.light_color = Color("8882ab")
+		_moon_lamp_light.light_energy = 0.28
+
+
+func _add_pedestal_interactable(interaction_id: String, prompt: String, world_position: Vector3, color: Color) -> void:
+	var pedestal := Interactable3D.new()
+	pedestal.name = interaction_id.capitalize()
+	pedestal.interaction_id = interaction_id
+	pedestal.prompt_text = prompt
+	pedestal.position = world_position
+	pedestal.collision_layer = 8
+	pedestal.collision_mask = 0
+	pedestal.activated.connect(_handle_interaction)
+	_map_root.add_child(pedestal)
+
+	var interaction_shape := CollisionShape3D.new()
+	interaction_shape.position.y = 0.55
+	var sphere_shape := SphereShape3D.new()
+	sphere_shape.radius = 0.75
+	interaction_shape.shape = sphere_shape
+	pedestal.add_child(interaction_shape)
+
+	var base := MeshInstance3D.new()
+	base.position.y = 0.25
+	var base_mesh := CylinderMesh.new()
+	base_mesh.top_radius = 0.42
+	base_mesh.bottom_radius = 0.52
+	base_mesh.height = 0.5
+	base_mesh.radial_segments = 8
+	base.mesh = base_mesh
+	base.material_override = _make_material(PALETTE.ruin.lightened(0.08), 0.84)
+	pedestal.add_child(base)
+
+	var focus := MeshInstance3D.new()
+	focus.position.y = 0.7
+	var focus_mesh := PrismMesh.new()
+	focus_mesh.size = Vector3(0.36, 0.7, 0.3)
+	focus.mesh = focus_mesh
+	focus.material_override = _make_material(color, 0.2, 0.0, color, 2.8)
+	pedestal.add_child(focus)
+
+	var light := OmniLight3D.new()
+	light.position.y = 0.75
+	light.light_color = color
+	light.light_energy = 1.5
+	light.omni_range = 2.6
+	pedestal.add_child(light)
+
+	var marker := Label3D.new()
+	marker.text = "◆"
+	marker.position.y = 1.4
+	marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	marker.font_size = 42
+	marker.outline_size = 9
+	marker.modulate = color.lightened(0.2)
+	pedestal.add_child(marker)
 
 
 func _add_portal(interaction_id: String, prompt: String, world_position: Vector3, color: Color) -> void:
@@ -644,6 +906,16 @@ func _run_playthrough_test() -> void:
 	_load_map("village", "default")
 	if not _test_require(GameState.quest_state == GameState.QuestState.NOT_STARTED, "new game quest state"):
 		return
+	if not _test_require(is_instance_valid(_moon_lamp_light) and _moon_lamp_light.light_energy < 1.0, "moon lamp starts dim"):
+		return
+
+	_handle_interaction("rumi")
+	if not _test_require(dialogue_ui.is_open() and GameState.mode == GameState.Mode.DIALOGUE, "village story dialogue"):
+		return
+	var village_dialogue_safety := 0
+	while dialogue_ui.is_open() and village_dialogue_safety < 6:
+		dialogue_ui.advance()
+		village_dialogue_safety += 1
 
 	GameState.start_quest()
 	if not _test_require(GameState.quest_state == GameState.QuestState.ACTIVE, "quest acceptance"):
@@ -654,6 +926,24 @@ func _run_playthrough_test() -> void:
 	await get_tree().process_frame
 	if not _test_require(GameState.current_map == "ruins" and _map_root.name == "Map_Ruins", "map transition to ruins"):
 		return
+
+	_handle_interaction("ruin_tablet")
+	var ruin_dialogue_safety := 0
+	while dialogue_ui.is_open() and ruin_dialogue_safety < 6:
+		dialogue_ui.advance()
+		ruin_dialogue_safety += 1
+	if not _test_require(bool(GameState.flags.get("ruin_tablet_read", false)), "optional ruin lore flag"):
+		return
+
+	GameState.player_hp = 22
+	GameState.player_mp = 0
+	_handle_interaction("moon_spring")
+	if not _test_require(GameState.player_hp == GameState.player_max_hp and GameState.player_mp == GameState.player_max_mp, "moon spring recovery"):
+		return
+	var spring_dialogue_safety := 0
+	while dialogue_ui.is_open() and spring_dialogue_safety < 6:
+		dialogue_ui.advance()
+		spring_dialogue_safety += 1
 
 	_start_guardian_battle()
 	if not _test_require(battle_ui.is_active() and GameState.mode == GameState.Mode.BATTLE, "battle start"):
@@ -687,6 +977,8 @@ func _run_playthrough_test() -> void:
 		dialogue_safety += 1
 	if not _test_require(GameState.quest_state == GameState.QuestState.COMPLETE and not GameState.inventory.has("moon_shard"), "quest turn-in"):
 		return
+	if not _test_require(is_instance_valid(_moon_lamp_light) and _moon_lamp_light.light_energy > 3.0, "moon lamp restored"):
+		return
 
 	GameState.player_hp = 1
 	_start_guardian_battle()
@@ -719,7 +1011,8 @@ func _run_playthrough_test() -> void:
 		GameState.quest_state == GameState.QuestState.COMPLETE
 		and GameState.player_hp == GameState.player_max_hp
 		and GameState.current_map == "village"
-		and GameState.saved_position.is_equal_approx(Vector3(2.25, 0.1, 3.5)),
+		and GameState.saved_position.is_equal_approx(Vector3(2.25, 0.1, 3.5))
+		and bool(GameState.flags.get("ruin_tablet_read", false)),
 		"save data restoration"
 	):
 		return

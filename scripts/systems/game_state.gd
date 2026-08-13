@@ -79,7 +79,7 @@ func start_quest() -> void:
 	if quest_state != QuestState.NOT_STARTED:
 		return
 	quest_state = QuestState.ACTIVE
-	notification_requested.emit("接受任務：月光碎片")
+	notification_requested.emit("接受主線：熄滅的月燈")
 	state_changed.emit()
 
 
@@ -145,6 +145,10 @@ func use_potion() -> bool:
 
 
 func restore_after_defeat() -> void:
+	restore_player()
+
+
+func restore_player() -> void:
 	player_hp = player_max_hp
 	player_mp = player_max_mp
 	state_changed.emit()
