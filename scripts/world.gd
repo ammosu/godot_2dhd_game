@@ -22,6 +22,14 @@ var _animated_sprites: Array[Sprite3D] = []
 var _ambient_time: float = 0.0
 var _moon_lamp_core: MeshInstance3D
 var _moon_lamp_light: OmniLight3D
+var _village_gate_portal: Interactable3D
+var _village_gate_left: Node3D
+var _village_gate_right: Node3D
+var _village_gate_seal: MeshInstance3D
+var _village_gate_seal_core: MeshInstance3D
+var _village_gate_light: OmniLight3D
+var _village_gate_marker: Label3D
+var _village_gate_is_open: bool = false
 
 var _map_label: Label
 var _quest_label: Label
@@ -50,6 +58,14 @@ func _ready() -> void:
 		GameState.flags["intro_seen"] = true
 		_load_map("ruins", "from_village")
 		_start_guardian_battle.call_deferred()
+	elif "--ruins-preview" in OS.get_cmdline_user_args():
+		GameState.flags["intro_seen"] = true
+		_load_map("ruins", "from_village")
+		player.global_position = Vector3(-7.0, 0.1, 6.5)
+	elif "--village-preview" in OS.get_cmdline_user_args():
+		GameState.flags["intro_seen"] = true
+		player.global_position = Vector3(0.0, 0.1, 6.0)
+		($CameraRig/Camera3D as Camera3D).fov = 45.0
 	elif not bool(GameState.flags.get("intro_seen", false)):
 		GameState.flags["intro_seen"] = true
 		_show_intro.call_deferred()
@@ -104,6 +120,14 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 		_map_root.free()
 	_moon_lamp_core = null
 	_moon_lamp_light = null
+	_village_gate_portal = null
+	_village_gate_left = null
+	_village_gate_right = null
+	_village_gate_seal = null
+	_village_gate_seal_core = null
+	_village_gate_light = null
+	_village_gate_marker = null
+	_village_gate_is_open = false
 	_map_root = Node3D.new()
 	_map_root.name = "Map_%s" % map_id.capitalize()
 	add_child(_map_root)
@@ -134,82 +158,114 @@ func _get_spawn_position(map_id: String, spawn_id: String) -> Vector3:
 	if map_id == "ruins":
 		match spawn_id:
 			"after_battle":
-				return Vector3(0.0, 0.1, 1.8)
+				return Vector3(0.0, 0.1, -5.8)
 			_:
-				return Vector3(0.0, 0.1, 5.3)
+				return Vector3(-4.2, 0.1, 9.6)
 	match spawn_id:
 		"from_ruins":
-			return Vector3(0.0, 0.1, -5.1)
+			return Vector3(0.0, 0.1, -11.7)
 		_:
-			return Vector3(0.0, 0.1, 2.0)
+			return Vector3(0.0, 0.1, 7.5)
 
 
 func _build_village() -> void:
-	_add_box("Ground", Vector3(0.0, -0.35, 0.0), Vector3(22.0, 0.7, 18.0), PALETTE.grass, true)
-	_add_box("CentralPlaza", Vector3(0.0, -0.02, 0.0), Vector3(7.0, 0.12, 6.5), PALETTE.stone, true)
-	_add_box("WaterNorth", Vector3(0.0, -0.23, -6.3), Vector3(8.5, 0.18, 3.6), PALETTE.water, false, 0.18)
+	_add_box("Ground", Vector3(0.0, -0.35, 0.0), Vector3(38.0, 0.7, 32.0), PALETTE.grass, true)
+	_add_box("CentralPlaza", Vector3(0.0, -0.02, 0.0), Vector3(10.5, 0.12, 8.5), PALETTE.stone, true)
+	_add_box("EastPond", Vector3(11.5, -0.23, -10.0), Vector3(9.0, 0.18, 5.0), PALETTE.water, false, 0.18)
 
-	for z_index in range(-7, 8):
-		_add_box("Path_%02d" % (z_index + 7), Vector3(0.0, 0.025, float(z_index)), Vector3(1.45, 0.08, 0.82), PALETTE.path, false)
-	for x_position in [-8.5, 8.5]:
-		_add_box("BoundaryWall", Vector3(x_position, 0.75, 0.0), Vector3(0.7, 1.8, 17.0), PALETTE.stone_dark, true)
-	for z_position in [-8.2, 8.2]:
-		_add_box("BoundaryWall", Vector3(0.0, 0.75, z_position), Vector3(17.0, 1.8, 0.7), PALETTE.stone_dark, true)
+	for z_index in range(-12, 13):
+		_add_box("NorthRoad_%02d" % (z_index + 12), Vector3(0.0, 0.025, float(z_index)), Vector3(1.6, 0.08, 0.84), PALETTE.path, false)
+	for x_index in range(-14, 15):
+		_add_box("MarketRoad_%02d" % (x_index + 14), Vector3(float(x_index), 0.023, 4.6), Vector3(0.84, 0.075, 1.35), PALETTE.path, false)
+		_add_box("GateRoad_%02d" % (x_index + 14), Vector3(float(x_index), 0.022, -4.8), Vector3(0.84, 0.07, 1.15), PALETTE.path.darkened(0.06), false)
+	for x_position in [-18.3, 18.3]:
+		_add_box("BoundaryWall", Vector3(x_position, 0.75, 0.0), Vector3(0.7, 1.8, 31.0), PALETTE.stone_dark, true)
+	for z_position in [-15.3, 15.3]:
+		_add_box("BoundaryWall", Vector3(0.0, 0.75, z_position), Vector3(37.3, 1.8, 0.7), PALETTE.stone_dark, true)
 
-	for column_position in [Vector3(-3.1, 0.0, -2.7), Vector3(3.1, 0.0, -2.7), Vector3(-3.1, 0.0, 2.7), Vector3(3.1, 0.0, 2.7)]:
+	for column_position in [Vector3(-4.6, 0.0, -3.6), Vector3(4.6, 0.0, -3.6), Vector3(-4.6, 0.0, 3.6), Vector3(4.6, 0.0, 3.6)]:
 		_add_column(column_position)
-	for tree_position in [Vector3(-6.0, 0.0, -4.5), Vector3(6.0, 0.0, -4.5), Vector3(-6.2, 0.0, 4.8), Vector3(6.2, 0.0, 4.8)]:
+	for tree_position in [
+		Vector3(-16.2, 0.0, -11.8), Vector3(-16.0, 0.0, -4.0), Vector3(-16.1, 0.0, 5.8), Vector3(-15.2, 0.0, 12.4),
+		Vector3(16.1, 0.0, -5.3), Vector3(16.0, 0.0, 3.8), Vector3(15.5, 0.0, 11.9),
+		Vector3(0.0, 0.0, 13.7), Vector3(14.8, 0.0, -13.0),
+	]:
 		_add_tree(tree_position)
-	for lamp_position in [Vector3(-1.65, 0.0, -3.5), Vector3(1.65, 0.0, -3.5), Vector3(-1.65, 0.0, 3.5), Vector3(1.65, 0.0, 3.5)]:
+	for lamp_position in [
+		Vector3(-1.75, 0.0, -8.2), Vector3(1.75, 0.0, -8.2), Vector3(-1.75, 0.0, -3.5), Vector3(1.75, 0.0, -3.5),
+		Vector3(-1.75, 0.0, 3.5), Vector3(1.75, 0.0, 3.5), Vector3(-1.75, 0.0, 8.6), Vector3(1.75, 0.0, 8.6),
+		Vector3(-8.0, 0.0, 4.0), Vector3(8.0, 0.0, 4.0),
+	]:
 		_add_lamp(lamp_position)
 
-	_add_crystal(Vector3(-5.0, 0.0, 0.2), 1.1)
-	_add_crystal(Vector3(5.2, 0.0, 0.8), 0.85)
-	_add_pixel_prop("res://assets/third_party/ninja_adventure/props/crate.png", Vector3(-2.55, 0.42, -1.45), 0.056, "PixelCrate")
-	_add_pixel_prop("res://assets/third_party/ninja_adventure/props/crate.png", Vector3(-2.1, 0.42, -1.65), 0.056, "PixelCrate")
-	_add_pixel_prop("res://assets/third_party/ninja_adventure/props/pot.png", Vector3(2.55, 0.43, -1.6), 0.054, "PixelPot")
-	for grass_position in [Vector3(-5.5, 0.35, 2.4), Vector3(-5.1, 0.35, 2.0), Vector3(5.7, 0.35, -2.1), Vector3(5.3, 0.35, -2.45)]:
+	# Eight homes form west, east, north, and south neighborhoods around the plaza.
+	_add_house(Vector3(-12.0, 0.0, -8.0), Color("806967"), Color("59465f"), -PI * 0.5)
+	_add_house(Vector3(-12.0, 0.0, 1.2), Color("73736a"), Color("5a4965"), -PI * 0.5)
+	_add_house(Vector3(12.0, 0.0, -3.0), Color("667776"), Color("47566b"), PI * 0.5)
+	_add_house(Vector3(12.0, 0.0, 6.0), Color("826b61"), Color("654957"), PI * 0.5)
+	_add_house(Vector3(-11.0, 0.0, 10.7), Color("765f70"), Color("50445f"), 0.0)
+	_add_house(Vector3(-4.8, 0.0, 11.0), Color("6c747d"), Color("46536a"), 0.0)
+	_add_house(Vector3(12.0, 0.0, 11.0), Color("706a80"), Color("514b6e"), 0.0)
+	_add_house(Vector3(-6.0, 0.0, -11.0), Color("7f725d"), Color("624b51"), PI)
+
+	_add_crystal(Vector3(-7.0, 0.0, -3.2), 1.1)
+	_add_crystal(Vector3(7.2, 0.0, 1.2), 0.85)
+	_add_crystal(Vector3(14.0, 0.0, 9.0), 0.72)
+	_add_pixel_prop("res://assets/third_party/ninja_adventure/props/crate.png", Vector3(-6.3, 0.42, 4.0), 0.056, "PixelCrate")
+	_add_pixel_prop("res://assets/third_party/ninja_adventure/props/crate.png", Vector3(-5.85, 0.42, 4.2), 0.056, "PixelCrate")
+	_add_pixel_prop("res://assets/third_party/ninja_adventure/props/pot.png", Vector3(6.2, 0.43, 4.0), 0.054, "PixelPot")
+	for grass_position in [Vector3(-14.0, 0.35, 3.0), Vector3(-13.5, 0.35, 2.6), Vector3(14.5, 0.35, -2.1), Vector3(14.0, 0.35, -2.45), Vector3(5.4, 0.35, 8.8)]:
 		_add_pixel_prop("res://assets/third_party/ninja_adventure/props/grass.png", grass_position, 0.045, "PixelGrass")
-	_add_pixel_prop("res://assets/third_party/ninja_adventure/characters/pig.png", Vector3(4.4, 0.46, 4.1), 0.058, "PixelPig", 2, true)
+	_add_pixel_prop("res://assets/third_party/ninja_adventure/characters/pig.png", Vector3(8.5, 0.46, 8.4), 0.058, "PixelPig", 2, true)
 
 	_add_moon_lamp(Vector3(0.0, 0.0, 0.0))
-	_add_actor_interactable("elder", "與長老交談", Vector3(-2.0, 0.0, 0.9), "res://assets/characters/wanderer.svg", 0.026, Color("e4b7ff"))
-	_add_actor_interactable("rumi", "與露米交談", Vector3(4.2, 0.0, 2.2), "res://assets/characters/wanderer.svg", 0.021, Color("ffd18a"))
-	_add_actor_interactable("noah", "與守門人交談", Vector3(1.9, 0.0, -4.5), "res://assets/characters/wanderer.svg", 0.027, Color("a9d8ff"))
-	_add_portal("portal_to_ruins", "前往北境遺跡", Vector3(0.0, 0.0, -6.0), Color("86d9ff"))
+	_add_actor_interactable("elder", "與長老交談", Vector3(-3.0, 0.0, 1.2), "res://assets/characters/wanderer.svg", 0.026, Color("e4b7ff"))
+	_add_actor_interactable("rumi", "與露米交談", Vector3(6.4, 0.0, 4.2), "res://assets/characters/wanderer.svg", 0.021, Color("ffd18a"))
+	_add_actor_interactable("noah", "與守門人交談", Vector3(2.2, 0.0, -10.9), "res://assets/characters/wanderer.svg", 0.027, Color("a9d8ff"))
+	_add_portal("portal_to_ruins", "前往北境遺跡", Vector3(0.0, 0.0, -13.1), Color("86d9ff"))
 
 
 func _build_ruins() -> void:
-	_add_box("RuinGround", Vector3(0.0, -0.35, 0.0), Vector3(18.0, 0.7, 18.0), Color("292b3e"), true)
-	_add_box("RuinCourt", Vector3(0.0, -0.02, -0.6), Vector3(8.5, 0.12, 8.5), PALETTE.ruin, true)
-	for z_index in range(-6, 7):
-		_add_box("MoonPath", Vector3(0.0, 0.025, float(z_index)), Vector3(1.35, 0.08, 0.82), Color("786c8d"), false)
-	for x_position in [-7.8, 7.8]:
-		_add_box("RuinBoundary", Vector3(x_position, 0.8, 0.0), Vector3(0.8, 2.0, 16.5), Color("242235"), true)
-	for z_position in [-7.8, 7.8]:
-		_add_box("RuinBoundary", Vector3(0.0, 0.8, z_position), Vector3(16.5, 2.0, 0.8), Color("242235"), true)
-	for column_position in [Vector3(-3.7, 0.0, -3.6), Vector3(3.7, 0.0, -3.6), Vector3(-3.7, 0.0, 2.2), Vector3(3.7, 0.0, 2.2)]:
+	_add_box("RuinGround", Vector3(0.0, -0.35, 0.0), Vector3(34.0, 0.7, 32.0), Color("292b3e"), true)
+	_add_box("RuinCourt", Vector3(0.0, -0.02, -2.0), Vector3(14.0, 0.12, 17.0), PALETTE.ruin, true)
+	_add_box("WestRuinCourt", Vector3(-9.0, -0.015, 4.0), Vector3(5.5, 0.1, 5.5), PALETTE.ruin.darkened(0.08), true)
+	_add_box("EastRuinCourt", Vector3(9.0, -0.015, -1.5), Vector3(5.5, 0.1, 5.5), PALETTE.ruin.darkened(0.08), true)
+	for z_index in range(-11, 13):
+		_add_box("MoonPath_%02d" % (z_index + 11), Vector3(0.0, 0.025, float(z_index)), Vector3(1.45, 0.08, 0.82), Color("786c8d"), false)
+	for x_index in range(-9, 10):
+		_add_box("RuinCrossPath_%02d" % (x_index + 9), Vector3(float(x_index), 0.022, 3.8), Vector3(0.82, 0.07, 1.18), Color("6c617f"), false)
+	for x_position in [-16.1, 16.1]:
+		_add_box("RuinBoundary", Vector3(x_position, 0.8, 0.0), Vector3(0.8, 2.0, 31.0), Color("242235"), true)
+	for z_position in [-15.1, 15.1]:
+		_add_box("RuinBoundary", Vector3(0.0, 0.8, z_position), Vector3(33.0, 2.0, 0.8), Color("242235"), true)
+	for column_position in [
+		Vector3(-6.2, 0.0, -8.8), Vector3(6.2, 0.0, -8.8), Vector3(-6.2, 0.0, -1.5), Vector3(6.2, 0.0, -1.5),
+		Vector3(-6.2, 0.0, 6.2), Vector3(6.2, 0.0, 6.2), Vector3(-11.0, 0.0, 3.8), Vector3(11.0, 0.0, -1.5),
+	]:
 		_add_column(column_position)
-	for crystal_data in [[Vector3(-5.5, 0.0, -1.2), 1.3], [Vector3(5.3, 0.0, -2.0), 1.0], [Vector3(-4.8, 0.0, 4.6), 0.75]]:
+	for crystal_data in [
+		[Vector3(-11.8, 0.0, -5.2), 1.3], [Vector3(11.5, 0.0, -7.0), 1.0], [Vector3(-12.0, 0.0, 9.0), 0.75],
+		[Vector3(10.5, 0.0, 7.8), 1.15], [Vector3(5.6, 0.0, 11.0), 0.72],
+	]:
 		_add_crystal(crystal_data[0], crystal_data[1])
-	for rubble_position in [Vector3(-2.6, 0.42, 4.0), Vector3(2.9, 0.42, 3.6), Vector3(-5.2, 0.42, -5.1)]:
+	for rubble_position in [Vector3(-4.6, 0.42, 8.0), Vector3(4.9, 0.42, 7.2), Vector3(-9.2, 0.42, -3.8), Vector3(8.4, 0.42, 3.7), Vector3(-3.4, 0.42, -10.8)]:
 		_add_pixel_prop("res://assets/third_party/ninja_adventure/props/crate.png", rubble_position, 0.052, "RuinSupply")
 
-	_add_pedestal_interactable("ruin_tablet", "閱讀風化石碑", Vector3(-2.8, 0.0, 1.8), Color("8f86ac"))
-	_add_pedestal_interactable("moon_spring", "觸碰月泉", Vector3(2.8, 0.0, 1.8), Color("76e5d5"))
-	_add_portal("portal_to_village", "返回暮光村", Vector3(0.0, 0.0, 6.1), Color("efb56d"))
+	_add_pedestal_interactable("ruin_tablet", "閱讀風化石碑", Vector3(-9.0, 0.0, 4.0), Color("8f86ac"))
+	_add_pedestal_interactable("moon_spring", "觸碰月泉", Vector3(9.0, 0.0, -1.5), Color("76e5d5"))
+	_add_portal("portal_to_village", "返回暮光村", Vector3(0.0, 0.0, 12.5), Color("efb56d"))
 	if not bool(GameState.flags.get("guardian_defeated", false)):
 		_add_actor_interactable(
 			"guardian",
 			"挑戰遺跡守衛",
-			Vector3(0.0, 0.0, -1.2),
+			Vector3(0.0, 0.0, -8.2),
 			"res://assets/third_party/ninja_adventure/characters/ninja_blue.png",
 			0.082,
 			Color("ca8cff"),
 			true
 		)
 	else:
-		_add_crystal(Vector3(0.0, 0.0, -1.2), 0.65)
+		_add_crystal(Vector3(0.0, 0.0, -8.2), 0.65)
 
 
 func _handle_interaction(interaction_id: String) -> void:
@@ -589,20 +645,127 @@ func _add_portal(interaction_id: String, prompt: String, world_position: Vector3
 	shape_node.shape = shape
 	portal.add_child(shape_node)
 
-	var mesh_instance := MeshInstance3D.new()
-	mesh_instance.position.y = 0.8
-	var mesh := PrismMesh.new()
-	mesh.size = Vector3(0.7, 1.6, 0.35)
-	mesh_instance.mesh = mesh
-	mesh_instance.material_override = _make_material(color, 0.15, 0.0, color, 3.4)
-	portal.add_child(mesh_instance)
+	var frame_material := _make_material(PALETTE.stone_dark.lightened(0.08), 0.86, 0.08)
+	var trim_material := _make_material(PALETTE.gold.darkened(0.18), 0.48, 0.72)
+	var door_material := _make_material(Color("263e4b"), 0.78, 0.16)
+	var door_dark_material := _make_material(Color("172630"), 0.9, 0.22)
+
+	_add_portal_box(portal, Vector3(-1.48, 1.45, 0.0), Vector3(0.52, 2.9, 0.62), frame_material)
+	_add_portal_box(portal, Vector3(1.48, 1.45, 0.0), Vector3(0.52, 2.9, 0.62), frame_material)
+	_add_portal_box(portal, Vector3(0.0, 2.88, 0.0), Vector3(3.48, 0.5, 0.66), frame_material)
+	_add_portal_box(portal, Vector3(-1.48, 3.18, 0.0), Vector3(0.72, 0.22, 0.78), trim_material)
+	_add_portal_box(portal, Vector3(1.48, 3.18, 0.0), Vector3(0.72, 0.22, 0.78), trim_material)
+	_add_portal_box(portal, Vector3(0.0, 0.09, 0.06), Vector3(3.35, 0.18, 0.82), frame_material)
+
+	var left_hinge := Node3D.new()
+	left_hinge.name = "LeftDoorHinge"
+	left_hinge.position = Vector3(-1.2, 1.48, 0.03)
+	portal.add_child(left_hinge)
+	_add_portal_box(left_hinge, Vector3(0.59, 0.0, 0.0), Vector3(1.18, 2.48, 0.18), door_material)
+	_add_portal_box(left_hinge, Vector3(0.59, 0.72, -0.12), Vector3(1.06, 0.1, 0.1), trim_material)
+	_add_portal_box(left_hinge, Vector3(0.59, -0.72, -0.12), Vector3(1.06, 0.1, 0.1), trim_material)
+	_add_portal_box(left_hinge, Vector3(0.59, 0.0, -0.11), Vector3(0.09, 2.25, 0.08), door_dark_material)
+
+	var right_hinge := Node3D.new()
+	right_hinge.name = "RightDoorHinge"
+	right_hinge.position = Vector3(1.2, 1.48, 0.03)
+	portal.add_child(right_hinge)
+	_add_portal_box(right_hinge, Vector3(-0.59, 0.0, 0.0), Vector3(1.18, 2.48, 0.18), door_material)
+	_add_portal_box(right_hinge, Vector3(-0.59, 0.72, -0.12), Vector3(1.06, 0.1, 0.1), trim_material)
+	_add_portal_box(right_hinge, Vector3(-0.59, -0.72, -0.12), Vector3(1.06, 0.1, 0.1), trim_material)
+	_add_portal_box(right_hinge, Vector3(-0.59, 0.0, -0.11), Vector3(0.09, 2.25, 0.08), door_dark_material)
+
+	var seal := MeshInstance3D.new()
+	seal.name = "MoonSeal"
+	seal.position = Vector3(0.0, 1.52, -0.19)
+	seal.rotation_degrees.x = 90.0
+	var seal_mesh := TorusMesh.new()
+	seal_mesh.inner_radius = 0.31
+	seal_mesh.outer_radius = 0.43
+	seal_mesh.rings = 12
+	seal_mesh.ring_segments = 8
+	seal.mesh = seal_mesh
+	seal.material_override = _make_material(color, 0.2, 0.35, color, 4.5)
+	portal.add_child(seal)
+
+	var seal_core := MeshInstance3D.new()
+	seal_core.name = "MoonSealCore"
+	seal_core.position = Vector3(0.0, 1.52, -0.2)
+	seal_core.rotation_degrees = Vector3(0.0, 0.0, 45.0)
+	var core_mesh := PrismMesh.new()
+	core_mesh.size = Vector3(0.25, 0.38, 0.14)
+	seal_core.mesh = core_mesh
+	seal_core.material_override = _make_material(color.lightened(0.18), 0.12, 0.0, color, 4.0)
+	portal.add_child(seal_core)
 
 	var light := OmniLight3D.new()
-	light.position.y = 0.8
+	light.position = Vector3(0.0, 1.55, -0.45)
 	light.light_color = color
-	light.light_energy = 2.6
-	light.omni_range = 4.0
+	light.light_energy = 1.7
+	light.omni_range = 3.4
 	portal.add_child(light)
+
+	var gate_sign := Label3D.new()
+	gate_sign.text = "月紋門"
+	gate_sign.position = Vector3(0.0, 3.13, -0.38)
+	gate_sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	gate_sign.font_size = 38
+	gate_sign.outline_size = 8
+	gate_sign.modulate = Color("f1d39a")
+	portal.add_child(gate_sign)
+
+	var marker := Label3D.new()
+	marker.position = Vector3(0.0, 3.72, 0.0)
+	marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	marker.font_size = 34
+	marker.outline_size = 8
+	marker.modulate = color.lightened(0.22)
+	portal.add_child(marker)
+
+	var starts_open := interaction_id != "portal_to_ruins" or GameState.quest_state != GameState.QuestState.NOT_STARTED
+	left_hinge.rotation.y = -1.22 if starts_open else 0.0
+	right_hinge.rotation.y = 1.22 if starts_open else 0.0
+	seal.transparency = 1.0 if starts_open else 0.0
+	seal_core.transparency = 1.0 if starts_open else 0.0
+	marker.text = "◇ 通往暮光村" if interaction_id == "portal_to_village" else ("◇ 門扉已開" if starts_open else "◆ 月印封鎖")
+	if interaction_id == "portal_to_ruins":
+		_village_gate_portal = portal
+		_village_gate_left = left_hinge
+		_village_gate_right = right_hinge
+		_village_gate_seal = seal
+		_village_gate_seal_core = seal_core
+		_village_gate_light = light
+		_village_gate_marker = marker
+		_village_gate_is_open = starts_open
+		portal.prompt_text = "穿過月紋門" if starts_open else "查看封印的月紋門"
+
+
+func _add_portal_box(parent: Node3D, local_position: Vector3, size: Vector3, material: Material) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.position = local_position
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mesh_instance.mesh = mesh
+	mesh_instance.material_override = material
+	parent.add_child(mesh_instance)
+	return mesh_instance
+
+
+func _update_village_gate_state() -> void:
+	if not is_instance_valid(_village_gate_left) or not is_instance_valid(_village_gate_right):
+		return
+	var should_open := GameState.quest_state != GameState.QuestState.NOT_STARTED
+	if should_open == _village_gate_is_open:
+		return
+	_village_gate_is_open = should_open
+	_village_gate_portal.prompt_text = "穿過月紋門" if should_open else "查看封印的月紋門"
+	_village_gate_marker.text = "◇ 門扉已開" if should_open else "◆ 月印封鎖"
+	_village_gate_light.light_energy = 2.6 if should_open else 1.7
+	var tween := create_tween().set_parallel(true)
+	tween.tween_property(_village_gate_left, "rotation:y", -1.22 if should_open else 0.0, 0.72).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(_village_gate_right, "rotation:y", 1.22 if should_open else 0.0, 0.72).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(_village_gate_seal, "transparency", 1.0 if should_open else 0.0, 0.36)
+	tween.tween_property(_village_gate_seal_core, "transparency", 1.0 if should_open else 0.0, 0.36)
 
 
 func _add_box(node_name: String, world_position: Vector3, size: Vector3, color: Color, collision: bool, metallic: float = 0.0) -> void:
@@ -622,6 +785,50 @@ func _add_box(node_name: String, world_position: Vector3, size: Vector3, color: 
 		box_shape.size = size
 		collision_shape.shape = box_shape
 		root.add_child(collision_shape)
+
+
+func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, rotation_y: float) -> void:
+	var house := StaticBody3D.new()
+	house.name = "VillageHouse"
+	house.position = world_position
+	house.rotation.y = rotation_y
+	_map_root.add_child(house)
+
+	var wall_material := _make_material(wall_color, 0.92)
+	var timber_material := _make_material(Color("352c38"), 0.86, 0.08)
+	var roof_material := _make_material(roof_color, 0.88, 0.12)
+	var window_material := _make_material(Color("f1c777"), 0.28, 0.0, Color("e7a957"), 2.1)
+	_add_portal_box(house, Vector3(0.0, 0.18, 0.0), Vector3(4.5, 0.35, 3.65), timber_material)
+	_add_portal_box(house, Vector3(0.0, 1.15, 0.0), Vector3(4.0, 1.9, 3.2), wall_material)
+	_add_portal_box(house, Vector3(-1.93, 1.18, -0.02), Vector3(0.16, 1.75, 3.28), timber_material)
+	_add_portal_box(house, Vector3(1.93, 1.18, -0.02), Vector3(0.16, 1.75, 3.28), timber_material)
+	_add_portal_box(house, Vector3(0.0, 1.7, -1.64), Vector3(3.85, 0.13, 0.12), timber_material)
+
+	var left_roof := _add_portal_box(house, Vector3(-1.0, 2.35, 0.0), Vector3(2.55, 0.34, 3.85), roof_material)
+	left_roof.rotation.z = -0.38
+	var right_roof := _add_portal_box(house, Vector3(1.0, 2.35, 0.0), Vector3(2.55, 0.34, 3.85), roof_material)
+	right_roof.rotation.z = 0.38
+	_add_portal_box(house, Vector3(0.0, 2.64, 0.0), Vector3(0.24, 0.3, 3.92), timber_material)
+
+	_add_portal_box(house, Vector3(0.0, 0.88, -1.66), Vector3(0.78, 1.42, 0.14), timber_material)
+	_add_portal_box(house, Vector3(-1.25, 1.18, -1.67), Vector3(0.62, 0.62, 0.11), window_material)
+	_add_portal_box(house, Vector3(1.25, 1.18, -1.67), Vector3(0.62, 0.62, 0.11), window_material)
+	_add_portal_box(house, Vector3(0.0, 0.12, -2.0), Vector3(1.35, 0.24, 0.72), timber_material)
+	_add_portal_box(house, Vector3(0.0, 1.55, -1.9), Vector3(1.3, 0.14, 0.62), roof_material)
+	_add_portal_box(house, Vector3(-1.15, 1.18, 1.67), Vector3(0.66, 0.62, 0.11), window_material)
+	_add_portal_box(house, Vector3(1.15, 1.18, 1.67), Vector3(0.66, 0.62, 0.11), window_material)
+	_add_portal_box(house, Vector3(-2.01, 1.18, -0.72), Vector3(0.11, 0.6, 0.62), window_material)
+	_add_portal_box(house, Vector3(-2.01, 1.18, 0.72), Vector3(0.11, 0.6, 0.62), window_material)
+	_add_portal_box(house, Vector3(2.01, 1.18, -0.72), Vector3(0.11, 0.6, 0.62), window_material)
+	_add_portal_box(house, Vector3(2.01, 1.18, 0.72), Vector3(0.11, 0.6, 0.62), window_material)
+	_add_portal_box(house, Vector3(1.15, 3.02, 0.72), Vector3(0.52, 1.15, 0.62), timber_material)
+
+	var collision_shape := CollisionShape3D.new()
+	collision_shape.position.y = 1.15
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(4.0, 2.3, 3.2)
+	collision_shape.shape = shape
+	house.add_child(collision_shape)
 
 
 func _add_column(world_position: Vector3) -> void:
@@ -886,6 +1093,7 @@ func _build_hud() -> void:
 func _refresh_hud() -> void:
 	if _map_label == null:
 		return
+	_update_village_gate_state()
 	_map_label.text = "WANDERLIGHT  /  %s" % ("北境遺跡" if GameState.current_map == "ruins" else "暮光村")
 	_quest_label.text = GameState.get_quest_text()
 	var filled_hearts := ceili(float(GameState.player_hp) / float(GameState.player_max_hp) * 5.0)
@@ -950,9 +1158,10 @@ func _run_playthrough_test() -> void:
 	_start_guardian_battle()
 	if not _test_require(battle_ui.is_active() and GameState.mode == GameState.Mode.BATTLE, "battle start"):
 		return
+	await get_tree().create_timer(0.42).timeout
 	for turn_index in range(3):
 		battle_ui.choose_action("skill")
-		await get_tree().create_timer(0.65).timeout
+		await get_tree().create_timer(1.72).timeout
 	if not _test_require(bool(GameState.flags.get("guardian_defeated", false)), "battle victory flag"):
 		return
 	if not _test_require(GameState.quest_state == GameState.QuestState.READY_TO_TURN_IN and int(GameState.inventory.get("moon_shard", 0)) == 1, "battle quest reward"):
@@ -984,8 +1193,9 @@ func _run_playthrough_test() -> void:
 
 	GameState.player_hp = 1
 	_start_guardian_battle()
+	await get_tree().create_timer(0.42).timeout
 	battle_ui.choose_action("attack")
-	await get_tree().create_timer(0.65).timeout
+	await get_tree().create_timer(2.12).timeout
 	if not _test_require(battle_ui.is_resolved() and not battle_ui.did_player_win(), "battle defeat state"):
 		return
 	battle_ui._finish_battle()
