@@ -6,6 +6,39 @@ const JOYSTICK_KNOB_RADIUS: float = 34.0
 const ACTION_RADIUS: float = 58.0
 const CAMERA_RADIUS: float = 36.0
 const MOVE_DEADZONE: float = 0.22
+const WEB_LANDSCAPE_LISTENER_SCRIPT: String = """
+(() => {
+	if (window.__wanderlightLandscapeListenerInstalled) {
+		return;
+	}
+	window.__wanderlightLandscapeListenerInstalled = true;
+	const lockLandscape = () => {
+		if (screen.orientation && typeof screen.orientation.lock === "function") {
+			return screen.orientation.lock("landscape").catch(() => {});
+		}
+		return Promise.resolve();
+	};
+	const requestLandscape = () => {
+		if (window.innerWidth >= window.innerHeight) {
+			return;
+		}
+		const root = document.documentElement;
+		if (document.fullscreenElement) {
+			void lockLandscape();
+			return;
+		}
+		if (typeof root.requestFullscreen === "function") {
+			void root.requestFullscreen({ navigationUI: "hide" }).then(lockLandscape, lockLandscape);
+			return;
+		}
+		if (typeof root.webkitRequestFullscreen === "function") {
+			root.webkitRequestFullscreen();
+		}
+		void lockLandscape();
+	};
+	document.addEventListener("pointerup", requestLandscape, { capture: true });
+})();
+"""
 
 const MOVE_ACTIONS: Array[StringName] = [
 	&"move_left",
@@ -37,6 +70,7 @@ func _ready() -> void:
 	_mobile_device = is_mobile_device()
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_process_input(_mobile_device)
+	_install_web_landscape_listener()
 	GameState.state_changed.connect(_refresh_visibility)
 	get_viewport().size_changed.connect(_on_viewport_size_changed)
 	_refresh_visibility()
@@ -48,7 +82,19 @@ func _exit_tree() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if not _mobile_device or not _landscape or GameState.mode != GameState.Mode.EXPLORE:
+	if not _mobile_device:
+		return
+	if not _landscape:
+		var pressed_touch := event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed
+		var pressed_click := (
+			event is InputEventMouseButton
+			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT
+			and (event as InputEventMouseButton).pressed
+		)
+		if pressed_touch or pressed_click:
+			accept_event()
+		return
+	if GameState.mode != GameState.Mode.EXPLORE:
 		return
 	if event is InputEventScreenTouch:
 		_handle_touch(event as InputEventScreenTouch)
@@ -195,12 +241,18 @@ func _draw_portrait_notice() -> void:
 	draw_rect(backdrop, Color(0.025, 0.02, 0.065, 0.88))
 	var center := size * 0.5
 	draw_arc(center + Vector2(0.0, -42.0), 46.0, -PI * 0.1, PI * 1.35, 40, Color("75d5ce"), 5.0, true)
-	_draw_centered_text(center + Vector2(0.0, 42.0), "請旋轉手機", 34)
-	_draw_centered_text(center + Vector2(0.0, 84.0), "橫向畫面更適合探索暮光村", 20)
+	_draw_centered_text(center + Vector2(0.0, 42.0), "點一下切換橫向", 34)
+	_draw_centered_text(center + Vector2(0.0, 84.0), "若瀏覽器未切換，請旋轉手機", 20)
+
+
+func _install_web_landscape_listener() -> void:
+	if not _mobile_device or not OS.has_feature("web"):
+		return
+	JavaScriptBridge.eval(WEB_LANDSCAPE_LISTENER_SCRIPT, true)
 
 
 func _refresh_visibility() -> void:
-	_landscape = size.x >= size.y
+	_landscape = _is_window_landscape()
 	if GameState.mode != GameState.Mode.EXPLORE:
 		_release_all_actions()
 	queue_redraw()
@@ -208,10 +260,18 @@ func _refresh_visibility() -> void:
 
 func _on_viewport_size_changed() -> void:
 	var was_landscape := _landscape
-	_landscape = size.x >= size.y
+	_landscape = _is_window_landscape()
 	if was_landscape and not _landscape:
 		_release_all_actions()
 	queue_redraw()
+
+
+func _is_window_landscape() -> bool:
+	if OS.has_feature("web"):
+		var web_landscape: Variant = JavaScriptBridge.eval("window.innerWidth >= window.innerHeight", true)
+		return bool(web_landscape)
+	var window_size := DisplayServer.window_get_size()
+	return window_size.x >= window_size.y
 
 
 func _release_all_actions() -> void:
