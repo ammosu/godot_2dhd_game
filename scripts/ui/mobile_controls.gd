@@ -118,8 +118,8 @@ func _draw() -> void:
 	draw_circle(base + knob_offset, JOYSTICK_KNOB_RADIUS, Color(0.47, 0.84, 0.81, 0.82))
 	draw_arc(base + knob_offset, JOYSTICK_KNOB_RADIUS, 0.0, TAU, 40, Color(0.92, 0.82, 0.56), 3.0, true)
 
-	_draw_round_button(_camera_left_center(), CAMERA_RADIUS, "↶", &"camera_rotate_left", Color(0.11, 0.09, 0.18, 0.78))
-	_draw_round_button(_camera_right_center(), CAMERA_RADIUS, "↷", &"camera_rotate_right", Color(0.11, 0.09, 0.18, 0.78))
+	_draw_round_button(_camera_left_center(), CAMERA_RADIUS, "", &"camera_rotate_left", Color(0.11, 0.09, 0.18, 0.78))
+	_draw_round_button(_camera_right_center(), CAMERA_RADIUS, "", &"camera_rotate_right", Color(0.11, 0.09, 0.18, 0.78))
 	_draw_round_button(_action_center(), ACTION_RADIUS, "互動", &"interact", Color(0.16, 0.62, 0.59, 0.88))
 	_draw_pill_button(_save_rect(), "存檔", &"save_game")
 	_draw_pill_button(_load_rect(), "讀檔", &"load_game")
@@ -215,7 +215,41 @@ func _draw_round_button(center: Vector2, radius: float, label: String, action: S
 	var button_color := color.lightened(0.16) if is_pressed else color
 	draw_circle(center, radius, button_color)
 	draw_arc(center, radius, 0.0, TAU, 48, Color(0.92, 0.76, 0.42, 0.9), 3.0, true)
-	_draw_centered_text(center, label, 23 if radius > 40.0 else 28)
+	if action == &"camera_rotate_left":
+		_draw_rotation_icon(center, false)
+	elif action == &"camera_rotate_right":
+		_draw_rotation_icon(center, true)
+	else:
+		_draw_centered_text(center, label, 23 if radius > 40.0 else 28)
+
+
+func _draw_rotation_icon(center: Vector2, clockwise: bool) -> void:
+	const ICON_RADIUS: float = 13.0
+	const ICON_SEGMENTS: int = 20
+	const ICON_SWEEP: float = PI * 1.45
+	const ARROW_LENGTH: float = 8.0
+	const ARROW_HALF_WIDTH: float = 5.0
+	var direction := 1.0 if clockwise else -1.0
+	var start_angle := -PI * 0.85 if clockwise else PI * 0.85
+	var points := PackedVector2Array()
+	for index in range(ICON_SEGMENTS + 1):
+		var progress := float(index) / float(ICON_SEGMENTS)
+		var angle := start_angle + ICON_SWEEP * direction * progress
+		points.append(center + Vector2.from_angle(angle) * ICON_RADIUS)
+	var icon_color := Color("fff2d2")
+	draw_polyline(points, icon_color, 4.0, true)
+
+	var end_angle := start_angle + ICON_SWEEP * direction
+	var arrow_tip := points[points.size() - 1]
+	var tangent := Vector2(-sin(end_angle), cos(end_angle)) * direction
+	var backward := -tangent
+	var normal := Vector2(-tangent.y, tangent.x)
+	var arrow_points := PackedVector2Array([
+		arrow_tip,
+		arrow_tip + backward * ARROW_LENGTH + normal * ARROW_HALF_WIDTH,
+		arrow_tip + backward * ARROW_LENGTH - normal * ARROW_HALF_WIDTH,
+	])
+	draw_colored_polygon(arrow_points, icon_color)
 
 
 func _draw_pill_button(rect: Rect2, label: String, action: StringName) -> void:
