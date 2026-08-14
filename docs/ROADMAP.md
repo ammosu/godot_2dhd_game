@@ -24,7 +24,8 @@
 ## Phase 4 — Production
 
 - Chunk streaming、MultiMesh、LOD、遮擋剔除與畫質階層
-- 控制器重綁、鍵盤／滑鼠、觸控與無障礙設定
+- [x] Web 行動裝置偵測、探索觸控操作與可點按的對話／戰鬥流程
+- 控制器重綁與無障礙設定
 - 已有 headless 完整 playthrough smoke test；下一步加入單元測試、匯出 preset 與 CI
 - 音樂、美術、字型與第三方套件的 SPDX／授權盤點
 

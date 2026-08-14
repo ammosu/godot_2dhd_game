@@ -4,6 +4,7 @@ extends CanvasLayer
 var _root: Control
 var _speaker_label: Label
 var _body_label: Label
+var _hint_label: Label
 var _lines: Array = []
 var _line_index: int = 0
 var _finished_callback: Callable
@@ -44,7 +45,11 @@ func is_open() -> bool:
 func _unhandled_input(event: InputEvent) -> void:
 	if not _root.visible or event.is_echo():
 		return
-	if event.is_action_pressed("interact") or event.is_action_pressed("ui_accept"):
+	if (
+		event.is_action_pressed("interact")
+		or event.is_action_pressed("ui_accept")
+		or (event is InputEventScreenTouch and event.pressed)
+	):
 		advance()
 		get_viewport().set_input_as_handled()
 
@@ -113,9 +118,9 @@ func _build_ui() -> void:
 	_body_label.add_theme_font_size_override("font_size", 20)
 	content.add_child(_body_label)
 
-	var hint := Label.new()
-	hint.text = "Space / Enter：繼續"
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	hint.add_theme_color_override("font_color", Color("b8a9bc"))
-	content.add_child(hint)
+	_hint_label = Label.new()
+	_hint_label.text = "點一下：繼續" if MobileControls.is_mobile_device() else "Space / Enter：繼續"
+	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_hint_label.add_theme_color_override("font_color", Color("b8a9bc"))
+	content.add_child(_hint_label)
 	_root.visible = false

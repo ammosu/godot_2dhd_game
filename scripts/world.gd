@@ -27,6 +27,7 @@ var _map_label: Label
 var _quest_label: Label
 var _prompt_label: Label
 var _notice_label: Label
+var _controls_label: Label
 var _heart_atlases: Array[AtlasTexture] = []
 var _notice_generation: int = 0
 var _test_mode: bool = false
@@ -70,7 +71,8 @@ func _process(delta: float) -> void:
 		_moon_lamp_light.light_energy = base_energy + sin(_ambient_time * 2.2) * pulse_strength
 	if _prompt_label != null:
 		var prompt := player.get_interaction_prompt() if GameState.mode == GameState.Mode.EXPLORE else ""
-		_prompt_label.text = "Space：%s" % prompt if not prompt.is_empty() else ""
+		var prompt_prefix := "互動：" if MobileControls.is_mobile_device() else "Space："
+		_prompt_label.text = "%s%s" % [prompt_prefix, prompt] if not prompt.is_empty() else ""
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -89,7 +91,7 @@ func _show_intro() -> void:
 	dialogue_ui.show_dialogue([
 		{"speaker": "旁白", "text": "月光已經連續三晚沒有照進暮光村。村莊中央的月燈，也只剩最後一點微光。"},
 		{"speaker": "旁白", "text": "夜霧正在村外聚集。先四處看看，再與廣場左側的長老交談。"},
-		{"speaker": "系統", "text": "使用 WASD 或方向鍵移動；靠近頭上有記號的人或物件後，按 Space 互動。"},
+		{"speaker": "系統", "text": "使用左側搖桿移動；靠近頭上有記號的人或物件後，點右側「互動」。" if MobileControls.is_mobile_device() else "使用 WASD 或方向鍵移動；靠近頭上有記號的人或物件後，按 Space 互動。"},
 	])
 
 
@@ -822,10 +824,10 @@ func _build_hud() -> void:
 	_quest_label.add_theme_color_override("font_color", Color("fff2d2"))
 	_quest_label.add_theme_font_size_override("font_size", 17)
 	info.add_child(_quest_label)
-	var controls := Label.new()
-	controls.text = "WASD 移動｜Space 互動｜Q/E 鏡頭｜F5 存檔｜F9 讀檔"
-	controls.add_theme_color_override("font_color", Color("b8a9bc"))
-	info.add_child(controls)
+	_controls_label = Label.new()
+	_controls_label.text = "左側移動｜右側互動｜↶/↷ 鏡頭｜右上存讀檔" if MobileControls.is_mobile_device() else "WASD 移動｜Space 互動｜Q/E 鏡頭｜F5 存檔｜F9 讀檔"
+	_controls_label.add_theme_color_override("font_color", Color("b8a9bc"))
+	info.add_child(_controls_label)
 
 	var heart_row := HBoxContainer.new()
 	heart_row.set_anchors_preset(Control.PRESET_TOP_RIGHT)

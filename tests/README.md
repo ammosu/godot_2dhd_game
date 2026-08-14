@@ -21,3 +21,11 @@ godot --headless --path . -- --playthrough-test
 ```text
 PLAYTHROUGH_TEST_PASS dialogue quest maps save battle
 ```
+
+需要在桌面上檢查手機介面是否能正確排版時，可用強制開關啟動：
+
+```bash
+godot --path . -- --mobile-controls
+```
+
+正式 Web 版會依 `web_android`／`web_ios` feature tag 自動啟用；直向畫面會提示玩家將手機旋轉為橫向。

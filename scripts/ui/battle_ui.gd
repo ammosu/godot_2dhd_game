@@ -169,9 +169,9 @@ func _set_actions_enabled(enabled: bool) -> void:
 
 func _make_action_button(text: String, action: String) -> Button:
 	var button := Button.new()
-	button.text = text
-	button.custom_minimum_size = Vector2(220.0, 56.0)
-	button.add_theme_font_size_override("font_size", 18)
+	button.text = text.replace("[1] ", "").replace("[2] ", "").replace("[3] ", "").replace("[4] ", "") if MobileControls.is_mobile_device() else text
+	button.custom_minimum_size = Vector2(220.0, 84.0 if MobileControls.is_mobile_device() else 56.0)
+	button.add_theme_font_size_override("font_size", 20 if MobileControls.is_mobile_device() else 18)
 	button.pressed.connect(func() -> void: choose_action(action))
 	_action_buttons.append(button)
 	return button
@@ -194,9 +194,9 @@ func _build_ui() -> void:
 	panel.anchor_right = 0.5
 	panel.anchor_bottom = 0.5
 	panel.offset_left = -390.0
-	panel.offset_top = -285.0
+	panel.offset_top = -325.0 if MobileControls.is_mobile_device() else -285.0
 	panel.offset_right = 390.0
-	panel.offset_bottom = 285.0
+	panel.offset_bottom = 325.0 if MobileControls.is_mobile_device() else 285.0
 	_root.add_child(panel)
 
 	var panel_style := StyleBoxFlat.new()

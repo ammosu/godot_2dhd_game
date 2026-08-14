@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/world.gd" id="1_world"]
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="2_player"]
 [ext_resource type="Script" path="res://scripts/camera_rig.gd" id="3_camera"]
 [ext_resource type="Script" path="res://scripts/ui/dialogue_ui.gd" id="4_dialogue"]
 [ext_resource type="Script" path="res://scripts/ui/battle_ui.gd" id="5_battle"]
+[ext_resource type="Script" path="res://scripts/ui/mobile_controls.gd" id="6_mobile"]
 
 [node name="PrototypeWorld" type="Node3D"]
 script = ExtResource("1_world")
@@ -27,3 +28,16 @@ script = ExtResource("4_dialogue")
 
 [node name="BattleUI" type="CanvasLayer" parent="."]
 script = ExtResource("5_battle")
+
+[node name="MobileControls" type="CanvasLayer" parent="."]
+layer = 50
+
+[node name="ControlPad" type="Control" parent="MobileControls"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("6_mobile")
