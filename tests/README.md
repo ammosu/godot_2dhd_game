@@ -28,4 +28,4 @@ PLAYTHROUGH_TEST_PASS dialogue quest maps save battle
 godot --path . -- --mobile-controls
 ```
 
-正式 Web 版會依 `web_android`／`web_ios` feature tag 自動啟用；直向畫面會提示玩家將手機旋轉為橫向。
+正式 Web 版會依 `web_android`／`web_ios` feature tag 自動啟用；行動畫面以橫向設計，若瀏覽器不允許強制方向，直向畫面會提示玩家旋轉手機。
