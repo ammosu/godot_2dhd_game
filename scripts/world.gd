@@ -1,6 +1,8 @@
 class_name PrototypeWorld
 extends Node3D
 
+const MiniMapControl = preload("res://scripts/ui/mini_map.gd")
+
 const PALETTE := {
 	"stone": Color("686176"),
 	"stone_dark": Color("343246"),
@@ -11,6 +13,10 @@ const PALETTE := {
 	"crystal": Color("75d5ce"),
 	"ruin": Color("443d55"),
 }
+const MAIN_QUEST_MARKER: StringName = &"main"
+const SIDE_CONTENT_MARKER: StringName = &"side"
+const MAIN_QUEST_MARKER_COLOR := Color("ffd45c")
+const SIDE_CONTENT_MARKER_COLOR := Color("64e6ff")
 
 @onready var player: Wanderer = $Player
 @onready var dialogue_ui: DialogueUI = $DialogueUI
@@ -30,12 +36,15 @@ var _village_gate_seal_core: MeshInstance3D
 var _village_gate_light: OmniLight3D
 var _village_gate_marker: Label3D
 var _village_gate_is_open: bool = false
+var _portal_transition_pending: bool = false
+var _quest_markers: Dictionary = {}
 
 var _map_label: Label
 var _quest_label: Label
 var _prompt_label: Label
 var _notice_label: Label
 var _controls_label: Label
+var _mini_map: MiniMapControl
 var _heart_atlases: Array[AtlasTexture] = []
 var _notice_generation: int = 0
 var _test_mode: bool = false
@@ -85,6 +94,8 @@ func _process(delta: float) -> void:
 		var base_energy := 4.2 if lamp_is_restored else 0.28
 		var pulse_strength := 0.45 if lamp_is_restored else 0.08
 		_moon_lamp_light.light_energy = base_energy + sin(_ambient_time * 2.2) * pulse_strength
+	if is_instance_valid(_mini_map):
+		_mini_map.set_player_state(player.global_position, player.velocity)
 	if _prompt_label != null:
 		var prompt := player.get_interaction_prompt() if GameState.mode == GameState.Mode.EXPLORE else ""
 		var prompt_prefix := "互動：" if MobileControls.is_mobile_device() else "Space："
@@ -128,6 +139,8 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 	_village_gate_light = null
 	_village_gate_marker = null
 	_village_gate_is_open = false
+	_portal_transition_pending = false
+	_quest_markers.clear()
 	_map_root = Node3D.new()
 	_map_root.name = "Map_%s" % map_id.capitalize()
 	add_child(_map_root)
@@ -219,8 +232,8 @@ func _build_village() -> void:
 	_add_pixel_prop("res://assets/third_party/ninja_adventure/characters/pig.png", Vector3(8.5, 0.46, 8.4), 0.058, "PixelPig", 2, true)
 
 	_add_moon_lamp(Vector3(0.0, 0.0, 0.0))
-	_add_actor_interactable("elder", "與長老交談", Vector3(-3.0, 0.0, 1.2), "res://assets/characters/wanderer.svg", 0.026, Color("e4b7ff"))
-	_add_actor_interactable("rumi", "與露米交談", Vector3(6.4, 0.0, 4.2), "res://assets/characters/wanderer.svg", 0.021, Color("ffd18a"))
+	_add_actor_interactable("elder", "與長老交談", Vector3(-3.0, 0.0, 1.2), "res://assets/characters/wanderer.svg", 0.026, Color("e4b7ff"), false, MAIN_QUEST_MARKER)
+	_add_actor_interactable("rumi", "與露米交談", Vector3(6.4, 0.0, 4.2), "res://assets/characters/wanderer.svg", 0.021, Color("ffd18a"), false, SIDE_CONTENT_MARKER)
 	_add_actor_interactable("noah", "與守門人交談", Vector3(2.2, 0.0, -10.9), "res://assets/characters/wanderer.svg", 0.027, Color("a9d8ff"))
 	_add_portal("portal_to_ruins", "前往北境遺跡", Vector3(0.0, 0.0, -13.1), Color("86d9ff"))
 
@@ -262,7 +275,8 @@ func _build_ruins() -> void:
 			"res://assets/third_party/ninja_adventure/characters/ninja_blue.png",
 			0.082,
 			Color("ca8cff"),
-			true
+			true,
+			MAIN_QUEST_MARKER
 		)
 	else:
 		_add_crystal(Vector3(0.0, 0.0, -8.2), 0.65)
@@ -279,15 +293,9 @@ func _handle_interaction(interaction_id: String) -> void:
 		"moon_lamp":
 			_inspect_moon_lamp()
 		"portal_to_ruins":
-			if GameState.quest_state == GameState.QuestState.NOT_STARTED:
-				dialogue_ui.show_dialogue([
-					{"speaker": "古老門扉", "text": "藍色紋路一閃即逝，門扉沒有開啟。"},
-					{"speaker": "守門人・諾亞", "text": "它只聽從長老的月印。先去廣場找艾爾長老吧。"},
-				])
-			else:
-				GameState.request_map("ruins", "from_village")
+			_try_enter_portal(interaction_id)
 		"portal_to_village":
-			GameState.request_map("village", "from_ruins")
+			_try_enter_portal(interaction_id)
 		"ruin_tablet":
 			_read_ruin_tablet()
 		"moon_spring":
@@ -323,6 +331,9 @@ func _talk_to_elder() -> void:
 
 
 func _talk_to_rumi() -> void:
+	if not bool(GameState.flags.get("rumi_tip_seen", false)):
+		GameState.flags["rumi_tip_seen"] = true
+		GameState.state_changed.emit()
 	match GameState.quest_state:
 		GameState.QuestState.NOT_STARTED:
 			dialogue_ui.show_dialogue([
@@ -440,7 +451,7 @@ func _on_battle_finished(victory: bool) -> void:
 		], func() -> void: GameState.request_map("village", "default"))
 
 
-func _add_actor_interactable(interaction_id: String, prompt: String, world_position: Vector3, texture_path: String, pixel_size: float, tint: Color, atlas_character: bool = false) -> void:
+func _add_actor_interactable(interaction_id: String, prompt: String, world_position: Vector3, texture_path: String, pixel_size: float, tint: Color, atlas_character: bool = false, quest_marker_kind: StringName = &"") -> void:
 	var actor := Interactable3D.new()
 	actor.name = interaction_id.capitalize()
 	actor.interaction_id = interaction_id
@@ -471,14 +482,48 @@ func _add_actor_interactable(interaction_id: String, prompt: String, world_posit
 		sprite.vframes = 7
 	actor.add_child(sprite)
 
+	if quest_marker_kind.is_empty():
+		var interaction_marker := Label3D.new()
+		interaction_marker.name = "InteractionMarker"
+		interaction_marker.text = "◆"
+		interaction_marker.position.y = 1.72
+		interaction_marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		interaction_marker.font_size = 48
+		interaction_marker.outline_size = 10
+		interaction_marker.modulate = Color("ffe08a")
+		actor.add_child(interaction_marker)
+	else:
+		_add_quest_marker(actor, interaction_id, quest_marker_kind)
+
+
+func _add_quest_marker(actor: Interactable3D, interaction_id: String, marker_kind: StringName) -> void:
 	var marker := Label3D.new()
-	marker.text = "◆"
-	marker.position.y = 1.72
+	marker.name = "QuestMarker"
+	marker.text = "!"
+	marker.position.y = 1.82
 	marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	marker.font_size = 48
-	marker.outline_size = 10
-	marker.modulate = Color("ffe08a")
+	marker.font_size = 64
+	marker.outline_size = 12
+	marker.modulate = SIDE_CONTENT_MARKER_COLOR if marker_kind == SIDE_CONTENT_MARKER else MAIN_QUEST_MARKER_COLOR
 	actor.add_child(marker)
+	_quest_markers[interaction_id] = marker
+	_update_quest_markers()
+
+
+func _update_quest_markers() -> void:
+	for interaction_id: String in _quest_markers:
+		var marker := _quest_markers[interaction_id] as Label3D
+		if not is_instance_valid(marker):
+			continue
+		match interaction_id:
+			"elder":
+				marker.visible = GameState.quest_state in [GameState.QuestState.NOT_STARTED, GameState.QuestState.READY_TO_TURN_IN]
+			"rumi":
+				marker.visible = not bool(GameState.flags.get("rumi_tip_seen", false))
+			"guardian":
+				marker.visible = GameState.quest_state == GameState.QuestState.ACTIVE and not bool(GameState.flags.get("guardian_defeated", false))
+			_:
+				marker.visible = true
 
 
 func _add_moon_lamp(world_position: Vector3) -> void:
@@ -634,14 +679,16 @@ func _add_portal(interaction_id: String, prompt: String, world_position: Vector3
 	portal.prompt_text = prompt
 	portal.position = world_position
 	portal.collision_layer = 8
-	portal.collision_mask = 0
+	portal.collision_mask = 1
+	portal.monitoring = true
 	portal.activated.connect(_handle_interaction)
+	portal.body_entered.connect(_on_portal_body_entered.bind(interaction_id))
 	_map_root.add_child(portal)
 
 	var shape_node := CollisionShape3D.new()
 	shape_node.position.y = 0.8
-	var shape := SphereShape3D.new()
-	shape.radius = 1.1
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(2.2, 1.6, 0.6)
 	shape_node.shape = shape
 	portal.add_child(shape_node)
 
@@ -727,7 +774,8 @@ func _add_portal(interaction_id: String, prompt: String, world_position: Vector3
 	right_hinge.rotation.y = 1.22 if starts_open else 0.0
 	seal.transparency = 1.0 if starts_open else 0.0
 	seal_core.transparency = 1.0 if starts_open else 0.0
-	marker.text = "◇ 通往暮光村" if interaction_id == "portal_to_village" else ("◇ 門扉已開" if starts_open else "◆ 月印封鎖")
+	marker.text = "◇ 穿過前往暮光村" if interaction_id == "portal_to_village" else ("◇ 穿過前往北境遺跡" if starts_open else "◆ 月印封鎖")
+	portal.prompt_text = "" if starts_open else "查看封印的月紋門"
 	if interaction_id == "portal_to_ruins":
 		_village_gate_portal = portal
 		_village_gate_left = left_hinge
@@ -737,7 +785,29 @@ func _add_portal(interaction_id: String, prompt: String, world_position: Vector3
 		_village_gate_light = light
 		_village_gate_marker = marker
 		_village_gate_is_open = starts_open
-		portal.prompt_text = "穿過月紋門" if starts_open else "查看封印的月紋門"
+
+
+func _on_portal_body_entered(body: Node3D, interaction_id: String) -> void:
+	if body != player:
+		return
+	_try_enter_portal(interaction_id)
+
+
+func _try_enter_portal(interaction_id: String) -> void:
+	if _portal_transition_pending or GameState.is_input_locked():
+		return
+	if interaction_id == "portal_to_ruins":
+		if GameState.quest_state == GameState.QuestState.NOT_STARTED:
+			dialogue_ui.show_dialogue([
+				{"speaker": "古老門扉", "text": "藍色紋路一閃即逝，門扉沒有開啟。"},
+				{"speaker": "守門人・諾亞", "text": "它只聽從長老的月印。先去廣場找艾爾長老吧。"},
+			])
+			return
+		_portal_transition_pending = true
+		GameState.request_map("ruins", "from_village")
+	elif interaction_id == "portal_to_village":
+		_portal_transition_pending = true
+		GameState.request_map("village", "from_ruins")
 
 
 func _add_portal_box(parent: Node3D, local_position: Vector3, size: Vector3, material: Material) -> MeshInstance3D:
@@ -758,8 +828,8 @@ func _update_village_gate_state() -> void:
 	if should_open == _village_gate_is_open:
 		return
 	_village_gate_is_open = should_open
-	_village_gate_portal.prompt_text = "穿過月紋門" if should_open else "查看封印的月紋門"
-	_village_gate_marker.text = "◇ 門扉已開" if should_open else "◆ 月印封鎖"
+	_village_gate_portal.prompt_text = "" if should_open else "查看封印的月紋門"
+	_village_gate_marker.text = "◇ 穿過前往北境遺跡" if should_open else "◆ 月印封鎖"
 	_village_gate_light.light_energy = 2.6 if should_open else 1.7
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(_village_gate_left, "rotation:y", -1.22 if should_open else 0.0, 0.72).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN_OUT)
@@ -1055,6 +1125,17 @@ func _build_hud() -> void:
 		heart.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		heart_row.add_child(heart)
 
+	_mini_map = MiniMapControl.new()
+	_mini_map.name = "MiniMap"
+	_mini_map.anchor_left = 1.0
+	_mini_map.anchor_right = 1.0
+	_mini_map.offset_left = -250.0
+	_mini_map.offset_right = -24.0
+	_mini_map.offset_top = 128.0 if MobileControls.is_mobile_device() else 62.0
+	_mini_map.offset_bottom = _mini_map.offset_top + 176.0
+	_mini_map.theme = GameState.ui_theme
+	hud.add_child(_mini_map)
+
 	_prompt_label = Label.new()
 	_prompt_label.anchor_left = 0.5
 	_prompt_label.anchor_top = 1.0
@@ -1094,11 +1175,41 @@ func _refresh_hud() -> void:
 	if _map_label == null:
 		return
 	_update_village_gate_state()
+	_update_quest_markers()
+	_update_mini_map_targets()
 	_map_label.text = "WANDERLIGHT  /  %s" % ("北境遺跡" if GameState.current_map == "ruins" else "暮光村")
 	_quest_label.text = GameState.get_quest_text()
 	var filled_hearts := ceili(float(GameState.player_hp) / float(GameState.player_max_hp) * 5.0)
 	for index in range(_heart_atlases.size()):
 		_heart_atlases[index].region = Rect2(64.0 if index < filled_hearts else 0.0, 0.0, 16.0, 16.0)
+
+
+func _update_mini_map_targets() -> void:
+	if not is_instance_valid(_mini_map):
+		return
+	_mini_map.set_map(GameState.current_map)
+	var main_target_position := Vector3.ZERO
+	var main_target_visible := false
+	var optional_target_position := Vector3.ZERO
+	var optional_target_visible := false
+	if GameState.current_map == "village":
+		match GameState.quest_state:
+			GameState.QuestState.NOT_STARTED, GameState.QuestState.READY_TO_TURN_IN:
+				main_target_position = Vector3(-3.0, 0.0, 1.2)
+				main_target_visible = true
+			GameState.QuestState.ACTIVE:
+				main_target_position = Vector3(0.0, 0.0, -13.1)
+				main_target_visible = true
+		optional_target_position = Vector3(6.4, 0.0, 4.2)
+		optional_target_visible = not bool(GameState.flags.get("rumi_tip_seen", false))
+	elif GameState.quest_state == GameState.QuestState.ACTIVE:
+		main_target_position = Vector3(0.0, 0.0, -8.2)
+		main_target_visible = not bool(GameState.flags.get("guardian_defeated", false))
+	elif GameState.quest_state == GameState.QuestState.READY_TO_TURN_IN:
+		main_target_position = Vector3(0.0, 0.0, 12.5)
+		main_target_visible = true
+	_mini_map.set_main_target(main_target_position, main_target_visible)
+	_mini_map.set_optional_target(optional_target_position, optional_target_visible)
 
 
 func _show_notice(message: String) -> void:
@@ -1118,6 +1229,31 @@ func _run_playthrough_test() -> void:
 		return
 	if not _test_require(is_instance_valid(_moon_lamp_light) and _moon_lamp_light.light_energy < 1.0, "moon lamp starts dim"):
 		return
+	if not _test_require(
+		is_instance_valid(_mini_map)
+		and _mini_map.get_map_id() == "village"
+		and _mini_map.has_main_target()
+		and _mini_map.has_optional_target(),
+		"village minimap and quest targets"
+	):
+		return
+	var elder_quest_marker := _map_root.get_node_or_null("Elder/QuestMarker") as Label3D
+	var rumi_quest_marker := _map_root.get_node_or_null("Rumi/QuestMarker") as Label3D
+	if not _test_require(
+		elder_quest_marker != null
+		and elder_quest_marker.text == "!"
+		and elder_quest_marker.visible,
+		"main quest giver marker"
+	):
+		return
+	if not _test_require(
+		rumi_quest_marker != null
+		and rumi_quest_marker.text == "!"
+		and rumi_quest_marker.visible
+		and rumi_quest_marker.modulate != elder_quest_marker.modulate,
+		"optional content marker color"
+	):
+		return
 
 	_handle_interaction("rumi")
 	if not _test_require(dialogue_ui.is_open() and GameState.mode == GameState.Mode.DIALOGUE, "village story dialogue"):
@@ -1126,15 +1262,33 @@ func _run_playthrough_test() -> void:
 	while dialogue_ui.is_open() and village_dialogue_safety < 6:
 		dialogue_ui.advance()
 		village_dialogue_safety += 1
+	if not _test_require(not rumi_quest_marker.visible, "optional marker clears after dialogue"):
+		return
+	if not _test_require(not _mini_map.has_optional_target(), "optional minimap target clears after dialogue"):
+		return
 
 	GameState.start_quest()
 	if not _test_require(GameState.quest_state == GameState.QuestState.ACTIVE, "quest acceptance"):
 		return
+	if not _test_require(not elder_quest_marker.visible, "main quest marker clears while objective is active"):
+		return
+	if not _test_require(_village_gate_portal.prompt_text.is_empty(), "open portal has no interaction prompt"):
+		return
 
-	GameState.request_map("ruins", "from_village")
+	_village_gate_portal.body_entered.emit(player)
 	await get_tree().process_frame
 	await get_tree().process_frame
-	if not _test_require(GameState.current_map == "ruins" and _map_root.name == "Map_Ruins", "map transition to ruins"):
+	if not _test_require(GameState.current_map == "ruins" and _map_root.name == "Map_Ruins", "automatic portal transition to ruins"):
+		return
+	if not _test_require(_mini_map.get_map_id() == "ruins" and _mini_map.has_main_target(), "ruins minimap and quest target"):
+		return
+	var guardian_quest_marker := _map_root.get_node_or_null("Guardian/QuestMarker") as Label3D
+	if not _test_require(
+		guardian_quest_marker != null
+		and guardian_quest_marker.text == "!"
+		and guardian_quest_marker.visible,
+		"main quest objective marker"
+	):
 		return
 
 	_handle_interaction("ruin_tablet")
@@ -1176,10 +1330,15 @@ func _run_playthrough_test() -> void:
 	if not _test_require(GameState.mode == GameState.Mode.EXPLORE, "dialogue returns to exploration"):
 		return
 
-	GameState.request_map("village", "from_ruins")
+	_on_portal_body_entered(player, "portal_to_village")
 	await get_tree().process_frame
 	await get_tree().process_frame
-	if not _test_require(GameState.current_map == "village", "map transition to village"):
+	if not _test_require(GameState.current_map == "village", "automatic portal transition to village"):
+		return
+	if not _test_require(_mini_map.get_map_id() == "village" and _mini_map.has_main_target(), "minimap returns to village target"):
+		return
+	elder_quest_marker = _map_root.get_node_or_null("Elder/QuestMarker") as Label3D
+	if not _test_require(elder_quest_marker != null and elder_quest_marker.visible, "main quest turn-in marker"):
 		return
 	_talk_to_elder()
 	dialogue_safety = 0
@@ -1187,6 +1346,10 @@ func _run_playthrough_test() -> void:
 		dialogue_ui.advance()
 		dialogue_safety += 1
 	if not _test_require(GameState.quest_state == GameState.QuestState.COMPLETE and not GameState.inventory.has("moon_shard"), "quest turn-in"):
+		return
+	if not _test_require(not elder_quest_marker.visible, "main quest marker clears after completion"):
+		return
+	if not _test_require(not _mini_map.has_main_target(), "minimap target clears after quest completion"):
 		return
 	if not _test_require(is_instance_valid(_moon_lamp_light) and _moon_lamp_light.light_energy > 3.0, "moon lamp restored"):
 		return
