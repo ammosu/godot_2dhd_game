@@ -1,0 +1,7 @@
+# Original moon protection aura
+
+Generated 2026-09-20 with built-in imagegen; original transparent output preserved unchanged in `moon_ward.png`. No third-party source images. Used behind the protected actor at 216×216 pixels, 85% opacity, ground ellipse anchored 80% down the canvas. Visibility derives from authoritative party protection state, not a separate timer. Hidden when protection expires, the protector or recipient falls, or the encounter resolves. Existing text indicator remains for non-color recognition. No combat rules changed.
+
+## Final prompt
+
+Use case: stylized-concept. Original HD-2D JRPG pixel-art protective ward visual effect, ONE isolated sprite on TRUE transparent RGBA background. A delicate pale gold and muted cyan moon ward: a thin low elliptical ground ring centered at x50% y80% of square canvas, two narrow curved luminous side arcs rise from left and right edges to shoulder height, small crescent ornament at the top, central 60% area COMPLETELY EMPTY AND TRANSPARENT so a game character placed in front remains unobscured. Protective, calm, not explosive. Crisp hand-clustered pixel art, limited gold ivory desaturated cyan palette, clean silhouette readable at 130 pixels wide, very subtle glow confined to edges. Entire sprite inside canvas with at least 8% transparent padding on all sides. NO character, no actual shield equipment, no text, no letters, no runes, no numbers, no background scenery, no checkerboard, no opaque interior, no excessive rays or particles. Ring and surrounding outline only, no solid dome fill.

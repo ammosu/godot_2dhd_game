@@ -1,0 +1,9 @@
+[gd_resource type="AtlasTexture" load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/generated/noah_combat.png" id="1"]
+
+[resource]
+atlas = ExtResource("1")
+region = Rect2(133, 19, 286, 582)
+margin = Rect2(257, 38, 514, 58)
+filter_clip = true

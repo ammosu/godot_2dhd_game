@@ -5,6 +5,12 @@ extends Node
 signal cue_played(cue: StringName)
 
 const CUES: Dictionary = {
+	&"step_dirt_1": preload("res://assets/generated/audio/step_dirt_1.wav"),
+	&"step_dirt_2": preload("res://assets/generated/audio/step_dirt_2.wav"),
+	&"step_stone_1": preload("res://assets/generated/audio/step_stone_1.wav"),
+	&"step_stone_2": preload("res://assets/generated/audio/step_stone_2.wav"),
+	&"step_wood_1": preload("res://assets/generated/audio/step_wood_1.wav"),
+	&"step_wood_2": preload("res://assets/generated/audio/step_wood_2.wav"),
 	&"dialogue": preload("res://assets/generated/audio/dialogue.wav"),
 	&"slash": preload("res://assets/generated/audio/slash.wav"),
 	&"impact": preload("res://assets/generated/audio/impact.wav"),
@@ -13,6 +19,15 @@ const CUES: Dictionary = {
 	&"skill": preload("res://assets/generated/audio/skill.wav"),
 	&"victory": preload("res://assets/generated/audio/victory.wav"),
 	&"defeat": preload("res://assets/generated/audio/defeat.wav"),
+	&"moon_slash": preload("res://assets/generated/audio/moon_slash.wav"),
+	&"moon_bolt": preload("res://assets/generated/audio/moon_bolt.wav"),
+	&"frost_nova": preload("res://assets/generated/audio/frost_nova.wav"),
+	&"frost_impact": preload("res://assets/generated/audio/frost_impact.wav"),
+	&"protect": preload("res://assets/generated/audio/protect.wav"),
+	&"moon_heal": preload("res://assets/generated/audio/moon_heal.wav"),
+	&"spear_thrust": preload("res://assets/generated/audio/spear_thrust.wav"),
+	&"claw_swipe": preload("res://assets/generated/audio/claw_swipe.wav"),
+	&"staff_strike": preload("res://assets/generated/audio/staff_strike.wav"),
 }
 const VOICE_COUNT: int = 8
 const SETTINGS_VERSION: int = 1

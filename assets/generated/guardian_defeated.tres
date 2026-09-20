@@ -1,0 +1,10 @@
+[gd_resource type="AtlasTexture" load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/generated/enemy_defeated.png" id="1"]
+
+[resource]
+atlas = ExtResource("1")
+region = Rect2(109, 123, 1059, 355)
+margin = Rect2(70, 583, 141, 645)
+filter_clip = true
+metadata/ground_y = 900.0

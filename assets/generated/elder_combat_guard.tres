@@ -1,0 +1,9 @@
+[gd_resource type="AtlasTexture" load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/generated/elder_combat.png" id="1"]
+
+[resource]
+atlas = ExtResource("1")
+region = Rect2(721, 655, 438, 537)
+margin = Rect2(181, 83, 362, 103)
+filter_clip = true

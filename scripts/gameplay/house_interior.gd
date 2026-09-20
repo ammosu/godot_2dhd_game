@@ -3,6 +3,8 @@ extends Node3D
 ## their collision remains solid. All furniture is built in local meters.
 
 signal interaction_requested(interaction_id: String)
+const Footsteps = preload("res://scripts/gameplay/footsteps.gd")
+const Dressing = preload("res://scripts/gameplay/house_dressing.gd")
 
 var house_id: String = "house_01"
 var _walls: Array[Node3D] = []
@@ -19,7 +21,8 @@ func _ready() -> void:
 	blanket.uv1_scale = Vector3(2, 2, 1)
 	_box(self, "Foundation", Vector3(0, -0.17, 0), Vector3(8.3, 0.32, 7.3), stone, false)
 	# Separate boards expose narrow dark joints while sharing one collision slab.
-	_box(self, "FloorCollision", Vector3(0, -0.076, 0), Vector3(8, 0.20, 7), wood, true, false)
+	var floor_body := _box(self, "FloorCollision", Vector3(0, -0.076, 0), Vector3(8, 0.20, 7), wood, true, false)
+	Footsteps.register_surface(floor_body, Vector3(8, 0.20, 7), &"wood")
 	var floor_wood := wood.duplicate() as StandardMaterial3D
 	floor_wood.uv1_scale = Vector3(0.12, 1.0, 1.0)
 	for board: int in range(20):
@@ -83,16 +86,14 @@ func _ready() -> void:
 	add_child(fire)
 	_light(Vector3(-1.8, 2.2, 0.5), Color("ffe1b0"), 1.7, 8.0)
 	_build_shelf(wood, blanket, linen)
-	var jar := (load("res://assets/generated/earthenware_jar.glb") as PackedScene).instantiate() as Node3D
-	jar.position = Vector3(1.55, 0.91, 0.1)
-	jar.scale = Vector3.ONE * 0.45
-	add_child(jar)
+	Dressing.build(self, _walls[1], house_id, wood, linen, blanket)
 	var crate := (load("res://assets/generated/supply_crate.glb") as PackedScene).instantiate() as Node3D
 	crate.position = Vector3(3.35, 0.024, 2.55)
 	add_child(crate)
 	_box(self, "CrateCollision", Vector3(3.35, 0.4, 2.55), Vector3(0.85, 0.8, 0.83), wood, true, false)
 	# The visible doorway is on the far side of the south wall when cut away.
-	_box(self, "DoorThreshold", Vector3(0, 0.034, 3.02), Vector3(1.5, 0.02, 0.7), stone, false)
+	var threshold := _box(self, "DoorThreshold", Vector3(0, 0.034, 3.02), Vector3(1.5, 0.02, 0.7), stone, false)
+	Footsteps.register_surface(threshold, Vector3(1.5, 0.02, 0.7), &"stone", 10)
 	for x: float in [-0.75, 0.75]:
 		_box(_walls[2], "DoorJamb", Vector3(x, 1.05, 3.35), Vector3(0.13, 2.1, 0.16), wood, false)
 	_box(_walls[2], "DoorLintel", Vector3(0, 2.10, 3.35), Vector3(1.65, 0.14, 0.16), wood, false)

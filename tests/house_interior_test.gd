@@ -48,6 +48,7 @@ func _run() -> void:
 		for required: String in ["FloorCollision", "BedFrame", "TableTop", "Hearth", "ShelfBack", "leave_house"]:
 			_check(room.get_node_or_null(required) != null, "Missing furnishing or exit: " + required)
 		_check(not (world.get_node("Moonlight") as DirectionalLight3D).visible, "Outdoor moonlight leaked inside")
+		_check(world.get("_environment").background_mode == Environment.BG_CANVAS and world.get("_interior_backdrop").visible, "Interior backdrop missing")
 		_check(bool(world.get_node("CameraRig").get("_indoors")), "Interior camera not enabled")
 		var walls: Array = room.get("_walls")
 		room.call("_process", 0.0)
@@ -79,6 +80,7 @@ func _run() -> void:
 		_check(state.get("current_map") == "village", "Did not return to village")
 		_check(player.position.is_equal_approx(Houses.return_position(home.id)), "Returned at wrong house")
 		_check((world.get_node("Moonlight") as DirectionalLight3D).visible, "Outdoor lighting not restored")
+		_check(world.get("_environment").background_mode == Environment.BG_COLOR and not world.get("_interior_backdrop").visible, "Interior backdrop leaked outside")
 		_check(not bool(world.get_node("CameraRig").get("_indoors")), "Outdoor camera not restored")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
 	world.queue_free()

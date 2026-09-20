@@ -1,0 +1,10 @@
+[gd_resource type="AtlasTexture" load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/generated/eclipse_mage_attack_transitions.png" id="1"]
+
+[resource]
+atlas = ExtResource("1")
+region = Rect2(1123, 79, 587, 744)
+margin = Rect2(271, 40, 533, 96)
+filter_clip = true
+metadata/display_height = 175.0

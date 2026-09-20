@@ -6,6 +6,7 @@ extends CharacterBody3D
 
 const FACING_ANIMATIONS: Array[StringName] = [&"down", &"up", &"left", &"right"]
 const SpriteGrounding = preload("res://scripts/gameplay/sprite_grounding.gd")
+const Footsteps = preload("res://scripts/gameplay/footsteps.gd")
 
 @onready var sprite: AnimatedSprite3D = $Sprite3D
 
@@ -14,9 +15,13 @@ var _walk_time: float = 0.0
 var _sprite_rest_height: float
 var _facing_column: int = 0
 var _interaction_area: Area3D
+var _footsteps := Footsteps.new()
+var _last_step_position: Vector3
+var _footstep_map: String = ""
 
 
 func _ready() -> void:
+	_last_step_position = global_position
 	SpriteGrounding.anchor(sprite, sprite.sprite_frames.get_frame_texture(&"down", 0))
 	_sprite_rest_height = sprite.position.y
 	SpriteGrounding.add_shadow(self, 0.32, 0.028)
@@ -24,12 +29,17 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _footstep_map != GameState.current_map or global_position.distance_to(_last_step_position) > 2.0:
+		_footsteps.advance(0.0, false, false, true)
+		_footstep_map = GameState.current_map
 	if GameState.is_input_locked():
+		_footsteps.advance(0.0, false, false, true)
 		velocity.x = move_toward(velocity.x, 0.0, acceleration * delta)
 		velocity.z = move_toward(velocity.z, 0.0, acceleration * delta)
 		if not is_on_floor():
 			velocity.y -= _gravity * delta
 		move_and_slide()
+		_last_step_position = global_position
 		_update_sprite(Vector2.ZERO, Vector3.ZERO, delta)
 		return
 	var input_vector := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
@@ -43,7 +53,12 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y = -0.1
 
+	var before_move := global_position
 	move_and_slide()
+	var traveled := Vector2(global_position.x - before_move.x, global_position.z - before_move.z).length()
+	if _footsteps.advance(traveled, is_on_floor(), not input_vector.is_zero_approx(), GameState.is_input_locked()):
+		GameAudio.play_cue(_footsteps.next_cue(Footsteps.surface_at(get_tree(), global_position)))
+	_last_step_position = global_position
 	_update_sprite(input_vector, move_direction, delta)
 
 

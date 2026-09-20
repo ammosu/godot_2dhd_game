@@ -4,6 +4,8 @@ extends CanvasLayer
 signal battle_finished(victory: bool)
 const Model = preload("res://scripts/systems/party_battle.gd")
 const Burst = preload("res://scripts/ui/magic_burst.gd")
+const HealingBurst = preload("res://scripts/ui/healing_burst.gd")
+const MoonBoltBurst = preload("res://scripts/ui/moon_bolt_burst.gd")
 const Grounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 const SCALE: float = 56.0
 var session: RefCounted
@@ -19,6 +21,7 @@ var _portraits: Array[TextureRect] = []
 var _cards: Array[Button] = []
 var _actions: Array[Button] = []
 var _shadows: Array[Polygon2D] = []
+var _wards: Array[TextureRect] = []
 var _baseline_cache: Dictionary = {}
 var _ring: Line2D
 var _busy: bool = false
@@ -45,7 +48,7 @@ func start_battle(enemy: Dictionary) -> void:
 	_continue.hide()
 	_log.text = "旅人、諾亞與長老並肩迎敵。選技能 → 選目標 → 確認。"
 	for index: int in range(6):
-		_pose(index, "idle")
+		_pose(index, _resting_pose(index))
 		_portraits[index].modulate = Color.WHITE
 	_refresh()
 	_confirm.grab_focus()
@@ -80,14 +83,25 @@ func choose_action(action: String) -> void:
 
 
 func _select_action(action: String) -> void:
-	if not can_accept_action():
+	if not can_accept_action() or not session.available_actions().has(action):
 		return
 	_action = action
+	if session.preview(action, _target).is_empty():
+		for index: int in range(6):
+			if not session.preview(action, index).is_empty():
+				_target = index
+				if session.validate(action, index).is_empty():
+					break
 	_refresh()
 
 
+func _select_slot(slot: int) -> void:
+	if can_accept_action() and slot < session.available_actions().size():
+		_select_action(session.available_actions()[slot])
+
+
 func _select_target(index: int) -> void:
-	if not can_accept_action() or index < 3 or int(session.actors[index].hp) <= 0:
+	if not can_accept_action() or session.preview(_action, index).is_empty():
 		return
 	_target = index
 	_refresh()
@@ -100,22 +114,45 @@ func _point(index: int) -> Vector2:
 
 func _texture(index: int, pose: String) -> Texture2D:
 	var id: String = session.actors[index].art
-	if id == "noah" or id == "elder":
-		return load("res://assets/generated/%s.tres" % id) as Texture2D
-	if id == "wanderer":
-		return load("res://assets/generated/wanderer_combat_%s.tres" % pose) as Texture2D
+	if id in ["wanderer", "noah", "elder"]:
+		return load("res://assets/generated/%s_combat_%s.tres" % [id, pose]) as Texture2D
 	return load("res://assets/generated/%s_%s.tres" % [id, pose]) as Texture2D
 
 
 func _pose(index: int, pose: String) -> void:
 	var texture := _texture(index, pose)
 	if not _baseline_cache.has(texture.resource_path):
-		_baseline_cache[texture.resource_path] = Grounding.foot_baseline(texture, 0.5)
-	var ratio: float = (145.0 if session.actors[index].art == "moss_wolf" else 175.0) / texture.get_height()
+		# Prone art has dropped weapons below the body contact line.
+		_baseline_cache[texture.resource_path] = float(texture.get_meta("ground_y")) if texture.has_meta("ground_y") else Grounding.foot_baseline(texture, 0.5)
+	# Raised weapons need extra canvas without shrinking the actor body.
+	var default_height: float = 145.0 if session.actors[index].art == "moss_wolf" else 175.0
+	var ratio: float = float(texture.get_meta("display_height", default_height)) / texture.get_height()
 	_portraits[index].texture = texture
 	_portraits[index].size = texture.get_size() * ratio
 	_portraits[index].position = _point(index) - Vector2(_portraits[index].size.x * 0.5, float(_baseline_cache[texture.resource_path]) * ratio)
 	_shadows[index].position = _point(index)
+	_shadows[index].scale = Vector2(1.8, 0.8) if pose == "defeated" else Vector2.ONE
+
+
+func _physical_kind(index: int, action: String) -> String:
+	if action == "slash":
+		return "moon_slash"
+	match str(session.actors[index].art):
+		"noah": return "spear"
+		"moss_wolf": return "claw"
+		"elder", "eclipse_mage": return "staff"
+	return "sword"
+
+
+func _physical_texture(index: int, action: String) -> Texture2D:
+	var kind := _physical_kind(index, action)
+	var file: String = "sword_slash.png" if kind == "sword" else "%s_hit.tres" % kind
+	return load("res://assets/generated/" + file) as Texture2D
+
+
+func _physical_cue(index: int, action: String) -> StringName:
+	var cues := {"sword": &"slash", "moon_slash": &"moon_slash", "spear": &"spear_thrust", "claw": &"claw_swipe", "staff": &"staff_strike"}
+	return cues[_physical_kind(index, action)]
 
 
 func _execute(action: String, target: int) -> void:
@@ -125,54 +162,85 @@ func _execute(action: String, target: int) -> void:
 	var caster: int = session.current
 	_log.text = "%s 施展 %s……" % [session.actors[caster].name, Model.SKILLS[action].name]
 	_pose(caster, "attack")
-	if action == "magic" or action == "skill":
-		GameAudio.play_cue(&"skill")
+	if action in ["magic", "skill", "heal"]:
+		_pose(caster, "windup")
+		var cue: StringName = &"moon_heal" if action == "heal" else &"frost_nova" if action == "magic" else &"moon_bolt"
+		GameAudio.play_cue(cue)
 		if action == "skill":
+			# Split the existing 220 ms launch/flight window without moving impact.
+			await get_tree().create_timer(0.06).timeout
+			_pose(caster, "attack")
 			var bolt := TextureRect.new()
-			var texture := AtlasTexture.new()
-			texture.atlas = Burst.ATLAS
-			texture.region = Rect2(Vector2.ZERO, Burst.ATLAS.get_size() * 0.5)
-			bolt.texture = texture
+			bolt.name = "MoonBoltProjectile"
+			bolt.texture = MoonBoltBurst.projectile_texture()
 			bolt.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			bolt.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-			bolt.size = Vector2(80, 80)
-			bolt.position = _point(caster) - Vector2(40, 110)
+			bolt.size = Vector2(104, 104)
+			bolt.position = _point(caster) - Vector2(88, 142)
 			bolt.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			_stage.add_child(bolt)
 			var flight := create_tween()
-			flight.tween_property(bolt, "position", _point(target) - Vector2(40, 100), 0.22)
+			flight.tween_property(bolt, "position", _point(target) - Vector2(88, 122), 0.16)
 			await flight.finished
 			bolt.queue_free()
-		var burst := Burst.new()
+		var burst: Node2D = HealingBurst.new() if action == "heal" else MoonBoltBurst.new() if action == "skill" else Burst.new()
 		burst.position = _point(target)
-		burst.radius = float(Model.SKILLS[action].radius) * SCALE if action == "magic" else 48.0
+		if action == "skill":
+			burst.position.y -= 70.0
+		burst.radius = float(Model.SKILLS[action].radius) * SCALE if action == "magic" else 72.0 if action == "heal" else 56.0
 		_stage.add_child(burst)
 		await burst.impact
+		_pose(caster, "attack")
 		_apply(action, target)
 		await burst.finished
-	elif action == "guard" or action == "potion":
-		GameAudio.play_cue(&"guard" if action == "guard" else &"heal")
+		_pose(caster, "recover")
+		await get_tree().create_timer(0.10).timeout
+	elif action in ["guard", "potion", "protect"]:
+		GameAudio.play_cue(&"heal" if action == "potion" else &"protect" if action == "protect" else &"guard")
+		if action != "potion":
+			_pose(caster, "guard")
 		_apply(action, target)
 		await get_tree().create_timer(0.22).timeout
 	else:
-		GameAudio.play_cue(&"slash")
+		GameAudio.play_cue(_physical_cue(caster, action))
+		var phased: bool = session.actors[caster].art in ["wanderer", "noah", "moss_wolf", "guardian", "elder", "eclipse_mage"]
+		if phased:
+			_pose(caster, "windup")
+			await get_tree().create_timer(0.06).timeout
+			_pose(caster, "attack")
 		var home := _portraits[caster].position
-		var tween := create_tween()
-		tween.tween_property(_portraits[caster], "position:x", home.x + (26 if caster < 3 else -26), 0.13)
+		var direction: float = 26.0 if caster < 3 else -26.0
+		var duration: float = 0.07 if phased else 0.13
+		var tween := create_tween().set_parallel(true)
+		tween.tween_property(_portraits[caster], "position:x", home.x + direction, duration)
+		tween.tween_property(_shadows[caster], "position:x", _point(caster).x + direction, duration)
 		await tween.finished
 		_apply(action, target)
 		var slash := TextureRect.new()
-		slash.texture = load("res://assets/generated/sword_slash.png") as Texture2D
+		slash.name = "PhysicalHit"
+		slash.texture = _physical_texture(caster, action)
+		slash.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		slash.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		slash.size = Vector2(100, 100)
-		slash.position = _point(target) - Vector2(50, 100)
+		slash.size = Vector2.ONE * (130.0 if action == "slash" else 100.0)
+		slash.flip_h = caster >= 3
+		slash.position = _point(target) - slash.size * 0.5 - Vector2(0, 70)
 		slash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_stage.add_child(slash)
 		await get_tree().create_timer(0.16).timeout
 		slash.queue_free()
-		_portraits[caster].position = home
+		if phased:
+			_pose(caster, "recover")
+			var recovery_home := _portraits[caster].position
+			_portraits[caster].position.x += direction
+			_shadows[caster].position.x += direction
+			var recovery := create_tween().set_parallel(true)
+			recovery.tween_property(_portraits[caster], "position", recovery_home, 0.10)
+			recovery.tween_property(_shadows[caster], "position", _point(caster), 0.10)
+			await recovery.finished
+		else:
+			_portraits[caster].position = home
 	for index: int in range(6):
-		_pose(index, "idle" if int(session.actors[index].hp) > 0 else "hurt")
+		_pose(index, _resting_pose(index))
 	if int(session.winner) != -1:
 		_resolved = true
 		_busy = false
@@ -184,6 +252,7 @@ func _execute(action: String, target: int) -> void:
 			if GameState.player_hp == 0:
 				session.actors[0].hp = 1
 				GameState.sync_party_battle()
+				_pose(0, _resting_pose(0))
 			GameState.defeat_guardian()
 		_log.text = "敵方全數倒下，獲得月光碎片！" if did_player_win() else "隊伍全數倒下……返回村莊休整。"
 		_continue.text = "勝利！繼續" if did_player_win() else "戰敗…返回村莊"
@@ -192,6 +261,8 @@ func _execute(action: String, target: int) -> void:
 		_continue.grab_focus()
 		return
 	session.advance()
+	for index: int in range(6):
+		_pose(index, _resting_pose(index))
 	_busy = false
 	_action = "attack"
 	var foes: Array[int] = session.living(1)
@@ -210,30 +281,49 @@ func _execute(action: String, target: int) -> void:
 		_confirm.grab_focus()
 
 
+func _resting_pose(index: int) -> String:
+	if int(session.actors[index].hp) <= 0:
+		return "defeated"
+	if bool(session.actors[index].guard):
+		return "guard"
+	for actor: Dictionary in session.actors:
+		if int(actor.protected_by) == index and int(actor.hp) > 0:
+			return "guard"
+	return "idle"
+
+
 func _apply(action: String, target: int) -> void:
 	var result: Dictionary = GameState.resolve_party_action(action, target)
 	if result.has("error"):
 		_log.text = result.error
 		return
-	if action != "guard" and action != "potion":
-		GameAudio.play_cue(&"impact")
+	if not result.damage.is_empty():
+		GameAudio.play_cue(&"frost_impact" if action == "magic" else &"impact")
 		for offset: int in range(result.targets.size()):
 			var index: int = result.targets[offset]
 			_pose(index, "hurt")
-			var number := Label.new()
-			number.text = "−%d" % int(result.damage[offset])
-			number.position = _point(index) - Vector2(20, 120)
-			number.add_theme_font_size_override("font_size", 28)
-			number.add_theme_color_override("font_color", Color("fff0af"))
-			number.add_theme_constant_override("outline_size", 6)
-			number.z_index = 20
-			_stage.add_child(number)
-			var tween := create_tween().set_parallel(true)
-			tween.tween_property(number, "position:y", number.position.y - 30, 0.55)
-			tween.tween_property(number, "modulate:a", 0.0, 0.55)
-			tween.chain().tween_callback(number.queue_free)
+			_floating_text(index, "−%d" % int(result.damage[offset]), Color("fff0af"))
+	elif int(result.healing) > 0:
+		_floating_text(result.targets[0], "+%d" % int(result.healing), Color("9affb6"))
+	elif action == "protect":
+		_floating_text(target, "守護", Color("9ceaff"))
 	_log.text = "%s：%s，影響 %d 名角色。" % [session.actors[session.current].name, Model.SKILLS[action].name, result.targets.size()]
 	_refresh()
+
+
+func _floating_text(index: int, text: String, color: Color) -> void:
+	var number := Label.new()
+	number.text = text
+	number.position = _point(index) - Vector2(20, 120)
+	number.add_theme_font_size_override("font_size", 28)
+	number.add_theme_color_override("font_color", color)
+	number.add_theme_constant_override("outline_size", 6)
+	number.z_index = 20
+	_stage.add_child(number)
+	var tween := create_tween().set_parallel(true)
+	tween.tween_property(number, "position:y", number.position.y - 30, 0.55)
+	tween.tween_property(number, "modulate:a", 0.0, 0.55)
+	tween.chain().tween_callback(number.queue_free)
 
 
 func _refresh() -> void:
@@ -246,16 +336,32 @@ func _refresh() -> void:
 	for index: int in range(6):
 		var actor: Dictionary = session.actors[index]
 		_cards[index].text = "%s%s%s\nHP %d/%d  MP %d" % ["▶ " if session.current == index and not _resolved else "", actor.name, " [倒下]" if int(actor.hp) == 0 else (" [命中]" if targets.has(index) else ""), actor.hp, actor.max_hp, actor.mp]
-		_cards[index].disabled = not allowed or index < 3 or int(actor.hp) <= 0
+		if session.is_protected(index) and int(actor.hp) > 0:
+			_cards[index].text += " 守護"
+		_cards[index].disabled = not allowed or _action in ["guard", "potion"] or session.preview(_action, index).is_empty()
 		_portraits[index].modulate = Color("686473") if int(actor.hp) <= 0 else Color.WHITE
+		_wards[index].visible = not _resolved and int(actor.hp) > 0 and session.is_protected(index)
+		_wards[index].position = _point(index) - _wards[index].size * Vector2(0.5, 0.8)
 		_shadows[index].color = Color(0.4, 0.85, 1.0, 0.6) if targets.has(index) else Color(0.02, 0.02, 0.04, 0.5)
 	for index: int in range(_actions.size()):
+		var available: Array[String] = session.available_actions()
+		_actions[index].visible = index < available.size()
 		_actions[index].disabled = not allowed
-	_confirm.disabled = not allowed or not session.validate(_action, _target).is_empty()
+		if index < available.size():
+			var id: String = available[index]
+			_actions[index].text = "%d %s%s  MP %d" % [index + 1, "▶ " if id == _action else "", Model.SKILLS[id].name, Model.SKILLS[id].cost]
+	var error: String = session.validate(_action, _target)
+	if _action == "potion" and int(GameState.inventory.get("potion", 0)) <= 0:
+		error = "藥水已用完。"
+	_confirm.disabled = not allowed or not error.is_empty()
 	_confirm.text = "確認：%s" % Model.SKILLS[_action].name
-	_preview.text = "選技能 → 點敵方卡片選目標 → 確認；霜星爆依站位命中半徑內敵人。"
+	_preview.text = "行動演出中……" if _busy else "選技能 → 點卡片選目標 → 確認。"
 	if allowed:
 		_preview.text = "%s · MP %d · %s · 影響 %d 人 · 藥水 ×%d（Tab／Enter 操作）" % [Model.SKILLS[_action].name, Model.SKILLS[_action].cost, "範圍半徑 2" if _action == "magic" else "自身" if _action in ["guard", "potion"] else "單體", targets.size(), int(GameState.inventory.get("potion", 0))]
+		if not error.is_empty():
+			_preview.text = error
+		elif _action in ["heal", "protect"]:
+			_preview.text += " · 點選友方卡片"
 	_ring.visible = allowed and _action == "magic"
 	if _ring.visible:
 		_ring.position = _point(_target)
@@ -275,10 +381,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not is_active() or event.is_echo() or not event is InputEventKey or not event.pressed:
 		return
 	var key := event as InputEventKey
-	var shortcuts := {KEY_1: "attack", KEY_2: "skill", KEY_3: "potion", KEY_4: "guard", KEY_5: "magic"}
-	if can_accept_action() and shortcuts.has(key.physical_keycode):
-		_select_action(shortcuts[key.physical_keycode])
-		_confirm.grab_focus()
+	if can_accept_action() and key.physical_keycode >= KEY_1 and key.physical_keycode <= KEY_6:
+		_select_slot(key.physical_keycode - KEY_1)
+		if not _confirm.disabled:
+			_confirm.grab_focus()
 		get_viewport().set_input_as_handled()
 
 
@@ -321,6 +427,16 @@ func _build() -> void:
 		shadow.polygon = points
 		_stage.add_child(shadow)
 		_shadows.append(shadow)
+		var ward := TextureRect.new()
+		ward.texture = load("res://assets/generated/moon_ward.png") as Texture2D
+		ward.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		ward.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		ward.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		ward.size = Vector2(216, 216)
+		ward.modulate.a = 0.85
+		ward.hide()
+		_stage.add_child(ward)
+		_wards.append(ward)
 		var art := TextureRect.new()
 		art.size = Vector2(210, 175)
 		var origin := Vector2(150, 215) if index < 3 else Vector2(650, 215)
@@ -352,17 +468,16 @@ func _build() -> void:
 	box.add_child(_preview)
 	var actions := GridContainer.new()
 	_action_panel = actions
-	actions.columns = 3
+	actions.columns = 4
 	box.add_child(actions)
-	for id: String in ["attack", "skill", "magic", "guard", "potion"]:
+	for slot: int in range(6):
 		var button := Button.new()
-		button.text = "%s  MP %d" % [Model.SKILLS[id].name, Model.SKILLS[id].cost]
-		button.custom_minimum_size = Vector2(368, 44)
-		button.pressed.connect(_select_action.bind(id))
+		button.custom_minimum_size = Vector2(274, 44)
+		button.pressed.connect(_select_slot.bind(slot))
 		actions.add_child(button)
 		_actions.append(button)
 	_confirm = Button.new()
-	_confirm.custom_minimum_size = Vector2(368, 44)
+	_confirm.custom_minimum_size = Vector2(274, 44)
 	_confirm.pressed.connect(func() -> void: choose_action(_action))
 	actions.add_child(_confirm)
 	_log = Label.new()

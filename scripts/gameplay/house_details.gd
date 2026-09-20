@@ -14,6 +14,7 @@ static func build(house: Node3D, timber: Material, roof: StandardMaterial3D, pla
 	tiles.mesh = _slate_tile_mesh()
 	tiles.instance_count = 2 * 8 * 12
 	var tile_index: int = 0
+	var tile_bounds := AABB()
 	for side: float in [-1.0, 1.0]:
 		var slope := Basis(Vector3.FORWARD, side * 0.38)
 		if side < 0.0:
@@ -23,10 +24,14 @@ static func build(house: Node3D, timber: Material, roof: StandardMaterial3D, pla
 				var stagger := 0.07 if row % 2 == 0 else -0.07
 				var offset := Vector3(side * (0.16 + float(row) * 0.285), 0.0, (float(column) - 5.5) * 0.32 + stagger)
 				var position := Vector3(offset.x, 2.97 - absf(offset.x) * tan(0.38), offset.z)
-				tiles.set_instance_transform(tile_index, Transform3D(slope, position))
+				var transform := Transform3D(slope, position)
+				tiles.set_instance_transform(tile_index, transform)
+				var bounds: AABB = transform * tiles.mesh.get_aabb()
+				tile_bounds = bounds if tile_index == 0 else tile_bounds.merge(bounds)
 				var shade := 0.86 + float((row * 7 + column * 3) % 5) * 0.025
 				tiles.set_instance_color(tile_index, Color(shade, shade, shade))
 				tile_index += 1
+	tiles.custom_aabb = tile_bounds
 	var roof_batch := MultiMeshInstance3D.new()
 	roof_batch.name = "SlateRoofTiles"
 	roof_batch.multimesh = tiles
@@ -41,14 +46,20 @@ static func build(house: Node3D, timber: Material, roof: StandardMaterial3D, pla
 	_build_door(root, timber)
 	# Frames are present on all four elevations so orbiting never exposes bare windows.
 	for side: float in [-1.0, 1.0]:
-		for x: float in [-1.2, 1.2]:
+		for x: float in ([-1.25, 1.25] if side < 0.0 else [-1.15, 1.15]):
 			_box(root, Vector3(x, 1.18, side * 1.75), Vector3(0.055, 0.72, 0.07), timber)
 			_box(root, Vector3(x, 1.18, side * 1.75), Vector3(0.76, 0.055, 0.07), timber)
 			_box(root, Vector3(x, 0.81, side * 1.75), Vector3(0.82, 0.10, 0.20), timber)
+			for edge: float in [-1.0, 1.0]:
+				_box(root, Vector3(x + edge * 0.35, 1.18, side * 1.75), Vector3(0.065, 0.74, 0.07), timber)
+			_box(root, Vector3(x, 1.53, side * 1.75), Vector3(0.76, 0.065, 0.07), timber)
 		for z: float in [-0.72, 0.72]:
 			_box(root, Vector3(side * 2.085, 1.18, z), Vector3(0.07, 0.68, 0.055), timber)
 			_box(root, Vector3(side * 2.085, 1.18, z), Vector3(0.07, 0.055, 0.70), timber)
 			_box(root, Vector3(side * 2.085, 0.83, z), Vector3(0.20, 0.10, 0.78), timber)
+			for edge: float in [-1.0, 1.0]:
+				_box(root, Vector3(side * 2.085, 1.18, z + edge * 0.33), Vector3(0.07, 0.70, 0.065), timber)
+			_box(root, Vector3(side * 2.085, 1.51, z), Vector3(0.07, 0.065, 0.72), timber)
 		_box(root, Vector3(side * 2.055, 1.90, 0.0), Vector3(0.14, 0.13, 3.40), timber)
 		_box(root, Vector3(0.0, 1.90, side * 1.68), Vector3(4.10, 0.13, 0.14), timber)
 

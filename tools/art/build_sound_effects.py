@@ -56,6 +56,18 @@ def main():
     render("skill", 0.6, [(0.03, 987.77, 0.18, 0.25), (0.08, 1479.98, 0.16, 0.2)], noise=0.8, sweep=(240, 960))
     render("victory", 1.5, [(0, 392, 0.24, 0.28), (0.18, 523.25, 0.3, 0.3), (0.36, 659.25, 0.45, 0.3), (0.36, 783.99, 0.45, 0.2)])
     render("defeat", 1.3, [(0, 329.63, 0.3, 0.3), (0.23, 293.66, 0.3, 0.3), (0.46, 220, 0.35, 0.35)])
+    # Role cues: airy sword, focused projectile, cold charge/crack, ward, healing.
+    # Their short attacks align with the existing battle animation; no samples.
+    render("moon_slash", 0.36, [(0.08, 880, 0.09, 0.18)], noise=1.6, sweep=(780, 170), seed=31)
+    render("moon_bolt", 0.38, [(0.02, 1046.5, 0.1, 0.18)], noise=0.25, sweep=(330, 1320), seed=37)
+    render("frost_nova", 0.30, [(0, 1318.5, 0.08, 0.18), (0.05, 1975.5, 0.08, 0.12)], noise=0.6, sweep=(440, 1760), seed=41)
+    render("frost_impact", 0.52, [(0, 164.81, 0.12, 0.32), (0.012, 1568, 0.13, 0.2), (0.035, 2349.3, 0.16, 0.12)], noise=1.0, seed=43)
+    render("protect", 0.62, [(0, 293.66, 0.18, 0.3), (0.06, 440, 0.20, 0.25), (0.10, 880, 0.22, 0.14)])
+    render("moon_heal", 0.72, [(0, 392, 0.16, 0.22), (0.08, 587.33, 0.20, 0.24), (0.16, 783.99, 0.24, 0.23), (0.24, 1174.66, 0.20, 0.12)])
+    # Weapon wind-up starts now; the tonal contact arrives with the 0.13 s lunge.
+    render("spear_thrust", 0.29, [(0.13, 1300, 0.045, 0.28)], noise=0.75, sweep=(950, 320), seed=53)
+    render("claw_swipe", 0.30, [(0.13, 360, 0.06, 0.2), (0.15, 530, 0.035, 0.12)], noise=1.25, sweep=(650, 150), seed=59)
+    render("staff_strike", 0.32, [(0.13, 185, 0.065, 0.5), (0.13, 417, 0.035, 0.2)], noise=0.18, seed=61)
 
 
 if __name__ == "__main__":

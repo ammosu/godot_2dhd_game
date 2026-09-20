@@ -1,0 +1,9 @@
+[gd_resource type="AtlasTexture" load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/generated/wanderer_attack_transitions.png" id="1"]
+
+[resource]
+atlas = ExtResource("1")
+region = Rect2(1067, 143, 503, 656)
+margin = Rect2(352, 64, 705, 88)
+filter_clip = true

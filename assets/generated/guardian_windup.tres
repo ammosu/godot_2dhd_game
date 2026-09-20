@@ -1,0 +1,10 @@
+[gd_resource type="AtlasTexture" load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/generated/guardian_attack_transitions.png" id="1"]
+
+[resource]
+atlas = ExtResource("1")
+region = Rect2(82, 118, 571, 660)
+margin = Rect2(292, 44, 549, 76)
+filter_clip = true
+metadata/display_height = 201.25

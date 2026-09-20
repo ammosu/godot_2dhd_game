@@ -2,13 +2,38 @@
 
 正式主線已使用 3 對 3 隊伍戰鬥：
 
+角色姿勢測試檢查八個 AtlasTexture 的裁切、畫布與透明輪廓腳底基準。節奏測試是固定初始數值的確定性模擬，不代表完整難度評估：目前普通攻擊與全員零 MP 都在第 4 回合勝利（18 次角色行動），使用職業技能的策略在第 3 回合勝利（11 次行動）；仍需後續多場遭遇與玩家試玩。
+
 ```bash
 godot --headless --path . --script tests/party_battle_test.gd
 godot --headless --path . --script tests/party_battle_ui_test.gd
+godot --headless --path . --script tests/ally_combat_art_test.gd
+godot --headless --path . --script tests/party_battle_balance_test.gd
+python3 tests/audio_asset_test.py
+godot --headless --path . --script tests/magic_burst_test.gd
+godot --headless --path . --script tests/party_ward_test.gd
+godot --headless --path . --script tests/physical_hit_art_test.gd
+godot --headless --path . --script tests/party_weapon_audio_test.gd
+godot --headless --path . --script tests/party_defeated_art_test.gd
+godot --headless --path . --script tests/traveler_attack_motion_test.gd
 godot --path . -- --battle-preview
 ```
 
-模型測試驗證三對三、中央／邊側 AoE、MP 扣一次、無效目標、倒地跳過、防禦、敵方魔法、勝利與藥水／旅人狀態回寫。UI 測試操作實際確認按鈕，核對預覽與爆發時傷害、連按鎖定、三位隊友及敵方回合、敵方 AoE、特效清理。完整 playthrough 已改為隊伍全勝／全滅，不再假設三次單人技能結束戰鬥。舊 `battle_ui.gd` 與其姿勢／音效測試保留為舊版單挑回歸，不是新隊伍流程的驗收依據。
+音訊資產測試檢查九個新角色／武器音效的 PCM 格式、長度、峰值、非靜音及首尾零值；隊伍 UI 測試覆蓋六個技能音效的實際觸發，並確認三人 AoE 只有一次蓄力與一次爆發聲。武器音效測試另跑完六角色普通攻擊回合，核對劍、槍、爪、杖各自次數及八聲道限制。這些不是主觀聽感或混音驗收。
+
+魔法特效測試涵蓋冰霜與獨立治療演出的透明圖集、一次結算訊號、持續時間及釋放；隊伍 UI 測試另外確認治療時使用專用特效，結束後沒有殘留。
+
+月光彈亦驗證獨立彈體／命中圖集、飛行期間不扣 MP、命中只扣一次、抵達後釋放彈體與演出結束清理；桌面截圖選項另輸出 `.dream-loop/party-bolt-flight.png` 和 `party-bolt-impact.png`。
+
+守護光環測試檢查透明中心、不攔截輸入、施術者／受護者倒下時隱藏、結算與新戰鬥不殘留；實際隊伍 UI 測試另驗證正常施放與下次諾亞行動時的到期。
+
+武器命中特效測試檢查六個角色與月影斬的素材對應、四個透明裁切；隊伍 UI 測試確認諾亞實際播放長槍特效、中心對齊目標且回合後釋放，截圖選項輸出 `.dream-loop/party-spear-impact.png`。
+
+倒地素材測試覆蓋六名角色的透明裁切、身體接地線、陰影恢復與旅人倒下後隊友取勝的 1 HP 起身畫面；隊伍 UI 測試驗證三名敵人戰敗後皆使用倒地圖。桌面加 `-- --party-art-capture` 可輸出素材列展示與實際勝利畫面。
+
+主角攻擊動畫測試依序等待蓄力、出劍、收招及待機，驗證普通攻擊／月影斬各一次傷害與 MP、蓄力不提早結算、連按鎖定、陰影回位與下一角色回合。桌面截圖選項另在正式測試前靜態展示各姿勢，輸出 `.dream-loop/traveler-attack-windup.png` 等預覽；不以截圖取代實際時序測試。
+
+模型測試驗證三對三、角色限定技能、中央／邊側 AoE、MP 扣一次、無效目標、倒地跳過、防禦、守護減傷／不疊加／到期／施術者倒下、治療上限與不可復活、敵方魔法、勝利與藥水／旅人狀態回寫。UI 測試操作實際確認按鈕，核對友方選取、預覽與爆發時傷害、連按鎖定、三位隊友及敵方回合、敵方 AoE、特效清理。完整 playthrough 已改為隊伍全勝／全滅，不再假設三次單人技能結束戰鬥。舊 `battle_ui.gd` 與其姿勢／音效測試保留為舊版單挑回歸，不是新隊伍流程的驗收依據。
 
 魔法特效及獨立範圍判定的底層測試：
 
@@ -200,3 +225,51 @@ godot --path . -- --mobile-controls
 ```
 
 正式 Web 版會依 `web_android`／`web_ios` feature tag 自動啟用；直向畫面的第一次觸控會嘗試進入全螢幕並鎖定橫向。若瀏覽器不允許強制方向，畫面會繼續提示玩家旋轉手機。
+
+### 室內主題陳設
+
+室內背景色回歸：`godot --path . --rendering-method gl_compatibility --script tests/interior_backdrop_test.gd -- --mute-audio --backdrop-capture`，再以 `forward_plus` 執行一次。測試兩種尺寸的實際深色背景像素、圖層順序、泛光保留及進出房屋切換；headless 只驗結構，不能代替像素檢查。詳見 `docs/INTERIOR_BACKDROP.md`。
+
+室內主題陳設：`godot --headless --path . --script tests/house_dressing_test.gd` 檢查八種配置、圖集裁切、最近鄰取樣、壁掛隨牆隱藏、桌面接觸與無新增碰撞。實機加上 `-- --house-art-capture --mute-audio`（不使用 `--headless`）可輸出花園、陶匠、旅人及書屋畫面；原有八屋進出與存讀檔另由 `house_interior_test.gd` 驗證。
+
+### 探索腳步
+
+執行 `python3 tests/audio_asset_test.py` 檢查原創腳步 PCM；`godot --headless --path . --script tests/footsteps_test.gd` 驗證三種材質、非碰撞道路、地圖切換、交替音色、實際移動、撞牆／停下／對話鎖定／傳送重置及清理。桌面音訊啟動檢查用 `godot --path . --rendering-method gl_compatibility --script tests/footsteps_test.gd -- --mute-audio`，不寫入音量偏好或正常存檔。這不是主觀聽感驗收。
+
+### 戰鬥動作銜接
+
+施法者銜接驗證：`godot --headless --path . --script tests/caster_motion_test.gd`。涵蓋長老的範圍魔法、月光彈、治療及月蝕術士範圍魔法，檢查準備／釋放／收招、扣魔力和傷害／治療各一次、輸入鎖定與回合完成。拿掉 `--headless` 並加上 `-- --party-art-capture` 可另存靜態姿勢預覽。六人普通攻擊的銜接順序均由 `party_weapon_audio_test.gd` 驗證。
+
+遺跡守衛也已納入相同的實際回合動作順序檢查。額外執行 `godot --headless --path . --script tests/guardian_attack_art_test.gd` 可驗證舉劍圖集的裁切間距、身體縮放與腳底位置；拿掉 `--headless` 並加上 `-- --party-art-capture` 可輸出靜態姿勢預覽。
+
+`godot --headless --path . --script tests/party_weapon_audio_test.gd` 現在也會在完整六人回合中驗證諾亞與苔背狼的 `windup → attack → recover` 順序與收招後陰影位置。命中音效仍每次攻擊一次，沒有增加技能或改動傷害規則。圖集與提示詞見 `assets/generated/DUO_ATTACK_MOTION.md`。
+# Street lantern geometry
+
+Fallen masonry: `godot --headless --path . --script tests/ruin_rubble_test.gd`.
+Expected prefix `RUIN_RUBBLE_TEST_PASS grounded normals deterministic one_batch`.
+
+Moon shard reward: `godot --headless --path . --script tests/moon_shard_test.gd`.
+Expected `MOON_SHARD_TEST_PASS geometry reward_once dialogue_cleanup map_cleanup`.
+Omit headless and append `-- --shard-capture --mute-audio` for a reward screenshot.
+
+Ruin ground material: `godot --headless --path . --script tests/ruin_soil_test.gd`.
+Expected `RUIN_SOIL_TEST_PASS material collision courts village_unchanged`.
+
+Foreground house cutaway: `godot --headless --path . --script tests/foreground_cutaway_test.gd`.
+Expected `FOREGROUND_CUTAWAY_TEST_PASS hysteresis shadows tiles 192_views map_cleanup`.
+See `docs/FOREGROUND_CUTAWAY.md` for actual-renderer capture instructions and test limits.
+
+House exterior themes: `godot --headless --path . --script tests/house_exterior_test.gd`.
+Expected `HOUSE_EXTERIOR_TEST_PASS eight_themes entrance_clear`.
+For all six gable emblems, omit `--headless` and append
+`-- --emblem-capture --mute-audio`; see `docs/HOUSE_EXTERIORS.md`.
+For a pottery-house screenshot, omit `--headless` and append
+`-- --exterior-capture --mute-audio`.
+
+Exterior window frames: `godot --headless --path . --script tests/house_window_test.gd`.
+Expected `HOUSE_WINDOW_TEST_PASS aligned_crossbars eight_outer_frames`; this checks
+geometry only, not shader appearance. See `docs/HOUSE_WINDOWS.md`.
+
+Run `godot --headless --path . --script tests/street_lantern_test.gd`.
+Expected: `STREET_LANTERN_TEST_PASS shared_meshes grounded outward_panes unchanged_light`.
+Checks mesh sharing, ground contact, outward pane normals and preserved lighting.

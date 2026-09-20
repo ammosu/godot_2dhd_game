@@ -1,0 +1,88 @@
+extends Node
+## Renderer-independent foreground cutaway for static houses.
+## Keeps low foundations, physics, interactions and shadow casting intact.
+
+const RESTORE_DELAY: float = 0.22
+var active: bool = false
+var _clear_time: float = 0.0
+var _house: Node3D
+var _target: Node3D
+var _camera: Camera3D
+var _parts: Array[Dictionary] = []
+var _bounds: AABB
+
+
+func configure(house: Node3D, target: Node3D, camera: Camera3D) -> void:
+	_house = house
+	_target = target
+	_camera = camera
+	process_priority = 20 # Evaluate after the camera rig finishes following/orbiting.
+	_collect(house)
+	add_to_group("foreground_cutaways")
+
+
+func _collect(node: Node) -> void:
+	if node is GeometryInstance3D:
+		var visual := node as GeometryInstance3D
+		var local_transform := _house.global_transform.affine_inverse() * visual.global_transform
+		var mesh_bounds: AABB = visual.get_aabb()
+		if visual is MultiMeshInstance3D:
+			# Renderer buffers may still be unsynchronized during construction.
+			# HouseDetails supplies bounds directly from authored tile transforms.
+			var batch := (visual as MultiMeshInstance3D).multimesh
+			if batch != null and batch.custom_aabb.has_volume():
+				mesh_bounds = batch.custom_aabb
+		var bounds: AABB = local_transform * mesh_bounds
+		if visual.visible and visual.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY and bounds.end.y > 0.45:
+			_bounds = bounds if _parts.is_empty() else _bounds.merge(bounds)
+			_parts.append({"visual": visual, "bounds": bounds, "shadow": visual.cast_shadow})
+	for child: Node in node.get_children():
+		_collect(child)
+
+
+func _process(delta: float) -> void:
+	if not is_instance_valid(_target) or not is_instance_valid(_camera):
+		_set_active(false)
+		return
+	if obstructs_view():
+		_clear_time = 0.0
+		_set_active(true)
+	elif active:
+		_clear_time += delta
+		if _clear_time >= RESTORE_DELAY:
+			_set_active(false)
+
+
+func obstructs_view() -> bool:
+	if _parts.is_empty():
+		return false
+	var origin := _house.to_local(_camera.global_position)
+	var right := _camera.global_basis.x
+	# Sample feet, torso and head, plus torso width. A center ray alone misses
+	# partial occlusion of the billboard when standing by a roof edge.
+	var offsets: Array[Vector3] = [Vector3.UP * 0.15, Vector3.UP * 0.8, Vector3.UP * 1.45, Vector3.UP * 0.8 + right * 0.25, Vector3.UP * 0.8 - right * 0.25]
+	for offset: Vector3 in offsets:
+		var endpoint := _house.to_local(_target.global_position + offset)
+		if _bounds.intersects_segment(origin, endpoint) == null:
+			continue
+		for part: Dictionary in _parts:
+			if (part.bounds as AABB).intersects_segment(origin, endpoint) != null:
+				return true
+	return false
+
+
+func _set_active(value: bool) -> void:
+	if value == active:
+		return
+	active = value
+	for part: Dictionary in _parts:
+		var visual: GeometryInstance3D = part.visual
+		if is_instance_valid(visual):
+			if part.shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+				visual.visible = not active
+			else:
+				visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY if active else part.shadow
+
+
+func _exit_tree() -> void:
+	_set_active(false)

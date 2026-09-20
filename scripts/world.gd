@@ -3,12 +3,17 @@ extends Node3D
 
 const MiniMapControl = preload("res://scripts/ui/mini_map.gd")
 const HouseDetails = preload("res://scripts/gameplay/house_details.gd")
+const HouseExterior = preload("res://scripts/gameplay/house_exterior.gd")
+const Footsteps = preload("res://scripts/gameplay/footsteps.gd")
 const WaterFeature = preload("res://scripts/gameplay/water_feature.gd")
 const GardenFence = preload("res://scripts/gameplay/garden_fence.gd")
 const MeadowDressing = preload("res://scripts/gameplay/meadow_dressing.gd")
 const SpriteGrounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 const HouseCatalog = preload("res://scripts/gameplay/house_catalog.gd")
 const HouseInterior = preload("res://scripts/gameplay/house_interior.gd")
+const StreetLantern = preload("res://scripts/gameplay/street_lantern.gd")
+const ForegroundCutaway = preload("res://scripts/gameplay/foreground_cutaway.gd")
+const MoonShard = preload("res://scripts/gameplay/moon_shard.gd")
 
 const PALETTE := {
 	"stone": Color("686176"),
@@ -53,6 +58,7 @@ var _controls_label: Label
 var _mini_map: MiniMapControl
 var _heart_atlases: Array[AtlasTexture] = []
 var _notice_generation: int = 0
+var _interior_backdrop: ColorRect
 var _test_mode: bool = false
 
 
@@ -152,6 +158,10 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 	GameState.current_map = map_id
 	GameState.spawn_id = spawn_id
 	var indoors := HouseCatalog.is_interior(map_id)
+	# Canvas background follows the scene color pipeline in both renderers.
+	# Compatibility's BG_COLOR + glow path lifts this dark clear color to purple.
+	_interior_backdrop.visible = indoors
+	_environment.background_mode = Environment.BG_CANVAS if indoors else Environment.BG_COLOR
 	($CameraRig as Hd2dCameraRig).set_interior(indoors)
 	$Moonlight.visible = not indoors
 	_environment.fog_enabled = not indoors
@@ -261,6 +271,7 @@ func _build_ruins() -> void:
 	_add_box("RuinCourt", Vector3(0.0, -0.02, -2.0), Vector3(14.0, 0.12, 17.0), PALETTE.ruin, true)
 	_add_box("WestRuinCourt", Vector3(-9.0, -0.015, 4.0), Vector3(5.5, 0.1, 5.5), PALETTE.ruin.darkened(0.08), true)
 	_add_box("EastRuinCourt", Vector3(9.0, -0.015, -1.5), Vector3(5.5, 0.1, 5.5), PALETTE.ruin.darkened(0.08), true)
+	preload("res://scripts/gameplay/ruin_surfaces.gd").configure(_map_root)
 	for z_index in range(-11, 13):
 		_add_box("MoonPath_%02d" % (z_index + 11), Vector3(0.0, 0.025, float(z_index)), Vector3(1.45, 0.08, 0.82), Color("786c8d"), false)
 	for x_index in range(-9, 10):
@@ -269,11 +280,13 @@ func _build_ruins() -> void:
 		_add_box("RuinBoundary", Vector3(x_position, 0.8, 0.0), Vector3(0.8, 2.0, 31.0), Color("242235"), true)
 	for z_position in [-15.1, 15.1]:
 		_add_box("RuinBoundary", Vector3(0.0, 0.8, z_position), Vector3(33.0, 2.0, 0.8), Color("242235"), true)
-	for column_position in [
+	var ruin_columns: Array[Vector3] = [
 		Vector3(-6.2, 0.0, -8.8), Vector3(6.2, 0.0, -8.8), Vector3(-6.2, 0.0, -1.5), Vector3(6.2, 0.0, -1.5),
 		Vector3(-6.2, 0.0, 6.2), Vector3(6.2, 0.0, 6.2), Vector3(-11.0, 0.0, 3.8), Vector3(11.0, 0.0, -1.5),
-	]:
+	]
+	for column_position: Vector3 in ruin_columns:
 		_add_column(column_position)
+	preload("res://scripts/gameplay/ruin_rubble.gd").build(_map_root, ruin_columns)
 	for crystal_data in [
 		[Vector3(-11.8, 0.0, -5.2), 1.3], [Vector3(11.5, 0.0, -7.0), 1.0], [Vector3(-12.0, 0.0, 9.0), 0.75],
 		[Vector3(10.5, 0.0, 7.8), 1.15], [Vector3(5.6, 0.0, 11.0), 0.72],
@@ -387,7 +400,7 @@ func _talk_to_noah() -> void:
 		GameState.QuestState.ACTIVE:
 			dialogue_ui.show_dialogue([
 				{"speaker": "守門人・諾亞", "text": "月印已經生效。門後就是北境遺跡。"},
-				{"speaker": "守門人・諾亞", "text": "戰鬥時可用數字鍵 1 攻擊、2 施展月影斬、3 使用藥水、4 防禦。"},
+				{"speaker": "守門人・諾亞", "text": "戰鬥時依按鈕上的數字選擇指令，再確認。每個人的技能不同，我能守護同伴。"},
 			])
 		GameState.QuestState.READY_TO_TURN_IN:
 			dialogue_ui.show_dialogue([{"speaker": "守門人・諾亞", "text": "我看見門扉重新亮起，就知道你成功了。長老正在月燈旁等你。"}])
@@ -422,7 +435,7 @@ func _rest_at_moon_spring() -> void:
 		GameState.restore_player()
 		dialogue_ui.show_dialogue([
 			{"speaker": "月泉", "text": "清澈的光流過全身。HP 與 MP 已完全恢復。"},
-			{"speaker": "系統", "text": "戰鬥中按 3 選藥水、4 選防禦、5 選範圍魔法，再確認。防禦持續到該角色下一次行動。"},
+			{"speaker": "系統", "text": "戰鬥中依角色按鈕的數字選指令，再確認。長老能施展範圍魔法與治療；治療和守護請選友方卡片。"},
 		])
 	else:
 		dialogue_ui.show_dialogue([{"speaker": "月泉", "text": "泉水映著沒有月亮的天空。你目前不需要休息。"}])
@@ -474,10 +487,21 @@ func _on_battle_finished(victory: bool) -> void:
 		GameState.remember_player_position(player.global_position)
 		if not _test_mode:
 			GameState.save_game(GameState.SAVE_PATH, false)
+		var shard := MoonShard.new()
+		shard.name = "MoonShardReward"
+		shard.position = player.position + Vector3.UP * 2.3
+		shard.rotation.y = ($CameraRig/Camera3D as Camera3D).global_rotation.y + PI
+		shard.scale = Vector3.ONE * 1.3
+		_map_root.add_child(shard)
+		var shard_reference: WeakRef = weakref(shard)
 		dialogue_ui.show_dialogue([
 			{"speaker": "旁白", "text": "守衛消散後，一枚溫暖的月光碎片落入你手中。"},
 			{"speaker": "旅人", "text": "該回村莊找長老了。"},
-		])
+		], func() -> void:
+			var presentation := shard_reference.get_ref() as Node3D
+			if presentation != null:
+				presentation.queue_free()
+		)
 	else:
 		GameState.restore_after_defeat()
 		dialogue_ui.show_dialogue([
@@ -908,6 +932,10 @@ func _add_box(node_name: String, world_position: Vector3, size: Vector3, color: 
 	root.name = node_name
 	root.position = world_position
 	_map_root.add_child(root)
+	if node_name in ["Ground", "RuinGround"]:
+		Footsteps.register_surface(root, size, &"dirt")
+	elif node_name.ends_with("RuinCourt") or node_name.begins_with("MoonPath_") or node_name.begins_with("RuinCrossPath_"):
+		Footsteps.register_surface(root, size, &"stone", 10)
 	var mesh_instance := MeshInstance3D.new()
 	var mesh := BoxMesh.new()
 	mesh.size = size
@@ -919,8 +947,23 @@ func _add_box(node_name: String, world_position: Vector3, size: Vector3, color: 
 		ruin_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		ruin_material.uv1_scale = Vector3(maxf(size.x / 4.0, 0.25), maxf(size.z / 4.0, 0.25), 1.0)
 		mesh_instance.material_override = ruin_material
+	if node_name.ends_with("RuinCourt"):
+		var court := ShaderMaterial.new()
+		court.shader = preload("res://shaders/ruin_court.gdshader")
+		court.set_shader_parameter("stone_texture", preload("res://assets/generated/ruin_flagstone.png"))
+		court.set_shader_parameter("mineral_texture", preload("res://assets/generated/moon_lamp_cut_limestone_albedo.png"))
+		court.set_shader_parameter("court_rect", Vector4(world_position.x, world_position.z, size.x * 0.5, size.z * 0.5))
+		court.set_shader_parameter("stone_scale", Vector2(maxf(size.x / 4.0, 0.25), maxf(size.z / 4.0, 0.25)))
+		mesh_instance.material_override = court
+		# A 3–4 cm collision lip must not outline the soil blend with a hard shadow.
+		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if node_name == "Ground":
 		mesh_instance.material_override = _make_village_surface(false)
+	elif node_name == "RuinGround":
+		var soil := ShaderMaterial.new()
+		soil.shader = preload("res://shaders/ruin_soil.gdshader")
+		soil.set_shader_parameter("mineral_texture", preload("res://assets/generated/moon_lamp_cut_limestone_albedo.png"))
+		mesh_instance.material_override = soil
 	root.add_child(mesh_instance)
 	if collision:
 		var collision_shape := CollisionShape3D.new()
@@ -959,6 +1002,7 @@ func _add_cobble_box(node_name: String, world_position: Vector3, size: Vector3, 
 	root.name = node_name
 	root.position = world_position
 	_map_root.add_child(root)
+	Footsteps.register_surface(root, size, &"stone", 10)
 	var mesh_instance := MeshInstance3D.new()
 	var mesh := BoxMesh.new()
 	mesh.size = size
@@ -997,7 +1041,8 @@ func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, r
 	var roof_material := _make_material(roof_color.lightened(0.78), 0.94)
 	roof_material.albedo_texture = load("res://assets/generated/slate_roof_albedo.png") as Texture2D
 	roof_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	var window_material := _make_material(Color("f1c777"), 0.28, 0.0, Color("e7a957"), 2.1)
+	var window_material := ShaderMaterial.new()
+	window_material.shader = preload("res://shaders/house_window.gdshader")
 	var foundation_material := _make_material(Color("aaa6af"), 0.96)
 	foundation_material.albedo_texture = load("res://assets/generated/ruin_flagstone.png") as Texture2D
 	foundation_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
@@ -1026,9 +1071,7 @@ func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, r
 	for cap_z: float in [-0.285, 0.285]:
 		_add_portal_box(house, Vector3(1.15, 3.49, 0.72 + cap_z), Vector3(0.38, 0.13, 0.13), foundation_material)
 	HouseDetails.build(house, timber_material, roof_material, wall_material)
-	for window_x: float in [-1.25, 1.25]:
-		_add_portal_box(house, Vector3(window_x, 1.18, -1.745), Vector3(0.055, 0.62, 0.035), timber_material)
-		_add_portal_box(house, Vector3(window_x, 1.18, -1.75), Vector3(0.62, 0.055, 0.035), timber_material)
+	HouseExterior.build(house, house_id, timber_material)
 
 	var collision_shape := CollisionShape3D.new()
 	collision_shape.position.y = 1.15
@@ -1051,6 +1094,10 @@ func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, r
 	entrance.add_child(door_shape)
 	entrance.activated.connect(_handle_interaction)
 	house.add_child(entrance)
+	var cutaway := ForegroundCutaway.new()
+	cutaway.name = "ForegroundCutaway"
+	house.add_child(cutaway)
+	cutaway.configure(house, player, $CameraRig/Camera3D)
 
 
 func _add_column(world_position: Vector3) -> void:
@@ -1089,35 +1136,7 @@ func _add_tree(world_position: Vector3) -> void:
 
 
 func _add_lamp(world_position: Vector3) -> void:
-	var root := Node3D.new()
-	root.name = "Lantern"
-	root.position = world_position
-	_map_root.add_child(root)
-	var post := MeshInstance3D.new()
-	post.position.y = 0.65
-	var post_mesh := CylinderMesh.new()
-	post_mesh.top_radius = 0.055
-	post_mesh.bottom_radius = 0.08
-	post_mesh.height = 1.3
-	post_mesh.radial_segments = 6
-	post.mesh = post_mesh
-	post.material_override = _make_material(PALETTE.stone_dark, 0.8, 0.45)
-	root.add_child(post)
-	var metal := _make_material(Color("272735"), 0.62, 0.55)
-	var glass := _make_material(Color("ffd38a"), 0.22, 0.0, Color("ffad4f"), 3.5)
-	_add_portal_box(root, Vector3(0.0, 1.42, 0.0), Vector3(0.24, 0.34, 0.24), glass)
-	_add_portal_box(root, Vector3(0.0, 1.22, 0.0), Vector3(0.32, 0.06, 0.32), metal)
-	_add_portal_box(root, Vector3(0.0, 1.62, 0.0), Vector3(0.32, 0.06, 0.32), metal)
-	for corner: Vector2 in [Vector2(-0.13, -0.13), Vector2(-0.13, 0.13), Vector2(0.13, -0.13), Vector2(0.13, 0.13)]:
-		_add_portal_box(root, Vector3(corner.x, 1.42, corner.y), Vector3(0.035, 0.38, 0.035), metal)
-	var cap := _add_portal_box(root, Vector3(0.0, 1.69, 0.0), Vector3(0.25, 0.08, 0.25), metal)
-	cap.rotation.y = PI * 0.25
-	var light := OmniLight3D.new()
-	light.position.y = 1.42
-	light.light_color = Color("ffb968")
-	light.light_energy = 3.2
-	light.omni_range = 4.5
-	root.add_child(light)
+	StreetLantern.build(_map_root, world_position)
 
 
 func _add_village_gardens() -> void:
@@ -1280,6 +1299,18 @@ func _build_environment() -> void:
 	_environment.fog_height_density = 0.18
 	world_environment.environment = _environment
 	add_child(world_environment)
+	var backdrop_layer := CanvasLayer.new()
+	backdrop_layer.name = "InteriorBackdrop"
+	backdrop_layer.layer = -10
+	add_child(backdrop_layer)
+	_interior_backdrop = ColorRect.new()
+	_interior_backdrop.name = "Color"
+	_interior_backdrop.color = Color("141119")
+	_interior_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	backdrop_layer.add_child(_interior_backdrop)
+	_interior_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_interior_backdrop.hide()
+	_environment.background_canvas_max_layer = -10
 	var sun := DirectionalLight3D.new()
 	sun.name = "Moonlight"
 	sun.rotation_degrees = Vector3(-52.0, -34.0, 0.0)
