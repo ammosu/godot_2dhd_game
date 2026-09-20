@@ -2,11 +2,18 @@ class_name PrototypeWorld
 extends Node3D
 
 const MiniMapControl = preload("res://scripts/ui/mini_map.gd")
+const HouseDetails = preload("res://scripts/gameplay/house_details.gd")
+const WaterFeature = preload("res://scripts/gameplay/water_feature.gd")
+const GardenFence = preload("res://scripts/gameplay/garden_fence.gd")
+const MeadowDressing = preload("res://scripts/gameplay/meadow_dressing.gd")
+const SpriteGrounding = preload("res://scripts/gameplay/sprite_grounding.gd")
+const HouseCatalog = preload("res://scripts/gameplay/house_catalog.gd")
+const HouseInterior = preload("res://scripts/gameplay/house_interior.gd")
 
 const PALETTE := {
 	"stone": Color("686176"),
 	"stone_dark": Color("343246"),
-	"path": Color("b99069"),
+	"path": Color("786e70"),
 	"grass": Color("405c55"),
 	"water": Color("31556d"),
 	"gold": Color("d8a45d"),
@@ -20,11 +27,10 @@ const SIDE_CONTENT_MARKER_COLOR := Color("64e6ff")
 
 @onready var player: Wanderer = $Player
 @onready var dialogue_ui: DialogueUI = $DialogueUI
-@onready var battle_ui: BattleUI = $BattleUI
+@onready var battle_ui: PartyBattleUI = $BattleUI
 
 var _map_root: Node3D
 var _environment: Environment
-var _animated_sprites: Array[Sprite3D] = []
 var _ambient_time: float = 0.0
 var _moon_lamp_core: MeshInstance3D
 var _moon_lamp_light: OmniLight3D
@@ -71,6 +77,9 @@ func _ready() -> void:
 		GameState.flags["intro_seen"] = true
 		_load_map("ruins", "from_village")
 		player.global_position = Vector3(-7.0, 0.1, 6.5)
+	elif "--interior-preview" in OS.get_cmdline_user_args():
+		GameState.flags["intro_seen"] = true
+		_load_map("house_02", "entry")
 	elif "--village-preview" in OS.get_cmdline_user_args():
 		GameState.flags["intro_seen"] = true
 		player.global_position = Vector3(0.0, 0.1, 6.0)
@@ -83,10 +92,6 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_ambient_time += delta
-	var animation_frame := int(floor(_ambient_time * 2.5)) % 2
-	for animated_sprite in _animated_sprites:
-		if is_instance_valid(animated_sprite):
-			animated_sprite.frame = animation_frame
 	if is_instance_valid(_moon_lamp_core):
 		_moon_lamp_core.rotation.y += delta * 0.45
 	if is_instance_valid(_moon_lamp_light):
@@ -118,7 +123,7 @@ func _show_intro() -> void:
 	dialogue_ui.show_dialogue([
 		{"speaker": "旁白", "text": "月光已經連續三晚沒有照進暮光村。村莊中央的月燈，也只剩最後一點微光。"},
 		{"speaker": "旁白", "text": "夜霧正在村外聚集。先四處看看，再與廣場左側的長老交談。"},
-		{"speaker": "系統", "text": "使用左側搖桿移動；靠近頭上有記號的人或物件後，點右側「互動」。" if MobileControls.is_mobile_device() else "使用 WASD 或方向鍵移動；靠近頭上有記號的人或物件後，按 Space 互動。"},
+		{"speaker": "系統", "text": "使用左側搖桿移動；靠近頭上有記號的人或物件後，點右側「互動」。" if MobileControls.is_mobile_device() else "使用 WASD 或方向鍵移動；靠近頭上有記號的人或物件後，按 Space 互動。M 靜音，- / = 調整音量。"},
 	])
 
 
@@ -144,30 +149,48 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 	_map_root = Node3D.new()
 	_map_root.name = "Map_%s" % map_id.capitalize()
 	add_child(_map_root)
-	_animated_sprites.clear()
 	GameState.current_map = map_id
 	GameState.spawn_id = spawn_id
+	var indoors := HouseCatalog.is_interior(map_id)
+	($CameraRig as Hd2dCameraRig).set_interior(indoors)
+	$Moonlight.visible = not indoors
+	_environment.fog_enabled = not indoors
+	_environment.ambient_light_color = Color("d4bb98") if indoors else Color("6e83ad")
+	_environment.ambient_light_energy = 0.65 if indoors else 0.48
 
-	match map_id:
-		"ruins":
-			_build_ruins()
-			_environment.background_color = Color("100e1d")
-			_environment.fog_light_color = Color("56506c")
-		_:
-			GameState.current_map = "village"
-			_build_village()
-			_environment.background_color = Color("111425")
-			_environment.fog_light_color = Color("70758d")
+	if indoors:
+		var room := HouseInterior.new()
+		room.name = "HouseInterior"
+		room.house_id = map_id
+		room.interaction_requested.connect(_handle_interaction)
+		_map_root.add_child(room)
+		_environment.background_color = Color("141119")
+	elif map_id == "ruins":
+		_build_ruins()
+		_environment.background_color = Color("100e1d")
+		_environment.fog_light_color = Color("56506c")
+	else:
+		GameState.current_map = "village"
+		_build_village()
+		_environment.background_color = Color("111425")
+		_environment.fog_light_color = Color("70758d")
 
 	var target_position := _get_spawn_position(GameState.current_map, spawn_id)
 	if spawn_id == "saved_position" and GameState.has_saved_position:
 		target_position = GameState.saved_position
 	player.global_position = target_position
 	player.velocity = Vector3.ZERO
+	($CameraRig as Hd2dCameraRig).snap_to_target()
+	GameMusic.sync_to_state()
+	GameAmbience.sync_to_state()
 	_refresh_hud()
 
 
 func _get_spawn_position(map_id: String, spawn_id: String) -> Vector3:
+	if HouseCatalog.is_interior(map_id):
+		return Vector3(0, 0.15, 1.9)
+	if map_id == "village" and spawn_id.begins_with("from_house_"):
+		return HouseCatalog.return_position(spawn_id.trim_prefix("from_"))
 	if map_id == "ruins":
 		match spawn_id:
 			"after_battle":
@@ -182,15 +205,14 @@ func _get_spawn_position(map_id: String, spawn_id: String) -> Vector3:
 
 
 func _build_village() -> void:
-	_add_box("Ground", Vector3(0.0, -0.35, 0.0), Vector3(38.0, 0.7, 32.0), PALETTE.grass, true)
-	_add_box("CentralPlaza", Vector3(0.0, -0.02, 0.0), Vector3(10.5, 0.12, 8.5), PALETTE.stone, true)
-	_add_box("EastPond", Vector3(11.5, -0.23, -10.0), Vector3(9.0, 0.18, 5.0), PALETTE.water, false, 0.18)
+	_add_box("Ground", Vector3(0.0, -0.35, 0.0), Vector3(38.0, 0.7, 32.0), Color("304b48"), true)
+	_add_cobble_box("CentralPlaza", Vector3(0.0, -0.02, 0.0), Vector3(10.5, 0.12, 8.5), true)
+	WaterFeature.build(_map_root, Vector3(11.5, 0.02, -10.0), Vector2(9.0, 5.0))
 
-	for z_index in range(-12, 13):
-		_add_box("NorthRoad_%02d" % (z_index + 12), Vector3(0.0, 0.025, float(z_index)), Vector3(1.6, 0.08, 0.84), PALETTE.path, false)
-	for x_index in range(-14, 15):
-		_add_box("MarketRoad_%02d" % (x_index + 14), Vector3(float(x_index), 0.023, 4.6), Vector3(0.84, 0.075, 1.35), PALETTE.path, false)
-		_add_box("GateRoad_%02d" % (x_index + 14), Vector3(float(x_index), 0.022, -4.8), Vector3(0.84, 0.07, 1.15), PALETTE.path.darkened(0.06), false)
+	_add_cobble_box("NorthRoad", Vector3(0.0, 0.025, 0.0), Vector3(2.35, 0.08, 25.0), false)
+	_add_cobble_box("MarketRoad", Vector3(0.0, 0.023, 4.6), Vector3(29.0, 0.075, 2.25), false)
+	_add_cobble_box("GateRoad", Vector3(0.0, 0.022, -4.8), Vector3(29.0, 0.07, 1.9), false)
+	_configure_village_surfaces()
 	for x_position in [-18.3, 18.3]:
 		_add_box("BoundaryWall", Vector3(x_position, 0.75, 0.0), Vector3(0.7, 1.8, 31.0), PALETTE.stone_dark, true)
 	for z_position in [-15.3, 15.3]:
@@ -212,30 +234,26 @@ func _build_village() -> void:
 		_add_lamp(lamp_position)
 
 	# Eight homes form west, east, north, and south neighborhoods around the plaza.
-	_add_house(Vector3(-12.0, 0.0, -8.0), Color("806967"), Color("59465f"), -PI * 0.5)
-	_add_house(Vector3(-12.0, 0.0, 1.2), Color("73736a"), Color("5a4965"), -PI * 0.5)
-	_add_house(Vector3(12.0, 0.0, -3.0), Color("667776"), Color("47566b"), PI * 0.5)
-	_add_house(Vector3(12.0, 0.0, 6.0), Color("826b61"), Color("654957"), PI * 0.5)
-	_add_house(Vector3(-11.0, 0.0, 10.7), Color("765f70"), Color("50445f"), 0.0)
-	_add_house(Vector3(-4.8, 0.0, 11.0), Color("6c747d"), Color("46536a"), 0.0)
-	_add_house(Vector3(12.0, 0.0, 11.0), Color("706a80"), Color("514b6e"), 0.0)
-	_add_house(Vector3(-6.0, 0.0, -11.0), Color("7f725d"), Color("624b51"), PI)
+	for home: Dictionary in HouseCatalog.HOMES:
+		_add_house(home.position, home.wall, home.roof, home.yaw, home.id)
 
 	_add_crystal(Vector3(-7.0, 0.0, -3.2), 1.1)
 	_add_crystal(Vector3(7.2, 0.0, 1.2), 0.85)
 	_add_crystal(Vector3(14.0, 0.0, 9.0), 0.72)
-	_add_pixel_prop("res://assets/third_party/ninja_adventure/props/crate.png", Vector3(-6.3, 0.42, 4.0), 0.056, "PixelCrate")
-	_add_pixel_prop("res://assets/third_party/ninja_adventure/props/crate.png", Vector3(-5.85, 0.42, 4.2), 0.056, "PixelCrate")
-	_add_pixel_prop("res://assets/third_party/ninja_adventure/props/pot.png", Vector3(6.2, 0.43, 4.0), 0.054, "PixelPot")
-	for grass_position in [Vector3(-14.0, 0.35, 3.0), Vector3(-13.5, 0.35, 2.6), Vector3(14.5, 0.35, -2.1), Vector3(14.0, 0.35, -2.45), Vector3(5.4, 0.35, 8.8)]:
-		_add_pixel_prop("res://assets/third_party/ninja_adventure/props/grass.png", grass_position, 0.045, "PixelGrass")
-	_add_pixel_prop("res://assets/third_party/ninja_adventure/characters/pig.png", Vector3(8.5, 0.46, 8.4), 0.058, "PixelPig", 2, true)
+	_add_supply_crate(Vector3(-6.5, 0.01, 4.0), 0.12)
+	_add_supply_crate(Vector3(-5.5, 0.01, 4.6), -0.10)
+	_add_earthenware_jar(Vector3(6.2, 0.01, 3.3))
+	for grass_position: Vector3 in [Vector3(-14.0, 0.01, 3.0), Vector3(-13.5, 0.01, 2.6), Vector3(14.5, 0.01, -2.1), Vector3(14.0, 0.01, -2.45), Vector3(5.4, 0.01, 8.8)]:
+		_add_grass_clump(grass_position, "seed", 0.001)
+	_add_village_pig(Vector3(8.5, 0.015, 8.4))
+	_add_village_gardens()
 
 	_add_moon_lamp(Vector3(0.0, 0.0, 0.0))
-	_add_actor_interactable("elder", "與長老交談", Vector3(-3.0, 0.0, 1.2), "res://assets/characters/wanderer.svg", 0.026, Color("e4b7ff"), false, MAIN_QUEST_MARKER)
-	_add_actor_interactable("rumi", "與露米交談", Vector3(6.4, 0.0, 4.2), "res://assets/characters/wanderer.svg", 0.021, Color("ffd18a"), false, SIDE_CONTENT_MARKER)
-	_add_actor_interactable("noah", "與守門人交談", Vector3(2.2, 0.0, -10.9), "res://assets/characters/wanderer.svg", 0.027, Color("a9d8ff"))
+	_add_actor_interactable("elder", "與長老交談", Vector3(-3.0, 0.0, 1.2), "res://assets/generated/elder.tres", 1.6 / 724.0, Color.WHITE, false, MAIN_QUEST_MARKER)
+	_add_actor_interactable("rumi", "與露米交談", Vector3(6.4, 0.0, 4.2), "res://assets/generated/rumi.tres", 1.6 / 724.0, Color.WHITE, false, SIDE_CONTENT_MARKER)
+	_add_actor_interactable("noah", "與守門人交談", Vector3(2.2, 0.0, -10.9), "res://assets/generated/noah.tres", 1.6 / 724.0, Color.WHITE)
 	_add_portal("portal_to_ruins", "前往北境遺跡", Vector3(0.0, 0.0, -13.1), Color("86d9ff"))
+	MeadowDressing.build(_map_root)
 
 
 func _build_ruins() -> void:
@@ -261,8 +279,8 @@ func _build_ruins() -> void:
 		[Vector3(10.5, 0.0, 7.8), 1.15], [Vector3(5.6, 0.0, 11.0), 0.72],
 	]:
 		_add_crystal(crystal_data[0], crystal_data[1])
-	for rubble_position in [Vector3(-4.6, 0.42, 8.0), Vector3(4.9, 0.42, 7.2), Vector3(-9.2, 0.42, -3.8), Vector3(8.4, 0.42, 3.7), Vector3(-3.4, 0.42, -10.8)]:
-		_add_pixel_prop("res://assets/third_party/ninja_adventure/props/crate.png", rubble_position, 0.052, "RuinSupply")
+	for supply_position: Vector3 in [Vector3(-4.6, 0.01, 8.0), Vector3(4.9, 0.01, 7.2), Vector3(-9.2, 0.01, -3.8), Vector3(8.4, 0.01, 3.7), Vector3(-3.4, 0.01, -10.8)]:
+		_add_supply_crate(supply_position, supply_position.x * 0.13)
 
 	_add_pedestal_interactable("ruin_tablet", "閱讀風化石碑", Vector3(-9.0, 0.0, 4.0), Color("8f86ac"))
 	_add_pedestal_interactable("moon_spring", "觸碰月泉", Vector3(9.0, 0.0, -1.5), Color("76e5d5"))
@@ -272,10 +290,10 @@ func _build_ruins() -> void:
 			"guardian",
 			"挑戰遺跡守衛",
 			Vector3(0.0, 0.0, -8.2),
-			"res://assets/third_party/ninja_adventure/characters/ninja_blue.png",
-			0.082,
-			Color("ca8cff"),
-			true,
+			"res://assets/generated/guardian_front.tres",
+			1.6 / 640.0,
+			Color.WHITE,
+			false,
 			MAIN_QUEST_MARKER
 		)
 	else:
@@ -283,6 +301,20 @@ func _build_ruins() -> void:
 
 
 func _handle_interaction(interaction_id: String) -> void:
+	if interaction_id.begins_with("enter_house_"):
+		var destination := interaction_id.trim_prefix("enter_")
+		if GameState.current_map == "village" and HouseCatalog.is_interior(destination) and not _portal_transition_pending and not GameState.is_input_locked():
+			_portal_transition_pending = true
+			GameState.request_map(destination, "entry")
+		return
+	if interaction_id == "leave_house":
+		if HouseCatalog.is_interior(GameState.current_map) and not _portal_transition_pending and not GameState.is_input_locked():
+			_portal_transition_pending = true
+			GameState.request_map("village", "from_" + GameState.current_map)
+		return
+	if interaction_id == "inspect_house_shelf":
+		dialogue_ui.show_dialogue([{"speaker": "屋內書架", "text": "書頁記錄著村人的日常：修補屋頂、收拾柴火，以及等待月燈再次亮起。桌椅與床鋪整理得很乾淨。"}])
+		return
 	match interaction_id:
 		"elder":
 			_talk_to_elder()
@@ -390,7 +422,7 @@ func _rest_at_moon_spring() -> void:
 		GameState.restore_player()
 		dialogue_ui.show_dialogue([
 			{"speaker": "月泉", "text": "清澈的光流過全身。HP 與 MP 已完全恢復。"},
-			{"speaker": "系統", "text": "遺跡守衛就在前方。戰鬥中按 3 可使用藥水，按 4 可減輕下一次傷害。"},
+			{"speaker": "系統", "text": "戰鬥中按 3 選藥水、4 選防禦、5 選範圍魔法，再確認。防禦持續到該角色下一次行動。"},
 		])
 	else:
 		dialogue_ui.show_dialogue([{"speaker": "月泉", "text": "泉水映著沒有月亮的天空。你目前不需要休息。"}])
@@ -404,6 +436,8 @@ func _talk_to_guardian() -> void:
 		lines.append({"speaker": "遺跡守衛", "text": "月光碎片只會交給能承受試煉之人。"})
 	lines.append({"speaker": "遺跡守衛", "text": "證明你帶回村莊的是希望，而不是另一場災厄。"})
 	lines.append({"speaker": "旅人", "text": "那就開始吧。"})
+	lines.append({"speaker": "諾亞", "text": "我和長老會助你完成試煉。先選技能與目標，再確認出手。"})
+	lines.append({"speaker": "長老", "text": "霜星爆能波及附近的敵人。注意範圍圈和命中標記，不必只盯著守衛。"})
 	dialogue_ui.show_dialogue(lines, _start_guardian_battle)
 
 
@@ -470,7 +504,7 @@ func _add_actor_interactable(interaction_id: String, prompt: String, world_posit
 	actor.add_child(shape_node)
 
 	var sprite := Sprite3D.new()
-	sprite.position.y = 0.75
+	sprite.name = "CharacterArt"
 	sprite.texture = load(texture_path) as Texture2D
 	sprite.pixel_size = pixel_size
 	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -481,6 +515,10 @@ func _add_actor_interactable(interaction_id: String, prompt: String, world_posit
 		sprite.hframes = 4
 		sprite.vframes = 7
 	actor.add_child(sprite)
+	SpriteGrounding.anchor(sprite, sprite.texture)
+	var ground_height: float = 0.07 if interaction_id == "guardian" else 0.008
+	sprite.position.y += ground_height
+	SpriteGrounding.add_shadow(actor, 0.62 if interaction_id == "guardian" else 0.34, ground_height + 0.012)
 
 	if quest_marker_kind.is_empty():
 		var interaction_marker := Label3D.new()
@@ -544,58 +582,56 @@ func _add_moon_lamp(world_position: Vector3) -> void:
 	interaction_shape.shape = sphere_shape
 	lamp.add_child(interaction_shape)
 
-	var base := MeshInstance3D.new()
-	base.position.y = 0.16
-	var base_mesh := CylinderMesh.new()
-	base_mesh.top_radius = 0.72
-	base_mesh.bottom_radius = 0.82
-	base_mesh.height = 0.32
-	base_mesh.radial_segments = 10
-	base.mesh = base_mesh
-	base.material_override = _make_material(PALETTE.stone_dark, 0.78, 0.35)
-	lamp.add_child(base)
-
-	var cradle := MeshInstance3D.new()
-	cradle.position.y = 0.82
-	var cradle_mesh := CylinderMesh.new()
-	cradle_mesh.top_radius = 0.12
-	cradle_mesh.bottom_radius = 0.28
-	cradle_mesh.height = 1.15
-	cradle_mesh.radial_segments = 8
-	cradle.mesh = cradle_mesh
-	cradle.material_override = _make_material(PALETTE.gold.darkened(0.38), 0.5, 0.62)
-	lamp.add_child(cradle)
-
-	_moon_lamp_core = MeshInstance3D.new()
-	_moon_lamp_core.name = "MoonLampCore"
-	_moon_lamp_core.position.y = 1.52
-	_moon_lamp_core.rotation_degrees = Vector3(0.0, 0.0, 45.0)
-	var core_mesh := PrismMesh.new()
-	core_mesh.size = Vector3(0.55, 0.9, 0.55)
-	_moon_lamp_core.mesh = core_mesh
-	lamp.add_child(_moon_lamp_core)
-
-	var halo := MeshInstance3D.new()
-	halo.position.y = 1.52
-	halo.rotation_degrees.x = 90.0
-	var halo_mesh := TorusMesh.new()
-	halo_mesh.inner_radius = 0.56
-	halo_mesh.outer_radius = 0.66
-	halo_mesh.rings = 12
-	halo_mesh.ring_segments = 8
-	halo.mesh = halo_mesh
-	halo.material_override = _make_material(PALETTE.gold, 0.35, 0.55, PALETTE.gold, 1.2)
-	lamp.add_child(halo)
+	var art := (load("res://assets/generated/moon_lamp.glb") as PackedScene).instantiate() as Node3D
+	art.name = "MoonLampArt"
+	lamp.add_child(art)
+	for mesh: MeshInstance3D in art.find_children("*", "MeshInstance3D", true, false):
+		# Layer 2 receives the scene lights, but not this lantern's plaza fill.
+		mesh.layers = 2
+		var material := (mesh.get_active_material(0) as StandardMaterial3D).duplicate() as StandardMaterial3D
+		# Dense hammered metal and stone need minification mip levels to avoid
+		# shimmering speckles. Each level still uses nearest-neighbor sampling.
+		material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
+		if mesh.name == "MoonLampBronzework":
+			material.albedo_color = Color("ded7bb")
+			material.metallic = 0.25
+		elif mesh.name == "MoonLampPatinaPanels":
+			material.albedo_color = Color(0.72, 1.0, 0.92)
+		elif mesh.name == "MoonLampPlinth":
+			material.albedo_color = Color("9fa1ae")
+			var weathering := NoiseTexture2D.new()
+			weathering.width = 128
+			weathering.height = 128
+			weathering.seamless = true
+			var noise := FastNoiseLite.new()
+			noise.seed = 731
+			noise.frequency = 0.065
+			weathering.noise = noise
+			var tones := Gradient.new()
+			tones.colors = PackedColorArray([Color("928779"), Color("ede5d5")])
+			weathering.color_ramp = tones
+			material.detail_enabled = true
+			material.detail_albedo = weathering
+			material.detail_blend_mode = BaseMaterial3D.BLEND_MODE_MUL
+		mesh.material_override = material
+	_moon_lamp_core = art.find_child("MoonLampCore", true, false) as MeshInstance3D
 
 	_moon_lamp_light = OmniLight3D.new()
 	_moon_lamp_light.name = "MoonLampLight"
 	_moon_lamp_light.position.y = 1.52
 	_moon_lamp_light.omni_range = 7.5
+	_moon_lamp_light.light_cull_mask = 1
 	lamp.add_child(_moon_lamp_light)
+	var fixture_light := OmniLight3D.new()
+	fixture_light.name = "FixtureLight"
+	fixture_light.position.y = 1.52
+	fixture_light.omni_range = 2.5
+	fixture_light.light_cull_mask = 2
+	lamp.add_child(fixture_light)
 
 	var marker := Label3D.new()
 	marker.text = "◇"
-	marker.position.y = 2.35
+	marker.position.y = 2.60
 	marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	marker.font_size = 48
 	marker.outline_size = 10
@@ -608,12 +644,30 @@ func _update_moon_lamp_state() -> void:
 	if not is_instance_valid(_moon_lamp_core) or not is_instance_valid(_moon_lamp_light):
 		return
 	var lamp_is_restored := GameState.quest_state == GameState.QuestState.COMPLETE
+	var fixture_light := _moon_lamp_light.get_parent().get_node("FixtureLight") as OmniLight3D
+	fixture_light.light_color = Color("b9fff0") if lamp_is_restored else Color("d0baf2")
+	fixture_light.light_energy = 0.45 if lamp_is_restored else 0.15
+	# Keep the imported mineral texture in both story states. Only this instance's
+	# material changes; other moon crystals and future map instances are unaffected.
+	var core_material := _moon_lamp_core.material_override as StandardMaterial3D
+	core_material.emission_enabled = true
+	# Imported glTF has no emissive map. Supply the mineral map explicitly so
+	# multiply emission has a sampled surface in both rendering backends.
+	core_material.emission_texture = core_material.albedo_texture
+	core_material.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+	core_material.vertex_color_use_as_albedo = true
 	if lamp_is_restored:
-		_moon_lamp_core.material_override = _make_material(Color("fff1bd"), 0.12, 0.0, Color("a9fff1"), 5.2)
+		core_material.albedo_color = Color("fff1bd")
+		core_material.roughness = 0.12
+		core_material.emission = Color("a9fff1")
+		core_material.emission_energy_multiplier = 1.4
 		_moon_lamp_light.light_color = Color("b9fff0")
 		_moon_lamp_light.light_energy = 4.2
 	else:
-		_moon_lamp_core.material_override = _make_material(Color("77708f"), 0.6, 0.0, Color("625d82"), 0.45)
+		core_material.albedo_color = Color("dec8ff")
+		core_material.roughness = 0.6
+		core_material.emission = Color("9686c9")
+		core_material.emission_energy_multiplier = 0.85
 		_moon_lamp_light.light_color = Color("8882ab")
 		_moon_lamp_light.light_energy = 0.28
 
@@ -654,6 +708,17 @@ func _add_pedestal_interactable(interaction_id: String, prompt: String, world_po
 	focus.mesh = focus_mesh
 	focus.material_override = _make_material(color, 0.2, 0.0, color, 2.8)
 	pedestal.add_child(focus)
+	if interaction_id == "moon_spring":
+		base.visible = false
+		focus.visible = false
+		WaterFeature.build(pedestal, Vector3(0.0, 0.2, 0.0), Vector2(1.6, 1.6), true)
+	elif interaction_id == "ruin_tablet":
+		base.visible = false
+		focus.visible = false
+		var tablet_scene := load("res://assets/generated/moon_tablet.glb") as PackedScene
+		var tablet := tablet_scene.instantiate() as Node3D
+		tablet.name = "MoonTabletVisual"
+		pedestal.add_child(tablet)
 
 	var light := OmniLight3D.new()
 	light.position.y = 0.75
@@ -664,7 +729,7 @@ func _add_pedestal_interactable(interaction_id: String, prompt: String, world_po
 
 	var marker := Label3D.new()
 	marker.text = "◆"
-	marker.position.y = 1.4
+	marker.position.y = 2.25 if interaction_id == "ruin_tablet" else 1.4
 	marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	marker.font_size = 42
 	marker.outline_size = 9
@@ -848,6 +913,14 @@ func _add_box(node_name: String, world_position: Vector3, size: Vector3, color: 
 	mesh.size = size
 	mesh_instance.mesh = mesh
 	mesh_instance.material_override = _make_material(color, 0.88, metallic)
+	if node_name.ends_with("RuinCourt") or node_name == "RuinCourt" or node_name.begins_with("MoonPath_") or node_name.begins_with("RuinCrossPath_"):
+		var ruin_material := _make_material(Color("b8b7d0"), 0.97)
+		ruin_material.albedo_texture = load("res://assets/generated/ruin_flagstone.png") as Texture2D
+		ruin_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		ruin_material.uv1_scale = Vector3(maxf(size.x / 4.0, 0.25), maxf(size.z / 4.0, 0.25), 1.0)
+		mesh_instance.material_override = ruin_material
+	if node_name == "Ground":
+		mesh_instance.material_override = _make_village_surface(false)
 	root.add_child(mesh_instance)
 	if collision:
 		var collision_shape := CollisionShape3D.new()
@@ -857,7 +930,56 @@ func _add_box(node_name: String, world_position: Vector3, size: Vector3, color: 
 		root.add_child(collision_shape)
 
 
-func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, rotation_y: float) -> void:
+func _configure_village_surfaces() -> void:
+	var roads: Dictionary[String, String] = {
+		"CentralPlaza": "plaza_rect", "NorthRoad": "north_rect",
+		"MarketRoad": "market_rect", "GateRoad": "gate_rect",
+	}
+	var surfaces: Array[String] = ["Ground", "CentralPlaza", "NorthRoad", "MarketRoad", "GateRoad"]
+	for surface_name: String in surfaces:
+		var surface := _map_root.get_node(surface_name).get_child(0) as MeshInstance3D
+		var material := surface.material_override as ShaderMaterial
+		for road_name: String in roads:
+			var road := _map_root.get_node(road_name) as Node3D
+			var mesh := (road.get_child(0) as MeshInstance3D).mesh as BoxMesh
+			material.set_shader_parameter(roads[road_name], Vector4(road.position.x, road.position.z, mesh.size.x * 0.5, mesh.size.z * 0.5))
+
+
+func _make_village_surface(road_surface: bool) -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = preload("res://shaders/village_surface.gdshader")
+	material.set_shader_parameter("meadow_texture", preload("res://assets/generated/meadow_albedo.png"))
+	material.set_shader_parameter("cobble_texture", preload("res://assets/generated/village_cobblestone.png"))
+	material.set_shader_parameter("road_surface", road_surface)
+	return material
+
+
+func _add_cobble_box(node_name: String, world_position: Vector3, size: Vector3, collision: bool) -> void:
+	var root: Node3D = StaticBody3D.new() if collision else Node3D.new()
+	root.name = node_name
+	root.position = world_position
+	_map_root.add_child(root)
+	var mesh_instance := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mesh_instance.mesh = mesh
+	mesh_instance.material_override = _make_village_surface(true)
+	# Visual paving and collision share the same top, avoiding invisible steps.
+	mesh_instance.position.y = 0.006 - world_position.y - size.y * 0.5
+	# These shallow paving overlays blend into the ground; their straight box
+	# silhouette must not cast an artificial curb shadow across that blend.
+	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(mesh_instance)
+	if collision:
+		var collision_shape := CollisionShape3D.new()
+		var box_shape := BoxShape3D.new()
+		box_shape.size = size
+		collision_shape.shape = box_shape
+		collision_shape.position.y = mesh_instance.position.y
+		root.add_child(collision_shape)
+
+
+func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, rotation_y: float, house_id: String) -> void:
 	var house := StaticBody3D.new()
 	house.name = "VillageHouse"
 	house.position = world_position
@@ -865,20 +987,26 @@ func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, r
 	_map_root.add_child(house)
 
 	var wall_material := _make_material(wall_color, 0.92)
-	var timber_material := _make_material(Color("352c38"), 0.86, 0.08)
-	var roof_material := _make_material(roof_color, 0.88, 0.12)
+	wall_material.albedo_color = wall_color.lightened(0.32)
+	wall_material.albedo_texture = load("res://assets/generated/plaster_albedo.png") as Texture2D
+	wall_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	wall_material.uv1_scale = Vector3(2.0, 1.0, 1.0)
+	var timber_material := _make_material(Color("a99b92"), 0.92)
+	timber_material.albedo_texture = load("res://assets/generated/timber_albedo.png") as Texture2D
+	timber_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	var roof_material := _make_material(roof_color.lightened(0.78), 0.94)
+	roof_material.albedo_texture = load("res://assets/generated/slate_roof_albedo.png") as Texture2D
+	roof_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	var window_material := _make_material(Color("f1c777"), 0.28, 0.0, Color("e7a957"), 2.1)
-	_add_portal_box(house, Vector3(0.0, 0.18, 0.0), Vector3(4.5, 0.35, 3.65), timber_material)
+	var foundation_material := _make_material(Color("aaa6af"), 0.96)
+	foundation_material.albedo_texture = load("res://assets/generated/ruin_flagstone.png") as Texture2D
+	foundation_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	_add_portal_box(house, Vector3(0.0, 0.18, 0.0), Vector3(4.16, 0.35, 3.36), foundation_material)
 	_add_portal_box(house, Vector3(0.0, 1.15, 0.0), Vector3(4.0, 1.9, 3.2), wall_material)
-	_add_portal_box(house, Vector3(-1.93, 1.18, -0.02), Vector3(0.16, 1.75, 3.28), timber_material)
-	_add_portal_box(house, Vector3(1.93, 1.18, -0.02), Vector3(0.16, 1.75, 3.28), timber_material)
+	for post_x: float in [-1.98, 1.98]:
+		for post_z: float in [-1.60, 0.0, 1.60]:
+			_add_portal_box(house, Vector3(post_x, 1.18, post_z), Vector3(0.16, 1.75, 0.16), timber_material)
 	_add_portal_box(house, Vector3(0.0, 1.7, -1.64), Vector3(3.85, 0.13, 0.12), timber_material)
-
-	var left_roof := _add_portal_box(house, Vector3(-1.0, 2.35, 0.0), Vector3(2.55, 0.34, 3.85), roof_material)
-	left_roof.rotation.z = -0.38
-	var right_roof := _add_portal_box(house, Vector3(1.0, 2.35, 0.0), Vector3(2.55, 0.34, 3.85), roof_material)
-	right_roof.rotation.z = 0.38
-	_add_portal_box(house, Vector3(0.0, 2.64, 0.0), Vector3(0.24, 0.3, 3.92), timber_material)
 
 	_add_portal_box(house, Vector3(0.0, 0.88, -1.66), Vector3(0.78, 1.42, 0.14), timber_material)
 	_add_portal_box(house, Vector3(-1.25, 1.18, -1.67), Vector3(0.62, 0.62, 0.11), window_material)
@@ -891,7 +1019,16 @@ func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, r
 	_add_portal_box(house, Vector3(-2.01, 1.18, 0.72), Vector3(0.11, 0.6, 0.62), window_material)
 	_add_portal_box(house, Vector3(2.01, 1.18, -0.72), Vector3(0.11, 0.6, 0.62), window_material)
 	_add_portal_box(house, Vector3(2.01, 1.18, 0.72), Vector3(0.11, 0.6, 0.62), window_material)
-	_add_portal_box(house, Vector3(1.15, 3.02, 0.72), Vector3(0.52, 1.15, 0.62), timber_material)
+	_add_portal_box(house, Vector3(1.15, 2.94, 0.72), Vector3(0.46, 0.99, 0.56), foundation_material)
+	# Four separate cap stones leave a real dark opening rather than a solid lid.
+	for cap_x: float in [-0.255, 0.255]:
+		_add_portal_box(house, Vector3(1.15 + cap_x, 3.49, 0.72), Vector3(0.13, 0.13, 0.70), foundation_material)
+	for cap_z: float in [-0.285, 0.285]:
+		_add_portal_box(house, Vector3(1.15, 3.49, 0.72 + cap_z), Vector3(0.38, 0.13, 0.13), foundation_material)
+	HouseDetails.build(house, timber_material, roof_material, wall_material)
+	for window_x: float in [-1.25, 1.25]:
+		_add_portal_box(house, Vector3(window_x, 1.18, -1.745), Vector3(0.055, 0.62, 0.035), timber_material)
+		_add_portal_box(house, Vector3(window_x, 1.18, -1.75), Vector3(0.62, 0.055, 0.035), timber_material)
 
 	var collision_shape := CollisionShape3D.new()
 	collision_shape.position.y = 1.15
@@ -899,6 +1036,21 @@ func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, r
 	shape.size = Vector3(4.0, 2.3, 3.2)
 	collision_shape.shape = shape
 	house.add_child(collision_shape)
+	var entrance := Interactable3D.new()
+	entrance.name = "HouseEntrance"
+	entrance.interaction_id = "enter_" + house_id
+	entrance.prompt_text = "進入" + str(HouseCatalog.find_home(house_id).name)
+	entrance.position = Vector3(0, 0.7, -2.1)
+	entrance.collision_layer = 8
+	entrance.collision_mask = 0
+	entrance.add_to_group("house_entrances")
+	var door_shape := CollisionShape3D.new()
+	var door_sphere := SphereShape3D.new()
+	door_sphere.radius = 0.55
+	door_shape.shape = door_sphere
+	entrance.add_child(door_shape)
+	entrance.activated.connect(_handle_interaction)
+	house.add_child(entrance)
 
 
 func _add_column(world_position: Vector3) -> void:
@@ -906,16 +1058,9 @@ func _add_column(world_position: Vector3) -> void:
 	root.name = "Column"
 	root.position = world_position
 	_map_root.add_child(root)
-	var mesh_instance := MeshInstance3D.new()
-	mesh_instance.position.y = 1.0
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = 0.42
-	mesh.bottom_radius = 0.55
-	mesh.height = 2.0
-	mesh.radial_segments = 8
-	mesh_instance.mesh = mesh
-	mesh_instance.material_override = _make_material(PALETTE.stone, 0.9)
-	root.add_child(mesh_instance)
+	var pillar_scene := load("res://assets/generated/weathered_pillar.glb") as PackedScene
+	var pillar := pillar_scene.instantiate() as Node3D
+	root.add_child(pillar)
 	var collision_shape := CollisionShape3D.new()
 	collision_shape.position.y = 1.0
 	var shape := CylinderShape3D.new()
@@ -927,30 +1072,20 @@ func _add_column(world_position: Vector3) -> void:
 
 func _add_tree(world_position: Vector3) -> void:
 	var root := Node3D.new()
-	root.name = "LowPolyTree"
+	root.name = "VillageOak"
 	root.position = world_position
 	_map_root.add_child(root)
-	var trunk := MeshInstance3D.new()
-	trunk.position.y = 0.85
-	var trunk_mesh := CylinderMesh.new()
-	trunk_mesh.top_radius = 0.18
-	trunk_mesh.bottom_radius = 0.26
-	trunk_mesh.height = 1.7
-	trunk_mesh.radial_segments = 6
-	trunk.mesh = trunk_mesh
-	trunk.material_override = _make_material(Color("594452"), 1.0)
-	root.add_child(trunk)
-	for layer_index in range(3):
-		var crown := MeshInstance3D.new()
-		crown.position.y = 1.55 + float(layer_index) * 0.52
-		var crown_mesh := SphereMesh.new()
-		crown_mesh.radius = 0.9 - float(layer_index) * 0.13
-		crown_mesh.height = crown_mesh.radius * 1.45
-		crown_mesh.radial_segments = 8
-		crown_mesh.rings = 4
-		crown.mesh = crown_mesh
-		crown.material_override = _make_material(Color("31554f").lightened(float(layer_index) * 0.06), 1.0)
-		root.add_child(crown)
+	var tree := Sprite3D.new()
+	tree.texture = load("res://assets/generated/village_oak.png") as Texture2D
+	var height := 3.4
+	tree.pixel_size = height / float(tree.texture.get_height())
+	tree.position.y = height * 0.47
+	tree.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	tree.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	tree.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	tree.shaded = true
+	tree.double_sided = true
+	root.add_child(tree)
 
 
 func _add_lamp(world_position: Vector3) -> void:
@@ -968,16 +1103,15 @@ func _add_lamp(world_position: Vector3) -> void:
 	post.mesh = post_mesh
 	post.material_override = _make_material(PALETTE.stone_dark, 0.8, 0.45)
 	root.add_child(post)
-	var bulb := MeshInstance3D.new()
-	bulb.position.y = 1.42
-	var bulb_mesh := SphereMesh.new()
-	bulb_mesh.radius = 0.13
-	bulb_mesh.height = 0.26
-	bulb_mesh.radial_segments = 8
-	bulb_mesh.rings = 4
-	bulb.mesh = bulb_mesh
-	bulb.material_override = _make_material(Color("f8c675"), 0.25, 0.0, Color("f8a94d"), 3.0)
-	root.add_child(bulb)
+	var metal := _make_material(Color("272735"), 0.62, 0.55)
+	var glass := _make_material(Color("ffd38a"), 0.22, 0.0, Color("ffad4f"), 3.5)
+	_add_portal_box(root, Vector3(0.0, 1.42, 0.0), Vector3(0.24, 0.34, 0.24), glass)
+	_add_portal_box(root, Vector3(0.0, 1.22, 0.0), Vector3(0.32, 0.06, 0.32), metal)
+	_add_portal_box(root, Vector3(0.0, 1.62, 0.0), Vector3(0.32, 0.06, 0.32), metal)
+	for corner: Vector2 in [Vector2(-0.13, -0.13), Vector2(-0.13, 0.13), Vector2(0.13, -0.13), Vector2(0.13, 0.13)]:
+		_add_portal_box(root, Vector3(corner.x, 1.42, corner.y), Vector3(0.035, 0.38, 0.035), metal)
+	var cap := _add_portal_box(root, Vector3(0.0, 1.69, 0.0), Vector3(0.25, 0.08, 0.25), metal)
+	cap.rotation.y = PI * 0.25
 	var light := OmniLight3D.new()
 	light.position.y = 1.42
 	light.light_color = Color("ffb968")
@@ -986,31 +1120,130 @@ func _add_lamp(world_position: Vector3) -> void:
 	root.add_child(light)
 
 
+func _add_village_gardens() -> void:
+	# Local seed keeps dressing stable without changing gameplay randomness.
+	var garden_rng := RandomNumberGenerator.new()
+	garden_rng.seed = 704
+	var grass_variants: Array[String] = ["low", "seed", "fan"]
+	for side: float in [-1.0, 1.0]:
+		for index: int in range(90):
+			var z := garden_rng.randf_range(6.1, 12.0)
+			var x := side * garden_rng.randf_range(1.4, 3.5)
+			_add_grass_clump(Vector3(x, 0.01, z), grass_variants[index % 3], garden_rng.randf_range(0.00065, 0.00095))
+		for index: int in range(60):
+			var x := side * garden_rng.randf_range(5.7, 10.0)
+			var z := garden_rng.randf_range(2.5, 3.2)
+			_add_grass_clump(Vector3(x, 0.01, z), grass_variants[index % 3], garden_rng.randf_range(0.00065, 0.00095))
+	for fence_data: Array in [
+		[Vector3(-8.4, 0.35, 1.8), Vector3(4.0, 0.7, 0.16)],
+		[Vector3(8.2, 0.35, 1.8), Vector3(3.5, 0.7, 0.16)],
+		[Vector3(-8.5, 0.35, 7.3), Vector3(3.8, 0.7, 0.16)],
+		[Vector3(8.6, 0.35, 7.3), Vector3(3.2, 0.7, 0.16)],
+	]:
+		var fence_position: Vector3 = fence_data[0]
+		var fence_size: Vector3 = fence_data[1]
+		GardenFence.build(_map_root, Vector3(fence_position.x, 0.0, fence_position.z), fence_size.x)
+	var flower_variants: Array[String] = ["ivory", "mauve", "blue"]
+	var flower_positions: Array[Vector3] = [
+		Vector3(-7.4, 0.01, 2.35), Vector3(-8.2, 0.01, 2.55), Vector3(-9.1, 0.01, 2.3),
+		Vector3(7.2, 0.01, 2.35), Vector3(8.1, 0.01, 2.55), Vector3(9.0, 0.01, 2.3),
+		Vector3(-7.2, 0.01, 7.85), Vector3(-8.1, 0.01, 8.05), Vector3(7.5, 0.01, 7.8),
+		Vector3(9.4, 0.01, 7.9), Vector3(-5.2, 0.01, -2.1), Vector3(5.3, 0.01, -1.9),
+	]
+	for flower_index: int in range(flower_positions.size()):
+		_add_flower_clump(flower_positions[flower_index], flower_variants[flower_index % flower_variants.size()])
+
+
+func _add_grass_clump(world_position: Vector3, variant: String, pixel_size: float) -> void:
+	var grass := Sprite3D.new()
+	grass.name = "MeadowGrass"
+	grass.texture = load("res://assets/generated/grass_%s.tres" % variant) as Texture2D
+	grass.pixel_size = pixel_size
+	# 704px canvas, root baseline at 680. Keep roots fixed while orbiting.
+	grass.position = world_position + Vector3.UP * (680.0 - 352.0) * pixel_size
+	grass.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	grass.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	grass.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	grass.shaded = true
+	grass.double_sided = true
+	_map_root.add_child(grass)
+
+
+func _add_flower_clump(world_position: Vector3, variant: String) -> void:
+	var flower := Sprite3D.new()
+	flower.name = "FlowerClump"
+	flower.texture = load("res://assets/generated/flowers_%s.tres" % variant) as Texture2D
+	flower.pixel_size = 0.001
+	# All three 640px canvases share the root baseline at y=620.
+	# Ground the foliage instead of reusing the old floating sphere height.
+	flower.position = world_position + Vector3.UP * (620.0 - 320.0) * flower.pixel_size
+	flower.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	flower.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	flower.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	flower.shaded = true
+	flower.double_sided = true
+	_map_root.add_child(flower)
+
+
+func _add_supply_crate(world_position: Vector3, yaw: float) -> void:
+	var scene := preload("res://assets/generated/supply_crate.glb") as PackedScene
+	var crate := scene.instantiate() as Node3D
+	crate.name = "SupplyCrate"
+	crate.position = world_position
+	crate.rotation.y = yaw
+	crate.add_to_group("supply_crate_art")
+	_map_root.add_child(crate)
+	for node: Node in crate.find_children("*", "MeshInstance3D", true, false):
+		var instance := node as MeshInstance3D
+		for surface: int in range(instance.mesh.get_surface_count()):
+			var material := instance.mesh.surface_get_material(surface) as BaseMaterial3D
+			if material != null:
+				material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+
+
 func _add_crystal(world_position: Vector3, scale_factor: float) -> void:
-	var crystal := MeshInstance3D.new()
+	var crystal_scene := load("res://assets/generated/moon_crystal.glb") as PackedScene
+	var crystal := crystal_scene.instantiate() as Node3D
 	crystal.name = "GlowCrystal"
-	crystal.position = world_position + Vector3.UP * (0.58 * scale_factor)
-	crystal.rotation_degrees = Vector3(0.0, 0.0, 8.0)
-	var mesh := PrismMesh.new()
-	mesh.size = Vector3(0.5, 1.2, 0.5) * scale_factor
-	crystal.mesh = mesh
-	crystal.material_override = _make_material(PALETTE.crystal, 0.15, 0.0, PALETTE.crystal, 2.4)
+	crystal.position = world_position
+	crystal.scale = Vector3.ONE * scale_factor
+	crystal.rotation.y = world_position.x * 0.37 + world_position.z * 0.19
 	_map_root.add_child(crystal)
 
 
-func _add_pixel_prop(texture_path: String, world_position: Vector3, pixel_size: float, node_name: String, horizontal_frames: int = 1, animated: bool = false) -> void:
-	var sprite := Sprite3D.new()
-	sprite.name = node_name
-	sprite.position = world_position
-	sprite.texture = load(texture_path) as Texture2D
-	sprite.pixel_size = pixel_size
-	sprite.hframes = horizontal_frames
-	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
-	_map_root.add_child(sprite)
-	if animated:
-		_animated_sprites.append(sprite)
+func _add_village_pig(world_position: Vector3) -> void:
+	var pig := AnimatedSprite3D.new()
+	pig.name = "VillagePig"
+	pig.sprite_frames = preload("res://assets/generated/pig_idle.tres")
+	pig.pixel_size = 0.00105
+	# The 800x640 presentation canvas anchors both poses' hooves at y=620.
+	pig.position = world_position + Vector3.UP * 300.0 * pig.pixel_size
+	pig.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	pig.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	pig.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	# Match the readable character-sprite treatment, with a muted dusk tint.
+	pig.shaded = false
+	pig.modulate = Color("c8b9c5")
+	pig.double_sided = true
+	pig.add_to_group("village_pig_art")
+	_map_root.add_child(pig)
+	pig.play(&"idle")
+
+
+func _add_earthenware_jar(world_position: Vector3) -> void:
+	var jar := (preload("res://assets/generated/earthenware_jar.glb") as PackedScene).instantiate() as Node3D
+	jar.name = "EarthenwareJar"
+	jar.position = world_position
+	jar.rotation.y = 0.3
+	jar.add_to_group("earthenware_jar_art")
+	_map_root.add_child(jar)
+	for node: Node in jar.find_children("*", "MeshInstance3D", true, false):
+		var instance := node as MeshInstance3D
+		for surface: int in range(instance.mesh.get_surface_count()):
+			var material := instance.mesh.surface_get_material(surface) as BaseMaterial3D
+			if material != null:
+				material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+				material.albedo_color = Color("b6bec4")
 
 
 func _make_material(color: Color, roughness: float, metallic: float = 0.0, emission: Color = Color.BLACK, emission_energy: float = 1.0) -> StandardMaterial3D:
@@ -1032,16 +1265,16 @@ func _build_environment() -> void:
 	_environment.background_mode = Environment.BG_COLOR
 	_environment.background_color = Color("111425")
 	_environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	_environment.ambient_light_color = Color("8290b5")
-	_environment.ambient_light_energy = 0.62
+	_environment.ambient_light_color = Color("6e83ad")
+	_environment.ambient_light_energy = 0.48
 	_environment.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
 	_environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	_environment.glow_enabled = true
-	_environment.glow_intensity = 0.75
-	_environment.glow_bloom = 0.12
+	_environment.glow_intensity = 0.48
+	_environment.glow_bloom = 0.06
 	_environment.fog_enabled = true
-	_environment.fog_light_color = Color("70758d")
-	_environment.fog_light_energy = 0.55
+	_environment.fog_light_color = Color("536381")
+	_environment.fog_light_energy = 0.42
 	_environment.fog_density = 0.009
 	_environment.fog_height = -1.0
 	_environment.fog_height_density = 0.18
@@ -1050,8 +1283,8 @@ func _build_environment() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.name = "Moonlight"
 	sun.rotation_degrees = Vector3(-52.0, -34.0, 0.0)
-	sun.light_color = Color("ffe1bc")
-	sun.light_energy = 1.35
+	sun.light_color = Color("b9c9ed")
+	sun.light_energy = 0.92
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 35.0
 	add_child(sun)
@@ -1167,7 +1400,13 @@ func _build_hud() -> void:
 	_notice_label.add_theme_constant_override("outline_size", 8)
 	_notice_label.add_theme_font_size_override("font_size", 21)
 	_notice_label.theme = GameState.ui_theme
-	hud.add_child(_notice_label)
+	# Notifications must remain legible over dialogue and battle layers.
+	var notices := CanvasLayer.new()
+	notices.name = "Notices"
+	notices.layer = 90
+	add_child(notices)
+	_notice_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	notices.add_child(_notice_label)
 	_refresh_hud()
 
 
@@ -1178,6 +1417,8 @@ func _refresh_hud() -> void:
 	_update_quest_markers()
 	_update_mini_map_targets()
 	_map_label.text = "WANDERLIGHT  /  %s" % ("北境遺跡" if GameState.current_map == "ruins" else "暮光村")
+	if HouseCatalog.is_interior(GameState.current_map):
+		_map_label.text = "WANDERLIGHT  /  " + str(HouseCatalog.find_home(GameState.current_map).name)
 	_quest_label.text = GameState.get_quest_text()
 	var filled_hearts := ceili(float(GameState.player_hp) / float(GameState.player_max_hp) * 5.0)
 	for index in range(_heart_atlases.size()):
@@ -1202,6 +1443,9 @@ func _update_mini_map_targets() -> void:
 				main_target_visible = true
 		optional_target_position = Vector3(6.4, 0.0, 4.2)
 		optional_target_visible = not bool(GameState.flags.get("rumi_tip_seen", false))
+	elif HouseCatalog.is_interior(GameState.current_map):
+		main_target_position = Vector3(0, 0, 2.95)
+		main_target_visible = true
 	elif GameState.quest_state == GameState.QuestState.ACTIVE:
 		main_target_position = Vector3(0.0, 0.0, -8.2)
 		main_target_visible = not bool(GameState.flags.get("guardian_defeated", false))
@@ -1312,10 +1556,16 @@ func _run_playthrough_test() -> void:
 	_start_guardian_battle()
 	if not _test_require(battle_ui.is_active() and GameState.mode == GameState.Mode.BATTLE, "battle start"):
 		return
-	await get_tree().create_timer(0.42).timeout
-	for turn_index in range(3):
-		battle_ui.choose_action("skill")
-		await get_tree().create_timer(1.72).timeout
+	for turn_index in range(80):
+		if battle_ui.is_resolved():
+			break
+		if not await _test_wait_for_battle(false):
+			return
+		if battle_ui.is_resolved():
+			break
+		battle_ui.choose_action("attack")
+	if not await _test_wait_for_battle(true):
+		return
 	if not _test_require(bool(GameState.flags.get("guardian_defeated", false)), "battle victory flag"):
 		return
 	if not _test_require(GameState.quest_state == GameState.QuestState.READY_TO_TURN_IN and int(GameState.inventory.get("moon_shard", 0)) == 1, "battle quest reward"):
@@ -1356,9 +1606,15 @@ func _run_playthrough_test() -> void:
 
 	GameState.player_hp = 1
 	_start_guardian_battle()
-	await get_tree().create_timer(0.42).timeout
-	battle_ui.choose_action("attack")
-	await get_tree().create_timer(2.12).timeout
+	for ally: Dictionary in GameState.battle_session.actors:
+		if int(ally.team) == 0:
+			ally.hp = 1
+	for turn_index: int in range(3):
+		if not await _test_wait_for_battle(false):
+			return
+		battle_ui.choose_action("guard")
+	if not await _test_wait_for_battle(true):
+		return
 	if not _test_require(battle_ui.is_resolved() and not battle_ui.did_player_win(), "battle defeat state"):
 		return
 	battle_ui._finish_battle()
@@ -1394,6 +1650,15 @@ func _run_playthrough_test() -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_SAVE_PATH))
 	print("PLAYTHROUGH_TEST_PASS dialogue quest maps save battle")
 	get_tree().quit(0)
+
+
+func _test_wait_for_battle(resolved: bool) -> bool:
+	var deadline := Time.get_ticks_msec() + 10000
+	while Time.get_ticks_msec() < deadline:
+		if battle_ui.is_resolved() or (not resolved and battle_ui.can_accept_action()):
+			return true
+		await get_tree().process_frame
+	return _test_require(false, "battle resolution timeout" if resolved else "battle action readiness timeout")
 
 
 func _test_require(condition: bool, label: String) -> bool:

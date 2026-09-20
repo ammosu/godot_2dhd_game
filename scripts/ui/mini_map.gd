@@ -1,6 +1,9 @@
 class_name MiniMap
 extends Control
 
+const HouseCatalog = preload("res://scripts/gameplay/house_catalog.gd")
+const INTERIOR_BOUNDS := Rect2(-4.3, -3.8, 8.6, 7.6)
+
 const PANEL_COLOR := Color(0.035, 0.03, 0.065, 0.94)
 const PANEL_BORDER_COLOR := Color("d6a65e")
 const MAP_BACKGROUND_COLOR := Color(0.075, 0.075, 0.12, 0.96)
@@ -102,6 +105,8 @@ func _draw_panel() -> void:
 
 	var font := ThemeDB.fallback_font
 	var title := "暮光村" if _map_id == "village" else "北境遺跡"
+	if HouseCatalog.is_interior(_map_id):
+		title = str(HouseCatalog.find_home(_map_id).name)
 	draw_string(font, Vector2(12.0, 22.0), title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 16, Color("fff2d2"))
 	draw_string(font, Vector2(size.x - 46.0, 22.0), "N ↑", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 14, Color("f3c77f"))
 
@@ -123,6 +128,12 @@ func _draw_map_geometry() -> void:
 			Rect2(9.8, 9.2, 4.4, 3.6), Rect2(-8.2, -12.8, 4.4, 3.6),
 		]:
 			_draw_world_rect(house_rect, Color("594e5e"))
+	elif HouseCatalog.is_interior(_map_id):
+		_draw_world_rect(Rect2(-4, -3.5, 8, 7), Color("86694f"))
+		_draw_world_rect(Rect2(-3.425, -3.075, 1.65, 2.45), Color("497c82"))
+		_draw_world_rect(Rect2(0.525, -0.475, 1.75, 1.15), Color("b5986d"))
+		_draw_world_rect(Rect2(1.225, -3.345, 2.25, 1.05), Color("554953"))
+		_draw_world_rect(Rect2(-3.76, 0.725, 0.72, 1.75), Color("624a38"))
 	else:
 		_draw_world_rect(RUINS_BOUNDS, Color("292b3e"))
 		_draw_world_rect(Rect2(-7.0, -10.5, 14.0, 17.0), MAP_RUIN_COLOR)
@@ -141,6 +152,8 @@ func _draw_world_rect(world_rect: Rect2, color: Color) -> void:
 
 func _draw_exit_marker() -> void:
 	var exit_position := VILLAGE_EXIT if _map_id == "village" else RUINS_EXIT
+	if HouseCatalog.is_interior(_map_id):
+		exit_position = Vector3(0, 0, 2.95)
 	var center := _world_to_map(exit_position)
 	var points := PackedVector2Array([
 		center + Vector2(0.0, -6.0), center + Vector2(6.0, 0.0),
@@ -180,6 +193,8 @@ func _draw_player_marker(center: Vector2) -> void:
 
 func _world_to_map(world_position: Vector3) -> Vector2:
 	var bounds := VILLAGE_BOUNDS if _map_id == "village" else RUINS_BOUNDS
+	if HouseCatalog.is_interior(_map_id):
+		bounds = INTERIOR_BOUNDS
 	var normalized_position := (Vector2(world_position.x, world_position.z) - bounds.position) / bounds.size
 	normalized_position.x = clampf(normalized_position.x, 0.0, 1.0)
 	normalized_position.y = clampf(normalized_position.y, 0.0, 1.0)

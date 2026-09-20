@@ -10,6 +10,36 @@ extends Node3D
 var _target: Node3D
 var _target_yaw: float = deg_to_rad(45.0)
 var _distance: float
+var _indoors: bool = false
+var _outdoor_distance: float
+var _outdoor_yaw: float
+
+
+func set_interior(enabled: bool) -> void:
+	if enabled == _indoors:
+		return
+	if enabled:
+		_outdoor_distance = _distance
+		_outdoor_yaw = _target_yaw
+		_distance = 13.5
+		_target_yaw = deg_to_rad(35.0)
+	else:
+		_distance = _outdoor_distance
+		_target_yaw = _outdoor_yaw
+	_indoors = enabled
+	if enabled:
+		camera.attributes = null
+	else:
+		_configure_camera_attributes()
+
+
+func snap_to_target() -> void:
+	if _target == null:
+		return
+	global_position = Vector3.ZERO if _indoors else _target.global_position
+	rotation.y = _target_yaw
+	_update_camera_local_position()
+	camera.look_at(global_position + Vector3.UP * 0.78, Vector3.UP)
 
 
 func _ready() -> void:
@@ -28,12 +58,12 @@ func _configure_camera_attributes() -> void:
 
 	var attributes := CameraAttributesPractical.new()
 	attributes.dof_blur_far_enabled = true
-	attributes.dof_blur_far_distance = 13.0
-	attributes.dof_blur_far_transition = 6.0
+	attributes.dof_blur_far_distance = 16.0
+	attributes.dof_blur_far_transition = 8.0
 	attributes.dof_blur_near_enabled = true
-	attributes.dof_blur_near_distance = 5.0
-	attributes.dof_blur_near_transition = 3.0
-	attributes.dof_blur_amount = 0.12
+	attributes.dof_blur_near_distance = 3.0
+	attributes.dof_blur_near_transition = 2.0
+	attributes.dof_blur_amount = 0.055
 	camera.attributes = attributes
 
 
@@ -52,7 +82,7 @@ func _process(delta: float) -> void:
 			_distance = minf(15.0, _distance + 1.25)
 
 	var follow_weight := 1.0 - exp(-delta * 7.5)
-	global_position = global_position.lerp(_target.global_position, follow_weight)
+	global_position = global_position.lerp(Vector3.ZERO if _indoors else _target.global_position, follow_weight)
 	rotation.y = lerp_angle(rotation.y, _target_yaw, 1.0 - exp(-delta * 8.0))
 	_update_camera_local_position()
 	camera.look_at(global_position + Vector3.UP * 0.78, Vector3.UP)

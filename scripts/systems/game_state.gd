@@ -27,6 +27,38 @@ var player_mp: int = 20
 var player_attack: int = 18
 var player_defense: int = 4
 var ui_theme: Theme
+const PartyBattle = preload("res://scripts/systems/party_battle.gd")
+var battle_session: RefCounted
+
+
+func begin_party_battle(enemy: Dictionary) -> RefCounted:
+	battle_session = PartyBattle.new()
+	battle_session.setup(player_hp, player_mp, player_attack, player_defense, enemy)
+	battle_session.actors[0].max_hp = player_max_hp
+	battle_session.actors[0].max_mp = player_max_mp
+	set_mode(Mode.BATTLE)
+	return battle_session
+
+
+func sync_party_battle() -> void:
+	if battle_session == null:
+		return
+	player_hp = int(battle_session.actors[0].hp)
+	player_mp = int(battle_session.actors[0].mp)
+	state_changed.emit()
+
+
+func resolve_party_action(action: String, target: int) -> Dictionary:
+	if battle_session == null:
+		return {"error": "沒有進行中的戰鬥。"}
+	if action == "potion" and int(inventory.get("potion", 0)) <= 0:
+		return {"error": "藥水已用完。"}
+	var result: Dictionary = battle_session.resolve(action, target)
+	if not result.has("error"):
+		if action == "potion":
+			inventory["potion"] = int(inventory.get("potion", 0)) - 1
+		sync_party_battle()
+	return result
 
 
 func _ready() -> void:

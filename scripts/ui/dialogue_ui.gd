@@ -55,6 +55,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _show_current_line() -> void:
+	GameAudio.play_cue(&"dialogue")
 	var line: Dictionary = _lines[_line_index]
 	_speaker_label.text = str(line.get("speaker", ""))
 	_body_label.text = str(line.get("text", ""))

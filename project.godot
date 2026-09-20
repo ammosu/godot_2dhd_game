@@ -13,6 +13,9 @@ config/icon="res://icon.svg"
 [autoload]
 
 GameState="*res://scripts/systems/game_state.gd"
+GameAudio="*res://scripts/systems/game_audio.gd"
+GameMusic="*res://scripts/systems/game_music.gd"
+GameAmbience="*res://scripts/systems/game_ambience.gd"
 
 [display]
 
@@ -24,6 +27,19 @@ window/handheld/orientation=4
 window/stretch/mode="canvas_items"
 
 [input]
+
+audio_mute={
+"deadzone": 0.25,
+"events": [Object(InputEventKey,"physical_keycode":77,"unicode":109)]
+}
+audio_down={
+"deadzone": 0.25,
+"events": [Object(InputEventKey,"physical_keycode":45,"unicode":45)]
+}
+audio_up={
+"deadzone": 0.25,
+"events": [Object(InputEventKey,"physical_keycode":61,"unicode":61)]
+}
 
 move_forward={
 "deadzone": 0.25,

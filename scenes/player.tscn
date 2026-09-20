@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/player.gd" id="1_player"]
-[ext_resource type="Texture2D" path="res://assets/third_party/ninja_adventure/characters/ninja_blue.png" id="2_sprite"]
+[ext_resource type="SpriteFrames" path="res://assets/generated/wanderer_frames.tres" id="2_sprite"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape_player"]
 radius = 0.28
@@ -14,12 +14,12 @@ script = ExtResource("1_player")
 position = Vector3(0, 0.525, 0)
 shape = SubResource("CapsuleShape_player")
 
-[node name="Sprite3D" type="Sprite3D" parent="."]
-position = Vector3(0, 0.74, 0)
-texture = ExtResource("2_sprite")
-pixel_size = 0.072
-hframes = 4
-vframes = 7
+[node name="Sprite3D" type="AnimatedSprite3D" parent="."]
+position = Vector3(0, 0.012, 0)
+offset = Vector2(0, 140)
+sprite_frames = ExtResource("2_sprite")
+animation = &"down"
+pixel_size = 0.005
 billboard = 1
 texture_filter = 0
 alpha_cut = 1

@@ -3,6 +3,14 @@ extends CanvasLayer
 
 signal battle_finished(victory: bool)
 
+const GUARDIAN_IDLE: Texture2D = preload("res://assets/generated/guardian_idle.tres")
+const GUARDIAN_ATTACK: Texture2D = preload("res://assets/generated/guardian_attack.tres")
+const GUARDIAN_HURT: Texture2D = preload("res://assets/generated/guardian_hurt.tres")
+const PLAYER_IDLE: Texture2D = preload("res://assets/generated/wanderer_combat_idle.tres")
+const PLAYER_ATTACK: Texture2D = preload("res://assets/generated/wanderer_combat_attack.tres")
+const PLAYER_HURT: Texture2D = preload("res://assets/generated/wanderer_combat_hurt.tres")
+const PLAYER_GUARD: Texture2D = preload("res://assets/generated/wanderer_combat_guard.tres")
+
 var _root: Control
 var _battle_panel: PanelContainer
 var _combat_stage: Control
@@ -43,7 +51,11 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if not _root.visible or _animation_busy:
+	if not _root.visible:
+		return
+	_player_shadow.position.x = _player_art.position.x + (_player_art.size.x - _player_shadow.size.x) * 0.5
+	_enemy_shadow.position.x = _enemy_art.position.x + (_enemy_art.size.x - _enemy_shadow.size.x) * 0.5
+	if _animation_busy:
 		return
 	_animation_time += delta
 	_player_art.rotation = sin(_animation_time * 2.4) * 0.012
@@ -106,6 +118,10 @@ func is_resolved() -> bool:
 	return _root.visible and not _active
 
 
+func can_accept_action() -> bool:
+	return _active and _player_turn and not _animation_busy
+
+
 func did_player_win() -> bool:
 	return _victory
 
@@ -127,10 +143,13 @@ func _resolve_player_action(action: String) -> void:
 			_log_label.text = "月影斬破開防禦，造成 %d 點傷害！" % damage
 			_spawn_damage_number(_enemy_art, damage, Color("9efcff"), true)
 		"potion":
+			GameAudio.play_cue(&"heal")
 			_log_label.text = "旅人飲下藥水，恢復 35 點 HP。"
 			await _animate_support_action(Color("85f3c5"), "＋35")
 		"guard":
+			GameAudio.play_cue(&"guard")
 			_guarding = true
+			_player_art.texture = PLAYER_GUARD
 			_log_label.text = "旅人穩住腳步，架起防禦姿態。"
 			await _animate_support_action(Color("8dc8ff"), "GUARD")
 		_:
@@ -158,8 +177,8 @@ func _enemy_turn() -> void:
 	var damage := maxi(1, _enemy_attack - GameState.player_defense)
 	if _guarding:
 		damage = maxi(1, damage / 2)
-		_guarding = false
 	await _animate_enemy_strike()
+	_guarding = false
 	GameState.damage_player(damage)
 	_log_label.text = "%s 突進反擊，造成 %d 點傷害。" % [_enemy_name, damage]
 	_spawn_damage_number(_player_art, damage, Color("ff9d86"))
@@ -175,13 +194,13 @@ func _enemy_turn() -> void:
 
 func _play_battle_intro() -> void:
 	_animation_busy = true
-	_player_art.position = _player_home - Vector2(95.0, 0.0)
-	_enemy_art.position = _enemy_home + Vector2(95.0, 0.0)
+	_set_player_position(_player_home - Vector2(95.0, 0.0))
+	_set_enemy_position(_enemy_home + Vector2(95.0, 0.0))
 	_player_art.modulate.a = 0.0
 	_enemy_art.modulate.a = 0.0
 	var tween := create_tween().set_parallel(true)
-	tween.tween_property(_player_art, "position", _player_home, 0.32).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
-	tween.tween_property(_enemy_art, "position", _enemy_home, 0.32).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	tween.tween_method(_set_player_position, _player_art.position, _player_home, 0.32).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	tween.tween_method(_set_enemy_position, _enemy_art.position, _enemy_home, 0.32).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
 	tween.tween_property(_player_art, "modulate:a", 1.0, 0.22)
 	tween.tween_property(_enemy_art, "modulate:a", 1.0, 0.22)
 	await tween.finished
@@ -190,47 +209,75 @@ func _play_battle_intro() -> void:
 	_set_actions_enabled(true)
 
 
+func _set_player_position(value: Vector2) -> void:
+	_player_art.position = value
+	_player_shadow.position.x = value.x + (_player_art.size.x - _player_shadow.size.x) * 0.5
+
+
+func _set_enemy_position(value: Vector2) -> void:
+	_enemy_art.position = value
+	_enemy_shadow.position.x = value.x + (_enemy_art.size.x - _enemy_shadow.size.x) * 0.5
+
+
 func _animate_player_strike(is_skill: bool) -> void:
+	_player_art.texture = PLAYER_IDLE
 	_player_art.rotation = -0.08
 	var windup := create_tween()
-	windup.tween_property(_player_art, "position", _player_home - Vector2(34.0, 0.0), 0.11).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	windup.tween_method(_set_player_position, _player_art.position, _player_home - Vector2(34.0, 0.0), 0.11).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	await windup.finished
-	var dash_target := Vector2(_enemy_home.x - 118.0, _enemy_home.y)
+	_player_art.texture = PLAYER_ATTACK
+	GameAudio.play_cue(&"skill" if is_skill else &"slash")
+	var dash_target := Vector2(_enemy_home.x + (_enemy_art.size.x - _player_art.size.x) * 0.5 - 120.0, _player_home.y)
 	var dash := create_tween()
-	dash.tween_property(_player_art, "position", dash_target, 0.17 if is_skill else 0.2).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_IN)
+	dash.tween_method(_set_player_position, _player_art.position, dash_target, 0.17 if is_skill else 0.2).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_IN)
 	await dash.finished
 	_show_slash_effect(is_skill)
+	GameAudio.play_cue(&"impact")
+	_enemy_art.texture = GUARDIAN_HURT
 	_flash_actor(_enemy_art, Color("b9ffff") if is_skill else Color("ffffff"))
 	_shake_panel(9.0 if is_skill else 5.0)
 	await get_tree().create_timer(0.11).timeout
 	var retreat := create_tween()
-	retreat.tween_property(_player_art, "position", _player_home, 0.27).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	retreat.tween_method(_set_player_position, _player_art.position, _player_home, 0.27).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
 	retreat.parallel().tween_property(_player_art, "rotation", 0.0, 0.18)
 	await retreat.finished
+	_enemy_art.texture = GUARDIAN_IDLE
+	_player_art.texture = PLAYER_IDLE
 
 
 func _animate_enemy_strike() -> void:
 	var windup := create_tween()
-	windup.tween_property(_enemy_art, "position", _enemy_home + Vector2(26.0, 0.0), 0.12)
+	windup.tween_method(_set_enemy_position, _enemy_art.position, _enemy_home + Vector2(26.0, 0.0), 0.12)
 	await windup.finished
-	var dash_target := Vector2(_player_home.x + 118.0, _player_home.y)
+	_enemy_art.texture = GUARDIAN_ATTACK
+	GameAudio.play_cue(&"slash")
+	var dash_target := Vector2(_player_home.x + (_player_art.size.x - _enemy_art.size.x) * 0.5 + 120.0, _enemy_home.y)
 	var dash := create_tween()
-	dash.tween_property(_enemy_art, "position", dash_target, 0.19).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_IN)
+	dash.tween_method(_set_enemy_position, _enemy_art.position, dash_target, 0.19).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_IN)
 	await dash.finished
 	_show_slash_effect(false, true)
+	GameAudio.play_cue(&"guard" if _guarding else &"impact")
+	_player_art.texture = PLAYER_GUARD if _guarding else PLAYER_HURT
 	_flash_actor(_player_art, Color("ffb0a0"))
 	_shake_panel(6.0)
 	await get_tree().create_timer(0.1).timeout
 	var retreat := create_tween()
-	retreat.tween_property(_enemy_art, "position", _enemy_home, 0.25).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	retreat.tween_method(_set_enemy_position, _enemy_art.position, _enemy_home, 0.25).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
 	await retreat.finished
+	_enemy_art.texture = GUARDIAN_IDLE
+	_player_art.texture = PLAYER_IDLE
 
 
 func _animate_support_action(color: Color, text: String) -> void:
 	var effect := Label.new()
 	effect.text = text
 	effect.theme = GameState.ui_theme
-	effect.position = _player_art.position + Vector2(18.0, -25.0)
+	effect.size = Vector2(160.0, 40.0)
+	effect.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	effect.position = _player_art.position + Vector2((_player_art.size.x - 160.0) * 0.5, -25.0)
+	effect.position.y = maxf(12.0, effect.position.y)
+	if text == "GUARD":
+		effect.position.x -= 16.0 # Leave clear space beside the raised sword tip.
 	effect.add_theme_color_override("font_color", color)
 	effect.add_theme_color_override("font_outline_color", Color("111020"))
 	effect.add_theme_constant_override("outline_size", 8)
@@ -238,7 +285,7 @@ func _animate_support_action(color: Color, text: String) -> void:
 	effect.z_index = 12
 	_combat_stage.add_child(effect)
 	var tween := create_tween().set_parallel(true)
-	tween.tween_property(effect, "position:y", effect.position.y - 48.0, 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(effect, "position:y", maxf(12.0, effect.position.y - 48.0), 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.tween_property(effect, "modulate:a", 0.0, 0.55).set_delay(0.2)
 	tween.tween_property(_player_art, "modulate", color.lightened(0.25), 0.18)
 	await tween.finished
@@ -248,6 +295,7 @@ func _animate_support_action(color: Color, text: String) -> void:
 
 func _animate_enemy_defeat() -> void:
 	_animation_busy = true
+	_enemy_art.texture = GUARDIAN_HURT
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(_enemy_art, "position:y", _enemy_home.y - 30.0, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.tween_property(_enemy_art, "rotation", 0.35, 0.45)
@@ -257,6 +305,7 @@ func _animate_enemy_defeat() -> void:
 
 
 func _animate_player_defeat() -> void:
+	_player_art.texture = PLAYER_HURT
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(_player_art, "position:y", _player_home.y + 18.0, 0.35)
 	tween.tween_property(_player_art, "rotation", -0.45, 0.35)
@@ -265,13 +314,19 @@ func _animate_player_defeat() -> void:
 
 
 func _show_slash_effect(is_skill: bool, mirrored: bool = false) -> void:
-	var slash := ColorRect.new()
-	slash.color = Color("8ffff5") if is_skill else Color("fff4c2")
-	slash.custom_minimum_size = Vector2(9.0 if is_skill else 6.0, 150.0 if is_skill else 112.0)
+	var slash := TextureRect.new()
+	slash.name = "SwordSlash"
+	slash.texture = load("res://assets/generated/sword_slash.png") as Texture2D
+	slash.modulate = Color("8ffff5") if is_skill else Color("fff4c2")
+	slash.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	slash.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	slash.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	slash.flip_h = mirrored
+	slash.custom_minimum_size = Vector2.ONE * (190.0 if is_skill else 145.0)
 	slash.size = slash.custom_minimum_size
 	var target := _player_art if mirrored else _enemy_art
 	slash.position = target.position + target.size * 0.5 - slash.size * 0.5
-	slash.rotation = 0.72 if mirrored else -0.72
+	slash.rotation = 0.12 if mirrored else -0.12
 	slash.pivot_offset = slash.size * 0.5
 	slash.scale = Vector2(0.25, 0.25)
 	slash.z_index = 11
@@ -290,8 +345,7 @@ func _show_slash_effect(is_skill: bool, mirrored: bool = false) -> void:
 func _flash_actor(actor: TextureRect, color: Color) -> void:
 	actor.modulate = color
 	var tween := create_tween()
-	var resting_color := Color("ca8cff") if actor == _enemy_art else Color.WHITE
-	tween.tween_property(actor, "modulate", resting_color, 0.22)
+	tween.tween_property(actor, "modulate", Color.WHITE, 0.22)
 
 
 func _shake_panel(strength: float) -> void:
@@ -307,6 +361,7 @@ func _spawn_damage_number(actor: TextureRect, amount: int, color: Color, critica
 	number.text = "%d%s" % [amount, "!" if critical else ""]
 	number.theme = GameState.ui_theme
 	number.position = actor.position + actor.size * Vector2(0.5, 0.15)
+	number.position.y = maxf(12.0, number.position.y)
 	number.add_theme_color_override("font_color", color)
 	number.add_theme_color_override("font_outline_color", Color("151020"))
 	number.add_theme_constant_override("outline_size", 9)
@@ -314,12 +369,14 @@ func _spawn_damage_number(actor: TextureRect, amount: int, color: Color, critica
 	number.z_index = 14
 	_combat_stage.add_child(number)
 	var tween := create_tween().set_parallel(true)
-	tween.tween_property(number, "position:y", number.position.y - 58.0, 0.62).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(number, "position:y", maxf(12.0, number.position.y - 58.0), 0.62).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.tween_property(number, "modulate:a", 0.0, 0.62).set_delay(0.28)
 	tween.chain().tween_callback(number.queue_free)
 
 
 func _end_battle(victory: bool) -> void:
+	GameMusic.resolve_battle()
+	GameAudio.play_cue(&"victory" if victory else &"defeat")
 	_active = false
 	_player_turn = false
 	_animation_busy = false
@@ -343,12 +400,14 @@ func _finish_battle() -> void:
 func _reset_stage_actors() -> void:
 	if not _homes_initialized:
 		return
-	_player_art.position = _player_home
-	_enemy_art.position = _enemy_home
+	_set_player_position(_player_home)
+	_set_enemy_position(_enemy_home)
 	_player_art.rotation = 0.0
 	_enemy_art.rotation = 0.0
 	_player_art.modulate = Color.WHITE
-	_enemy_art.modulate = Color("ca8cff")
+	_enemy_art.modulate = Color.WHITE
+	_player_art.texture = PLAYER_IDLE
+	_enemy_art.texture = GUARDIAN_IDLE
 	_player_shadow.modulate = Color.WHITE
 	_enemy_shadow.modulate = Color.WHITE
 	_player_shadow.scale = Vector2.ONE
@@ -496,84 +555,57 @@ func _build_combat_stage(parent: VBoxContainer) -> void:
 	_combat_stage.custom_minimum_size = Vector2(0.0, 280.0)
 	_combat_stage.clip_contents = true
 	parent.add_child(_combat_stage)
-	var sky := ColorRect.new()
-	sky.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	sky.color = Color("292440")
-	sky.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_combat_stage.add_child(sky)
-	var moon_glow := Label.new()
-	moon_glow.text = "◯"
-	moon_glow.position = Vector2(470.0, -72.0)
-	moon_glow.add_theme_color_override("font_color", Color(0.65, 0.92, 0.94, 0.24))
-	moon_glow.add_theme_font_size_override("font_size", 190)
-	_combat_stage.add_child(moon_glow)
-	for star_position in [Vector2(90.0, 44.0), Vector2(260.0, 88.0), Vector2(700.0, 52.0), Vector2(915.0, 96.0)]:
-		var star := Label.new()
-		star.text = "◆"
-		star.position = star_position
-		star.modulate = Color(0.55, 0.9, 0.94, 0.32)
-		star.add_theme_font_size_override("font_size", 14)
-		_combat_stage.add_child(star)
-	var horizon := ColorRect.new()
-	horizon.anchor_top = 0.72
-	horizon.anchor_right = 1.0
-	horizon.anchor_bottom = 1.0
-	horizon.color = Color("332d43")
-	horizon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_combat_stage.add_child(horizon)
-	var ground_line := ColorRect.new()
-	ground_line.anchor_top = 0.72
-	ground_line.anchor_right = 1.0
-	ground_line.offset_top = -2.0
-	ground_line.offset_bottom = 2.0
-	ground_line.color = Color(0.45, 0.77, 0.75, 0.32)
-	ground_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_combat_stage.add_child(ground_line)
+	var backdrop := TextureRect.new()
+	backdrop.name = "RuinBackdrop"
+	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	backdrop.texture = load("res://assets/generated/ruins_battle_background.png") as Texture2D
+	backdrop.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	backdrop.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	backdrop.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_combat_stage.add_child(backdrop)
 
 	_player_shadow = _make_actor_shadow()
 	_player_shadow.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT)
-	_player_shadow.offset_left = 118.0
-	_player_shadow.offset_top = 75.0
-	_player_shadow.offset_right = 286.0
-	_player_shadow.offset_bottom = 94.0
+	_player_shadow.offset_left = 146.0
+	_player_shadow.offset_top = 68.0
+	_player_shadow.offset_right = 256.0
+	_player_shadow.offset_bottom = 82.0
 	_combat_stage.add_child(_player_shadow)
 	_enemy_shadow = _make_actor_shadow()
 	_enemy_shadow.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT)
-	_enemy_shadow.offset_left = -315.0
-	_enemy_shadow.offset_top = 75.0
-	_enemy_shadow.offset_right = -127.0
-	_enemy_shadow.offset_bottom = 94.0
+	_enemy_shadow.offset_left = -288.0
+	_enemy_shadow.offset_top = 64.0
+	_enemy_shadow.offset_right = -152.0
+	_enemy_shadow.offset_bottom = 80.0
 	_combat_stage.add_child(_enemy_shadow)
 
 	_player_art = TextureRect.new()
-	_player_art.texture = load("res://assets/characters/wanderer.svg") as Texture2D
+	_player_art.texture = PLAYER_IDLE
 	_player_art.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT)
-	_player_art.offset_left = 145.0
-	_player_art.offset_top = -105.0
-	_player_art.offset_right = 257.0
-	_player_art.offset_bottom = 76.0
+	_player_art.offset_left = 41.0
+	_player_art.offset_top = -126.0
+	_player_art.offset_right = 361.0
+	_player_art.offset_bottom = 84.0
 	_player_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_player_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_player_art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_player_art.pivot_offset = Vector2(56.0, 90.0)
+	_player_art.pivot_offset = Vector2(160.0, 105.0)
 	_player_art.z_index = 3
 	_combat_stage.add_child(_player_art)
 	_enemy_art = TextureRect.new()
-	var atlas := AtlasTexture.new()
-	atlas.atlas = load("res://assets/third_party/ninja_adventure/characters/ninja_blue.png") as Texture2D
-	atlas.region = Rect2(0.0, 0.0, 16.0, 16.0)
-	_enemy_art.texture = atlas
+	_enemy_art.texture = GUARDIAN_IDLE
 	_enemy_art.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT)
-	_enemy_art.offset_left = -282.0
-	_enemy_art.offset_top = -96.0
-	_enemy_art.offset_right = -158.0
+	_enemy_art.offset_left = -380.0
+	_enemy_art.offset_top = -134.0
+	_enemy_art.offset_right = -60.0
 	_enemy_art.offset_bottom = 76.0
 	_enemy_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_enemy_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_enemy_art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_enemy_art.flip_h = true
-	_enemy_art.modulate = Color("ca8cff")
-	_enemy_art.pivot_offset = Vector2(62.0, 86.0)
+	_enemy_art.flip_h = false
+	_enemy_art.modulate = Color.WHITE
+	_enemy_art.pivot_offset = Vector2(160.0, 105.0)
 	_enemy_art.z_index = 3
 	_combat_stage.add_child(_enemy_art)
 
@@ -582,12 +614,16 @@ func _build_combat_stage(parent: VBoxContainer) -> void:
 	player_name.position = Vector2(150.0, 231.0)
 	player_name.add_theme_color_override("font_color", Color("a9f3ea"))
 	player_name.add_theme_font_size_override("font_size", 16)
+	player_name.add_theme_color_override("font_outline_color", Color("101422"))
+	player_name.add_theme_constant_override("outline_size", 4)
 	_combat_stage.add_child(player_name)
 	var enemy_name := Label.new()
 	enemy_name.text = "遺跡守衛"
 	enemy_name.position = Vector2(805.0, 231.0)
 	enemy_name.add_theme_color_override("font_color", Color("e4b0f5"))
 	enemy_name.add_theme_font_size_override("font_size", 16)
+	enemy_name.add_theme_color_override("font_outline_color", Color("101422"))
+	enemy_name.add_theme_constant_override("outline_size", 4)
 	_combat_stage.add_child(enemy_name)
 	_impact_flash = ColorRect.new()
 	_impact_flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

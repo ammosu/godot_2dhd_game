@@ -3,3 +3,4 @@ build/
 *.translation
 *.tmp
 .DS_Store
+.dream-loop/
