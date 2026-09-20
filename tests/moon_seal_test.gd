@@ -104,6 +104,26 @@ func _run() -> void:
 	assert(elder.texture == original and elder.offset == original_offset)
 	assert(is_equal_approx(elder.pixel_size, original_size))
 	assert(dialogue.get_signal_connection_list("page_shown").is_empty())
+	# Merge regression: cinematic poses must not replace persistent loadouts.
+	while dialogue.call("is_open"):
+		dialogue.call("advance")
+	for weapon: String in ["lantern_staff", "astral_staff"]:
+		for armor: String in ["sage_robe", "astral_robe"]:
+			var loadout := {"weapon": weapon, "armor": armor}
+			assert(state.call("equip_loadout", loadout, "elder"))
+			var equipped_texture: Texture2D = elder.texture
+			var equipped_offset: Vector2 = elder.offset
+			world.call("_complete_main_quest")
+			dialogue.call("advance")
+			dialogue.call("advance")
+			for frame: int in range(2):
+				await process_frame
+			assert(state.call("get_loadout", "elder") == loadout)
+			while dialogue.call("is_open"):
+				dialogue.call("advance")
+			await process_frame
+			assert(elder.texture == equipped_texture and elder.offset == equipped_offset)
+			assert(state.call("get_loadout", "elder") == loadout)
 	world.free()
 	for singleton: String in ["GameAudio", "GameMusic", "GameAmbience"]:
 		root.get_node(singleton).call("stop_all")

@@ -18,6 +18,8 @@ Use case: precise-object-edit. Edit target: attached fog forest game illustratio
 
 ## 驗證
 
+與主分支裝備系統合併時，新增艾爾四種裝備搭配的結尾回歸：演出不修改裝備資料，結束後恢復進入演出前的換裝貼圖與 offset。手持三姿勢仍使用原藍金服裝的專用圖集，尚無星辰祭袍／星月杖版本；這是短暫演出外觀限制，不是卸除裝備。
+
 本輪双 renderer 六階段實景已檢視；初版 shader 重複乘上貼圖導致變暗，已修正並重拍。Compatibility 閉眼／睜眼插圖像素差異只在局部 20×6 區域，原背景不變。雙 renderer 完整主線、月印時序／中斷恢復測試、Web release 匯出均通過。Chrome 153 三故事預覽無 console／page error 或 context loss；結尾初始／停留後截圖已檢視，前綴 `/tmp/wanderlight-web-story-1789923408301`。沒有重跑全 59 項或宣稱全部素材已驗收。
 
 `tests/moon_seal_test.gd` 驗證三姿勢、原角色恢復、兩條石碑路徑、睜眼 0／中間／1 進度、翻頁延續與清理。`tests/ending_motion_capture.gd` 為兩種真實 renderer 分別拍攝六階段，輸出 `/tmp/wanderlight-ending-<stage>-<renderer>.png`；不寫正常存檔。固定姿勢截圖與時序測試不能外推全部角色動作已完成。

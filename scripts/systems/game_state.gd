@@ -4,11 +4,22 @@ signal state_changed
 signal map_change_requested(map_id: String, spawn_id: String)
 signal notification_requested(message: String)
 
-enum Mode { EXPLORE, DIALOGUE, BATTLE }
+enum Mode { EXPLORE, DIALOGUE, BATTLE, EQUIPMENT }
 enum QuestState { NOT_STARTED, ACTIVE, READY_TO_TURN_IN, COMPLETE }
 
-const SAVE_VERSION := 1
+const SAVE_VERSION := 3
+const PartyEquipment = preload("res://scripts/systems/party_equipment.gd")
 const SAVE_PATH := "user://wanderlight_save.json"
+const BASE_ATTACK := 14
+const BASE_DEFENSE := 2
+const EQUIPMENT_SLOTS: Array[String] = ["weapon", "armor"]
+const TRAVELER_EQUIPMENT: Dictionary = {
+	"traveler_blade": {"name": "旅人短刃", "slot": "weapon", "attack": 4, "defense": 0, "description": "熟悉而可靠的短刃，適合長途旅行。"},
+	"moonsteel_saber": {"name": "月鋼彎刀", "slot": "weapon", "attack": 8, "defense": 0, "description": "刀身映著冷藍月色，出手輕快。"},
+	"traveler_coat": {"name": "旅人長衣", "slot": "armor", "attack": 0, "defense": 2, "description": "耐磨的厚布長衣，陪伴旅人走過風霧。"},
+	"moonward_cloak": {"name": "月守披風", "slot": "armor", "attack": 0, "defense": 5, "description": "縫有月紋護符的披風，能偏轉衝擊。"},
+}
+var EQUIPMENT_CATALOG: Dictionary = _equipment_catalog()
 
 var mode: Mode = Mode.EXPLORE
 var current_map: String = "village"
@@ -18,6 +29,9 @@ var has_saved_position: bool = false
 
 var quest_state: QuestState = QuestState.NOT_STARTED
 var inventory: Dictionary = {"potion": 2}
+var owned_equipment: Array[String] = _starter_equipment()
+var equipped: Dictionary = {"weapon": "traveler_blade", "armor": "traveler_coat"}
+var companion_equipped: Dictionary = {"noah": PartyEquipment.defaults("noah"), "elder": PartyEquipment.defaults("elder")}
 var flags: Dictionary = {}
 
 var player_max_hp: int = 100
@@ -34,6 +48,11 @@ var battle_session: RefCounted
 func begin_party_battle(enemy: Dictionary) -> RefCounted:
 	battle_session = PartyBattle.new()
 	battle_session.setup(player_hp, player_mp, player_attack, player_defense, enemy)
+	for index: int in [1, 2]:
+		var actor := str(battle_session.actors[index].art)
+		var stats := equipment_stats(get_loadout(actor), actor)
+		battle_session.actors[index].attack = stats.x
+		battle_session.actors[index].defense = stats.y
 	battle_session.actors[0].max_hp = player_max_hp
 	battle_session.actors[0].max_mp = player_max_mp
 	set_mode(Mode.BATTLE)
@@ -77,6 +96,10 @@ func reset_new_game(announce: bool = true) -> void:
 	has_saved_position = false
 	quest_state = QuestState.NOT_STARTED
 	inventory = {"potion": 2}
+	owned_equipment = _starter_equipment()
+	equipped = {"weapon": "traveler_blade", "armor": "traveler_coat"}
+	companion_equipped = {"noah": PartyEquipment.defaults("noah"), "elder": PartyEquipment.defaults("elder")}
+	_refresh_equipment_stats()
 	flags = {}
 	player_hp = player_max_hp
 	player_mp = player_max_mp
@@ -88,6 +111,92 @@ func reset_new_game(announce: bool = true) -> void:
 func set_mode(new_mode: Mode) -> void:
 	mode = new_mode
 	state_changed.emit()
+
+
+func _equipment_catalog() -> Dictionary:
+	var catalog := TRAVELER_EQUIPMENT.duplicate(true)
+	catalog.merge(PartyEquipment.ITEMS)
+	return catalog
+
+
+func _starter_equipment() -> Array[String]:
+	var result: Array[String] = []
+	result.assign(_equipment_catalog().keys())
+	return result
+
+
+func get_loadout(actor: String = "wanderer") -> Dictionary:
+	return equipped.duplicate(true) if actor == "wanderer" else Dictionary(companion_equipped.get(actor, {})).duplicate(true)
+
+
+func can_equip(item_id: String, actor: String) -> bool:
+	return actor in PartyEquipment.ACTORS and item_id in owned_equipment and EQUIPMENT_CATALOG.has(item_id) and str(EQUIPMENT_CATALOG[item_id].get("actor", "wanderer")) == actor
+
+
+func equipment_for_slot(slot: String, actor: String = "wanderer") -> Array[String]:
+	var result: Array[String] = []
+	if slot not in EQUIPMENT_SLOTS:
+		return result
+	for item_id: String in owned_equipment:
+		var item: Dictionary = EQUIPMENT_CATALOG.get(item_id, {})
+		if str(item.get("slot", "")) == slot and can_equip(item_id, actor):
+			result.append(item_id)
+	return result
+
+
+func equip_item(item_id: String, actor: String = "wanderer") -> bool:
+	if mode not in [Mode.EXPLORE, Mode.EQUIPMENT]:
+		return false
+	if not can_equip(item_id, actor):
+		return false
+	var item: Dictionary = EQUIPMENT_CATALOG[item_id]
+	var slot := str(item.get("slot", ""))
+	if slot not in EQUIPMENT_SLOTS:
+		return false
+	var loadout := get_loadout(actor)
+	loadout[slot] = item_id
+	return equip_loadout(loadout, actor)
+
+
+func get_equipment_item(item_id: String) -> Dictionary:
+	return Dictionary(EQUIPMENT_CATALOG.get(item_id, {})).duplicate(true)
+
+
+func equipment_stats(loadout: Dictionary, actor: String = "wanderer") -> Vector2i:
+	var result: Vector2i = PartyEquipment.BASE_STATS.get(actor, Vector2i.ZERO)
+	for slot: String in EQUIPMENT_SLOTS:
+		var item: Dictionary = EQUIPMENT_CATALOG.get(str(loadout.get(slot, "")), {})
+		if str(item.get("slot", "")) == slot and str(item.get("actor", "wanderer")) == actor:
+			result += Vector2i(int(item.get("attack", 0)), int(item.get("defense", 0)))
+	return result
+
+
+func equip_loadout(loadout: Dictionary, actor: String = "wanderer") -> bool:
+	if mode not in [Mode.EXPLORE, Mode.EQUIPMENT]:
+		return false
+	for slot: String in EQUIPMENT_SLOTS:
+		var item_id := str(loadout.get(slot, ""))
+		if not can_equip(item_id, actor) or str(get_equipment_item(item_id).get("slot", "")) != slot:
+			return false
+	var selected := {"weapon": str(loadout.weapon), "armor": str(loadout.armor)}
+	if actor == "wanderer":
+		equipped = selected
+	else:
+		companion_equipped[actor] = selected
+	_refresh_equipment_stats()
+	state_changed.emit()
+	notification_requested.emit("裝備已更新")
+	return true
+
+
+func _refresh_equipment_stats() -> void:
+	player_attack = BASE_ATTACK
+	player_defense = BASE_DEFENSE
+	for slot: String in EQUIPMENT_SLOTS:
+		var item_id := str(equipped.get(slot, ""))
+		var item: Dictionary = EQUIPMENT_CATALOG.get(item_id, {})
+		player_attack += int(item.get("attack", 0))
+		player_defense += int(item.get("defense", 0))
 
 
 func is_input_locked() -> bool:
@@ -213,10 +322,19 @@ func load_game(path: String = SAVE_PATH, announce: bool = true) -> bool:
 		return false
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	file.close()
-	if not parsed is Dictionary or int(parsed.get("version", 0)) != SAVE_VERSION:
+	if not parsed is Dictionary or int(parsed.get("version", 0)) not in [1, 2, SAVE_VERSION]:
 		if announce:
 			notification_requested.emit("存檔格式不相容")
 		return false
+	if not parsed.get("owned_equipment", []) is Array or not parsed.get("equipped", {}) is Dictionary:
+		if announce:
+			notification_requested.emit("存檔裝備資料格式不相容")
+		return false
+	if not parsed.get("companion_equipped", {}) is Dictionary:
+		return false
+	for actor: String in ["noah", "elder"]:
+		if not Dictionary(parsed.get("companion_equipped", {})).get(actor, {}) is Dictionary:
+			return false
 	_apply_save(parsed)
 	state_changed.emit()
 	map_change_requested.emit(current_map, "saved_position" if has_saved_position else spawn_id)
@@ -234,6 +352,9 @@ func _serialize() -> Dictionary:
 		"has_saved_position": has_saved_position,
 		"quest_state": int(quest_state),
 		"inventory": inventory.duplicate(true),
+		"owned_equipment": owned_equipment.duplicate(),
+		"equipped": equipped.duplicate(true),
+		"companion_equipped": companion_equipped.duplicate(true),
 		"flags": flags.duplicate(true),
 		"player_hp": player_hp,
 		"player_mp": player_mp,
@@ -246,6 +367,36 @@ func _apply_save(data: Dictionary) -> void:
 	spawn_id = str(data.get("spawn_id", "default"))
 	quest_state = clampi(int(data.get("quest_state", 0)), QuestState.NOT_STARTED, QuestState.COMPLETE) as QuestState
 	inventory = Dictionary(data.get("inventory", {"potion": 2})).duplicate(true)
+	var saved_owned: Array = data.get("owned_equipment", ["traveler_blade", "moonsteel_saber", "traveler_coat", "moonward_cloak"])
+	owned_equipment.clear()
+	for item_id: Variant in saved_owned:
+		var typed_id := str(item_id)
+		if EQUIPMENT_CATALOG.has(typed_id) and typed_id not in owned_equipment:
+			owned_equipment.append(typed_id)
+	equipped = Dictionary(data.get("equipped", {"weapon": "traveler_blade", "armor": "traveler_coat"})).duplicate(true)
+	for slot: String in EQUIPMENT_SLOTS:
+		var item_id := str(equipped.get(slot, ""))
+		if not can_equip(item_id, "wanderer") or str(Dictionary(EQUIPMENT_CATALOG.get(item_id, {})).get("slot", "")) != slot:
+			equipped[slot] = "traveler_blade" if slot == "weapon" else "traveler_coat"
+			if str(equipped[slot]) not in owned_equipment:
+				owned_equipment.append(str(equipped[slot]))
+	# v1/v2 did not contain companion equipment. Grant the new starter choices
+	# deliberately, without changing the traveler's existing ownership/loadout.
+	if int(data.get("version", 1)) < 3:
+		for item_id: String in PartyEquipment.ITEMS:
+			if item_id not in owned_equipment:
+				owned_equipment.append(item_id)
+	companion_equipped = {}
+	for actor: String in ["noah", "elder"]:
+		var selected: Dictionary = Dictionary(data.get("companion_equipped", {})).get(actor, PartyEquipment.defaults(actor)).duplicate(true)
+		for slot: String in EQUIPMENT_SLOTS:
+			var item_id := str(selected.get(slot, ""))
+			if not can_equip(item_id, actor) or str(get_equipment_item(item_id).get("slot", "")) != slot:
+				selected[slot] = PartyEquipment.DEFAULTS[actor][slot]
+				if str(selected[slot]) not in owned_equipment:
+					owned_equipment.append(str(selected[slot]))
+		companion_equipped[actor] = selected
+	_refresh_equipment_stats()
 	flags = Dictionary(data.get("flags", {})).duplicate(true)
 	player_hp = clampi(int(data.get("player_hp", player_max_hp)), 1, player_max_hp)
 	player_mp = clampi(int(data.get("player_mp", player_max_mp)), 0, player_max_mp)

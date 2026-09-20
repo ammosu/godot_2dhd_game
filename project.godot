@@ -85,6 +85,10 @@ load_game={
 "deadzone": 0.25,
 "events": [Object(InputEventKey,"physical_keycode":4194340)]
 }
+equipment_menu={
+"deadzone": 0.25,
+"events": [Object(InputEventKey,"physical_keycode":73,"unicode":105)]
+}
 battle_attack={
 "deadzone": 0.25,
 "events": [Object(InputEventKey,"physical_keycode":49,"unicode":49)]
