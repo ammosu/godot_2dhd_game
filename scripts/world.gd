@@ -14,6 +14,7 @@ const HouseInterior = preload("res://scripts/gameplay/house_interior.gd")
 const StreetLantern = preload("res://scripts/gameplay/street_lantern.gd")
 const ForegroundCutaway = preload("res://scripts/gameplay/foreground_cutaway.gd")
 const MoonShard = preload("res://scripts/gameplay/moon_shard.gd")
+const MoonSeal = preload("res://scripts/gameplay/moon_seal.gd")
 
 const PALETTE := {
 	"stone": Color("686176"),
@@ -80,6 +81,10 @@ func _ready() -> void:
 	if _test_mode:
 		GameState.flags["intro_seen"] = true
 		_run_playthrough_test.call_deferred()
+	elif "--story-preview" in OS.get_cmdline_user_args():
+		_test_mode = true # Preview never writes normal autosaves.
+		GameState.flags["intro_seen"] = true
+		_show_story_preview.call_deferred()
 	elif "--battle-preview" in OS.get_cmdline_user_args():
 		GameState.flags["intro_seen"] = true
 		_load_map("ruins", "from_village")
@@ -136,10 +141,29 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _show_intro() -> void:
 	dialogue_ui.show_dialogue([
-		{"speaker": "旁白", "text": "月光已經連續三晚沒有照進暮光村。村莊中央的月燈，也只剩最後一點微光。"},
-		{"speaker": "旁白", "text": "夜霧正在村外聚集。先四處看看，再與廣場左側的長老交談。"},
+		{"speaker": "旁白", "text": "月光已連續三晚沒有照進暮光村，但遠方雲層仍泛著銀白。月亮沒有消失，只是不再回應這裡。"},
+		{"speaker": "旁白", "text": "中央月燈只剩最後一點冰冷微光，夜霧正在村界外聚集。先四處看看，再與廣場左側的長老交談。"},
 		{"speaker": "系統", "text": "使用左側搖桿移動；靠近頭上有記號的人或物件後，點右側「互動」。" if MobileControls.is_mobile_device() else "使用 WASD 或方向鍵移動；靠近頭上有記號的人或物件後，按 Space 互動。M 靜音，- / = 調整音量。"},
 	])
+
+
+func _show_story_preview() -> void:
+	GameState.start_quest()
+	if "--story-ending" in OS.get_cmdline_user_args():
+		GameState.defeat_guardian()
+		GameState.flags["ruin_tablet_read"] = true
+		player.position = Vector3(0, 0.1, 3.5)
+		($CameraRig as Hd2dCameraRig).snap_to_target()
+		_complete_main_quest()
+	elif "--story-shard" in OS.get_cmdline_user_args():
+		GameState.defeat_guardian()
+		_on_battle_finished(true)
+	else:
+		_load_map("ruins", "from_village")
+		var tablet := _map_root.find_child("MoonTabletVisual", true, false) as Node3D
+		player.position = tablet.get_parent().position + Vector3(0, 0.1, 2.3)
+		($CameraRig as Hd2dCameraRig).snap_to_target()
+		_rest_at_moon_spring()
 
 
 func _on_map_change_requested(map_id: String, spawn_id: String) -> void:
@@ -147,6 +171,7 @@ func _on_map_change_requested(map_id: String, spawn_id: String) -> void:
 
 
 func _load_map(map_id: String, spawn_id: String) -> void:
+	dialogue_ui.clear_illustration()
 	var profile_started: int = Time.get_ticks_usec()
 	if _map_root != null and is_instance_valid(_map_root):
 		_retain_map_materials()
@@ -343,6 +368,7 @@ func _build_village() -> void:
 	stamp = _profile_map_stamp("village_props_gardens", stamp)
 
 	_add_moon_lamp(Vector3(0.0, 0.0, 0.0))
+	_map_root.add_child(preload("res://scripts/gameplay/awakened_road.gd").new())
 	# Low planted crescent frames the landmark but leaves its south approach open.
 	var planting := Node3D.new()
 	planting.name = "MoonGarden"
@@ -462,8 +488,10 @@ func _talk_to_elder() -> void:
 		GameState.QuestState.NOT_STARTED:
 			dialogue_ui.show_dialogue([
 				{"speaker": "長老・艾爾", "text": "旅人，你也看見夜霧了吧。月燈若在今晚熄滅，霧就會越過村界。"},
-				{"speaker": "長老・艾爾", "text": "北境遺跡保存著一枚月光碎片。只有它能讓月燈重新燃起。"},
-				{"speaker": "長老・艾爾", "text": "我會用月印開啟北方門扉。遺跡守衛或許會試探你，務必準備好藥水。"},
+				{"speaker": "長老・艾爾", "text": "北境遺跡保存著一枚月光碎片，是古人留下的備用燈心。只有它能讓月燈重新燃起。"},
+				{"speaker": "旅人", "text": "月燈要我把借走的光送回原本的道路。那句話是什麼意思？"},
+				{"speaker": "長老・艾爾", "text": "夜霧已逼近，我們得先讓村民活過今晚。其餘的事，等月燈復燃再談。"},
+				{"speaker": "長老・艾爾", "text": "我會用月印開啟北方門扉。遺跡守衛或許會試探你；諾亞完成封印操作後會追上你，我也會隨後進入遺跡。"},
 				{"speaker": "旅人", "text": "我會在月燈熄滅以前，把碎片帶回來。"},
 			], GameState.start_quest)
 		GameState.QuestState.ACTIVE:
@@ -479,7 +507,8 @@ func _talk_to_elder() -> void:
 		GameState.QuestState.COMPLETE:
 			dialogue_ui.show_dialogue([
 				{"speaker": "長老・艾爾", "text": "月燈再次閃耀，夜霧也退回了森林。謝謝你，暮光村的朋友。"},
-				{"speaker": "長老・艾爾", "text": "只是那枚碎片上的陌生紋章令我不安。這場黑夜恐怕還沒有真正結束。"},
+				{"speaker": "長老・艾爾", "text": "我只知道碎片可能喚醒古道，卻不知道道路另一端還有什麼。為了讓大家活過今晚，我沒有把一切告訴你。"},
+				{"speaker": "長老・艾爾", "text": "那道灼痕與月印同源。這場黑夜恐怕還沒有真正結束。"},
 			])
 
 
@@ -491,6 +520,7 @@ func _talk_to_rumi() -> void:
 		GameState.QuestState.NOT_STARTED:
 			dialogue_ui.show_dialogue([
 				{"speaker": "村童・露米", "text": "以前月燈亮起來時，整個廣場都像白天一樣。現在連小豬都不敢靠近村口了。"},
+				{"speaker": "村童・露米", "text": "奇怪的是，月燈周圍的影子沒有躲開光，反而全都朝北境遺跡伸過去。"},
 				{"speaker": "村童・露米", "text": "艾爾爺爺好像知道發生了什麼。你可以替我們問問他嗎？"},
 			])
 		GameState.QuestState.ACTIVE:
@@ -504,7 +534,10 @@ func _talk_to_rumi() -> void:
 func _talk_to_noah() -> void:
 	match GameState.quest_state:
 		GameState.QuestState.NOT_STARTED:
-			dialogue_ui.show_dialogue([{"speaker": "守門人・諾亞", "text": "北方門扉已沉睡多年。若長老沒有下令，我不能讓任何人冒險進去。"}])
+			dialogue_ui.show_dialogue([
+				{"speaker": "守門人・諾亞", "text": "北方門扉已沉睡多年。沒有長老的月印，我不能讓任何人冒險進去。"},
+				{"speaker": "守門人・諾亞", "text": "但你抵達村莊的那一晚，門上的月紋曾自行亮起。我不知道那是否只是巧合。"},
+			])
 		GameState.QuestState.ACTIVE:
 			dialogue_ui.show_dialogue([
 				{"speaker": "守門人・諾亞", "text": "月印已經生效。門後就是北境遺跡。"},
@@ -513,19 +546,23 @@ func _talk_to_noah() -> void:
 		GameState.QuestState.READY_TO_TURN_IN:
 			dialogue_ui.show_dialogue([{"speaker": "守門人・諾亞", "text": "我看見門扉重新亮起，就知道你成功了。長老正在月燈旁等你。"}])
 		GameState.QuestState.COMPLETE:
-			dialogue_ui.show_dialogue([{"speaker": "守門人・諾亞", "text": "夜霧退去了，但遺跡的門仍在低鳴。我會繼續守著這裡。"}])
+			dialogue_ui.show_dialogue([{"speaker": "守門人・諾亞", "text": "夜霧退去了，但遺跡的門仍在低鳴。我開始懷疑：這扇門究竟是在阻擋危險，還是在阻擋被我們遺忘的人？"}])
 
 
 func _inspect_moon_lamp() -> void:
 	match GameState.quest_state:
 		GameState.QuestState.NOT_STARTED:
-			dialogue_ui.show_dialogue([{"speaker": "月燈", "text": "燈心裡只剩一點冰冷的銀光，彷彿隨時會被風吹熄。"}])
+			dialogue_ui.show_dialogue([
+				{"speaker": "月燈", "text": "燈心裡只剩一點冰冷的銀光，彷彿隨時會被風吹熄。"},
+				{"speaker": "不明低語", "text": "把借走的光，送回它原本要照亮的道路。"},
+				{"speaker": "旅人", "text": "……是聲音，還是某段不屬於我的記憶？"},
+			])
 		GameState.QuestState.ACTIVE:
 			dialogue_ui.show_dialogue([{"speaker": "月燈", "text": "微光比剛才更弱了。必須盡快從北境遺跡帶回月光碎片。"}])
 		GameState.QuestState.READY_TO_TURN_IN:
 			dialogue_ui.show_dialogue([{"speaker": "月燈", "text": "行囊中的月光碎片正與燈心共鳴。先讓長老確認它的力量。"}])
 		GameState.QuestState.COMPLETE:
-			dialogue_ui.show_dialogue([{"speaker": "月燈", "text": "溫暖的月光灑滿廣場。燈心深處偶爾浮現一枚從未見過的環形紋章。"}])
+			dialogue_ui.show_dialogue([{"speaker": "月燈", "text": "溫暖的月光灑滿廣場，石縫中的環形光路卻仍朝村外延伸。這盞燈正在重新指向某條道路。"}])
 
 
 func _read_ruin_tablet() -> void:
@@ -533,29 +570,35 @@ func _read_ruin_tablet() -> void:
 	GameState.state_changed.emit()
 	dialogue_ui.show_dialogue([
 		{"speaker": "風化石碑", "text": "『月光並非驅散黑暗，而是指引迷途之人穿過黑暗。』"},
-		{"speaker": "旅人", "text": "下方刻著一枚環形紋章……它不像暮光村的文字。"},
+		{"speaker": "風化石碑", "text": "『持燈者不得將光據為己有……不得因一地的安寧，使道路上的人永遠迷失。』"},
+		{"speaker": "旅人", "text": "下方刻著一枚帶缺口的環形紋章，名稱卻被人刻意磨去了。"},
 	])
 
 
 func _rest_at_moon_spring() -> void:
+	var memory: Texture2D = _art_texture("res://assets/generated/moon_spring_memory.png")
 	var needs_rest := GameState.player_hp < GameState.player_max_hp or GameState.player_mp < GameState.player_max_mp
 	if needs_rest:
 		GameState.restore_player()
 		dialogue_ui.show_dialogue([
-			{"speaker": "月泉", "text": "清澈的光流過全身。HP 與 MP 已完全恢復。"},
+			{"speaker": "月泉", "text": "泉面映出一段不屬於此刻的景象：許多人曾沿月光穿過夜霧，直到一道新建的村牆截斷道路。", "illustration": memory},
+			{"speaker": "月泉", "text": "景象散去，清澈的光流過全身。HP 與 MP 已完全恢復。"},
 			{"speaker": "系統", "text": "戰鬥中依角色按鈕的數字選指令，再確認。長老能施展範圍魔法與治療；治療和守護請選友方卡片。"},
 		])
 	else:
-		dialogue_ui.show_dialogue([{"speaker": "月泉", "text": "泉水映著沒有月亮的天空。你目前不需要休息。"}])
+		dialogue_ui.show_dialogue([
+			{"speaker": "月泉", "text": "泉面映出一段過去：許多人沿月光穿過夜霧，直到一道新建的村牆截斷道路。", "illustration": memory},
+			{"speaker": "旅人", "text": "泉水恢復平靜。我的身體不需要休息，但這段記憶為什麼要讓我看見？"},
+		])
 
 
 func _talk_to_guardian() -> void:
 	var lines: Array[Dictionary] = []
 	if bool(GameState.flags.get("ruin_tablet_read", false)):
-		lines.append({"speaker": "遺跡守衛", "text": "你讀過引路人的誓言，也看見了那枚被抹去的紋章。"})
+		lines.append({"speaker": "遺跡守衛", "text": "你讀過引路人的誓言，也看見了那枚被抹去名字的缺口環紋。"})
 	else:
-		lines.append({"speaker": "遺跡守衛", "text": "月光碎片只會交給能承受試煉之人。"})
-	lines.append({"speaker": "遺跡守衛", "text": "證明你帶回村莊的是希望，而不是另一場災厄。"})
+		lines.append({"speaker": "遺跡守衛", "text": "碎片能救你的村莊，也會喚醒一條被封閉的古道。力量與道路的責任不可分離。"})
+	lines.append({"speaker": "遺跡守衛", "text": "每當引路之光被鎖在一地，霧中的道路便更加黯淡。證明你帶回村莊的是希望，而不是另一道只保護少數人的牆。"})
 	lines.append({"speaker": "旅人", "text": "那就開始吧。"})
 	lines.append({"speaker": "諾亞", "text": "我和長老會助你完成試煉。先選技能與目標，再確認出手。"})
 	lines.append({"speaker": "長老", "text": "霜星爆能波及附近的敵人。注意範圍圈和命中標記，不必只盯著守衛。"})
@@ -570,14 +613,27 @@ func _complete_main_quest() -> void:
 		GameState.save_game(GameState.SAVE_PATH, false)
 	var ending_lines: Array[Dictionary] = [
 		{"speaker": "旁白", "text": "碎片融入燈心。銀白光芒沿著廣場的石縫擴散，村外的夜霧開始退去。"},
-		{"speaker": "村童・露米", "text": "月光回來了！"},
-		{"speaker": "長老・艾爾", "text": "等等……碎片上浮現的環形紋章，我從未在村中的紀錄裡見過。"},
+		{"speaker": "村童・露米", "text": "月光回來了！小豬也敢靠近廣場了！"},
+		{"speaker": "旁白", "text": "歡呼聲中，石縫浮現一條通往村外的環形光路。艾爾手中的月印同時烙下一枚缺口環紋。"},
+		{"speaker": "長老・艾爾", "text": "……古道真的醒了。我知道碎片可能帶來這個結果，但若不點燈，村莊今晚便會被夜霧吞沒。"},
 	]
 	if bool(GameState.flags.get("ruin_tablet_read", false)):
 		ending_lines.append({"speaker": "旅人", "text": "我在遺跡的石碑上看過相同的紋章。有人刻意抹去了它的名字。"})
-	ending_lines.append({"speaker": "旁白", "text": "遠方的夜霧中，某種沉睡已久的事物睜開了眼睛。"})
+	var awakening := load("res://assets/generated/fog_awakening.png") as Texture2D
+	ending_lines.append({"speaker": "旁白", "text": "遠方的夜霧中，某個沉睡已久的存在因古道復甦而睜開了眼睛。", "illustration": awakening, "motion": "awakening"})
+	ending_lines.append({"speaker": "霧中之聲", "text": "最後一盞路燈，終於又亮了。", "illustration": awakening, "motion": "awakening"})
 	ending_lines.append({"speaker": "系統", "text": "序章〈熄滅的月燈〉完成。你仍可自由探索，或按 F9 讀取存檔。"})
-	dialogue_ui.show_dialogue(ending_lines)
+	var seal: Node3D = preload("res://scripts/gameplay/keeper_seal_motion.gd").new()
+	seal.last_reveal_page = 4 if bool(GameState.flags.get("ruin_tablet_read", false)) else 3
+	seal.bind_actor(_map_root.get_node("Elder/CharacterArt") as Sprite3D)
+	_map_root.add_child(seal)
+	dialogue_ui.page_shown.connect(seal.show_for_page)
+	var seal_reference: WeakRef = weakref(seal)
+	dialogue_ui.show_dialogue(ending_lines, func() -> void:
+		var presentation := seal_reference.get_ref() as Node3D
+		if presentation != null:
+			presentation.queue_free()
+	)
 
 
 func _start_guardian_battle() -> void:
@@ -597,14 +653,15 @@ func _on_battle_finished(victory: bool) -> void:
 			GameState.save_game(GameState.SAVE_PATH, false)
 		var shard := MoonShard.new()
 		shard.name = "MoonShardReward"
-		shard.position = player.position + Vector3.UP * 2.3
+		shard.position = Vector3(0.0, 1.5, -8.2)
 		shard.rotation.y = ($CameraRig/Camera3D as Camera3D).global_rotation.y + PI
 		shard.scale = Vector3.ONE * 1.3
 		_map_root.add_child(shard)
+		shard.fly_to(player.position + Vector3.UP * 2.3)
 		var shard_reference: WeakRef = weakref(shard)
 		dialogue_ui.show_dialogue([
-			{"speaker": "旁白", "text": "守衛消散後，一枚溫暖的月光碎片落入你手中。"},
-			{"speaker": "旅人", "text": "該回村莊找長老了。"},
+			{"speaker": "遺跡守衛", "text": "試煉證明的不是你能奪走它，而是你身邊仍有人願意守護、療癒與同行。燈亮起時，路也會醒來。"},
+			{"speaker": "旁白", "text": "守衛解除形體，碎片主動飛向旅人；它的斷裂外環與石碑紋章吻合。終有一天，旅人必須決定月光該照向一座村莊，還是所有迷途之人。"},
 		], func() -> void:
 			var presentation := shard_reference.get_ref() as Node3D
 			if presentation != null:
@@ -859,6 +916,11 @@ func _add_pedestal_interactable(interaction_id: String, prompt: String, world_po
 		var tablet := tablet_scene.instantiate() as Node3D
 		tablet.name = "MoonTabletVisual"
 		pedestal.add_child(tablet)
+		var stone := tablet.find_child("TabletStone", true, false) as MeshInstance3D
+		var inscription := (stone.get_active_material(0) as StandardMaterial3D).duplicate() as StandardMaterial3D
+		inscription.albedo_texture = _art_texture("res://assets/generated/moon_tablet_open_ring.png")
+		inscription.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		stone.set_surface_override_material(0, inscription)
 
 	var light := OmniLight3D.new()
 	light.position.y = 0.75
@@ -940,13 +1002,7 @@ func _add_portal(interaction_id: String, prompt: String, world_position: Vector3
 	var seal := MeshInstance3D.new()
 	seal.name = "MoonSeal"
 	seal.position = Vector3(0.0, 1.52, approach_side * 0.19)
-	seal.rotation_degrees.x = 90.0
-	var seal_mesh := TorusMesh.new()
-	seal_mesh.inner_radius = 0.31
-	seal_mesh.outer_radius = 0.43
-	seal_mesh.rings = 12
-	seal_mesh.ring_segments = 8
-	seal.mesh = seal_mesh
+	seal.mesh = MoonSeal.ring_mesh(0.37, 0.12, 0.04)
 	seal.material_override = _make_material(color, 0.2, 0.35, color, 1.2)
 	portal.add_child(seal)
 

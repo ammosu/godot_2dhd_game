@@ -3,6 +3,16 @@ extends Node3D
 
 var _time: float = 0.0
 var _relic: Node3D
+const FLIGHT_DURATION: float = 1.4
+var _flight_elapsed: float = FLIGHT_DURATION
+var _flight_start: Vector3
+var _flight_end: Vector3
+
+
+func fly_to(destination: Vector3) -> void:
+	_flight_start = position
+	_flight_end = destination
+	_flight_elapsed = 0.0
 
 
 func _ready() -> void:
@@ -68,6 +78,12 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
+	if _flight_elapsed < FLIGHT_DURATION:
+		_flight_elapsed = minf(_flight_elapsed + delta, FLIGHT_DURATION)
+		var progress: float = _flight_elapsed / FLIGHT_DURATION
+		var eased: float = smoothstep(0.0, 1.0, progress)
+		position = _flight_start.lerp(_flight_end, eased)
+		position.y += sin(progress * PI) * 0.35
 	_relic.position.y = sin(_time * 2.0) * 0.045
 	_relic.rotation.y = sin(_time * 0.85) * 0.45
 	_relic.rotation.z = sin(_time * 1.3) * 0.035

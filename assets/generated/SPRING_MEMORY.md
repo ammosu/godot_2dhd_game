@@ -1,0 +1,9 @@
+# Moon spring memory
+
+Original narrative illustration generated using the built-in imagegen tool on 2026-09-21, without third-party reference images. File: `moon_spring_memory.png`.
+
+Prompt:
+
+> Create an original 16:9 narrative memory illustration for an HD-2D pixel-art fantasy JRPG, landscape 1536x864. No text, no UI, no lettering. View from gently elevated three-quarter angle. A winding silver-blue moonlit ancient cobblestone road goes from lower left foreground toward upper right distance through dark indigo night fog and a sparse forest. Six small anonymous cloaked travelers with packs walk along the foreground road, faces not detailed, varied silhouettes. A newly built solid gray stone village wall crosses the road at middle distance, visibly blocking it with NO open gateway. On the far side of this wall, warm modest village windows and one silver road lantern illuminate a small safe settlement; on the near side, the interrupted road and stranded travelers remain in darker mist. The same road direction is evident on both sides, but its light stops at the wall. Moonlight is guidance, fog is uncertainty, not monsters. Muted indigo, slate, desaturated teal, subtle amber windows. Beautiful hand-crafted pixel clusters, coherent crisp pixel sizes, atmospheric layers, no photorealism, no smooth painted brushwork, no commercial game characters, no dramatic villain. Composition must communicate a once-shared path cut off to protect the village, bittersweet not combat. Complete rectangular illustration, no border, no labels.
+
+Displayed on the first moon-spring dialogue page for both injured and healthy players. The next page removes the image. This is a still memory illustration, not a new playable map or an animated flashback. The wall blocks the route; travelers remain outside while the village is illuminated.

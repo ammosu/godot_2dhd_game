@@ -1,8 +1,16 @@
 # Playthrough smoke test
 
+## 故事物件專項
+
+在專案根目錄執行 `godot --headless --path . --script tests/spring_memory_test.gd`，
+驗證月泉插圖在受傷／滿血時均顯示、HP／MP 恢復，以及翻頁和換圖清理。
+成功標記為 `SPRING_MEMORY_TEST_PASS injured full_health page_cleanup map_cleanup`。
+實機移除 `--headless` 並加 `-- --memory-capture`，輸出 `/tmp/wanderlight-memory-<renderer>.png`。
+古道光紋、月印與碎片專項命令和限制見 `docs/STORY_OBJECTS.md`；新增三項已納入下方整體清單。
+
 ## 序章資產整體回歸
 
-最新清單為 **56 項（48 CPU／8 GPU）**，新增 `mini_map_rotation_test.gd`（旋轉、相機同步與擴建地面），
+最新清單為 **59 項（51 CPU／8 GPU）**，新增古道光紋、月印展示及月泉記憶三項。既有 `mini_map_rotation_test.gd`（旋轉、相機同步與擴建地面）與晶體材質測試，
 驗證裝飾晶體的礦紋發光、跨實例材質共用、原匯入材質／岩座／幾何未改動。
 下方 54 項數字保留為先前批次歷程。單項命令：
 `godot --headless --path . --script tests/crystal_material_test.gd`。
@@ -349,6 +357,21 @@ godot --path . -- --mobile-controls
 
 `godot --headless --path . --script tests/party_weapon_audio_test.gd` 現在也會在完整六人回合中驗證諾亞與苔背狼的 `windup → attack → recover` 順序與收招後陰影位置。命中音效仍每次攻擊一次，沒有增加技能或改動傷害規則。圖集與提示詞見 `assets/generated/DUO_ATTACK_MOTION.md`。
 # Street lantern geometry
+
+## Story Web previews
+
+Ending motion: `godot --path . --rendering-method gl_compatibility --script tests/ending_motion_capture.gd -- --mute-audio` captures three hand-held seal poses and closed/opening/open eyes. Repeat with `forward_plus`. This needs an actual renderer; `moon_seal_test.gd` covers lifecycle and timing headlessly. Generated asset provenance is in `assets/generated/ENDING_MOTION.md`.
+
+Export Web, then serve `build/web` at `127.0.0.1:4193`. Execute the async
+function in `tests/web_story_test.js` with a Playwright page (Chrome installed).
+It launches an isolated browser and injects preview arguments into the served
+HTML without modifying the export. It captures memory, ending and shard scenes,
+checks runtime errors and WebGL context loss, and closes its own browser.
+Inspect the returned screenshots separately; `runtimeClean` is not visual approval.
+
+Desktop equivalents: `godot --path . -- --story-preview --story-ending`
+(or `--story-shard`; omit the scene flag for memory and tablet).
+These explicit fixtures suppress autosaves and do not represent a full playthrough.
 
 Fallen masonry: `godot --headless --path . --script tests/ruin_rubble_test.gd`.
 Expected prefix `RUIN_RUBBLE_TEST_PASS grounded normals deterministic one_batch`.

@@ -141,11 +141,11 @@ func get_quest_text() -> String:
 		QuestState.NOT_STARTED:
 			return "主線：與村莊長老交談"
 		QuestState.ACTIVE:
-			return "主線：前往北境遺跡，擊敗守衛"
+			return "主線：前往北境遺跡，通過守衛試煉"
 		QuestState.READY_TO_TURN_IN:
 			return "主線：將月光碎片交給村莊長老"
 		QuestState.COMPLETE:
-			return "主線完成：月光重新照耀村莊"
+			return "主線完成：月燈復燃，古道甦醒"
 	return ""
 
 

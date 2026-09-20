@@ -38,6 +38,17 @@ func _run() -> void:
 				var axis := Vector3(center.x, center.y, 0).normalized() * 0.255 + Vector3(0, 0, -0.02)
 				assert(normals[index].dot(center - axis) > 0.0)
 	assert(int(state.get("inventory").get("moon_shard", 0)) == 1)
+	var flight_start: Vector3 = shard.position
+	var flight_end: Vector3 = (world.get_node("Player") as Node3D).position + Vector3.UP * 2.3
+	assert(flight_start.is_equal_approx(Vector3(0, 1.5, -8.2)))
+	shard.call("_process", 0.7)
+	assert(not shard.position.is_equal_approx(flight_start))
+	assert(not shard.position.is_equal_approx(flight_end))
+	shard.call("_process", 0.7)
+	assert(shard.position.is_equal_approx(flight_end))
+	shard.call("_process", 0.3)
+	assert(shard.position.is_equal_approx(flight_end))
+	assert(int(state.get("inventory").get("moon_shard", 0)) == 1)
 	if "--shard-capture" in OS.get_cmdline_user_args():
 		for frame: int in range(60):
 			await process_frame

@@ -8,6 +8,7 @@ import tempfile
 from run_environment_checks import CASES, ROOT, run_check
 
 ADDITIONAL_CASES = (
+    "awakened_road", "moon_seal", "spring_memory",
     "gate_art", "garden_art", "grounding", "player_art", "player_combat_art",
     "guardian_art", "enemy_roster_art", "crate_art", "jar_art", "pig_art",
     "hearth_art", "interior_textiles", "moon_lamp_art", "ally_combat_art",
