@@ -29,6 +29,17 @@ func _run() -> void:
 	player.set_physics_process(false)
 	await _settle()
 	_check(get_nodes_in_group("house_entrances").size() == 8, "Village needs eight entrances")
+	_check(Houses.safe_village_position(Vector3(0, 0.1, 6)) == Vector3(0, 0.1, 6), "Clear save position moved")
+	for home: Dictionary in Houses.HOMES:
+		var basis := Basis(Vector3.UP, float(home.yaw))
+		var legacy_edge: Vector3 = home.position + basis * Vector3(2.15, 0.1, 0)
+		_check(Houses.safe_village_position(legacy_edge).is_equal_approx(Houses.return_position(home.id)), "Old save trapped by expanded home")
+		_check(Houses.safe_village_position(Houses.return_position(home.id)).is_equal_approx(Houses.return_position(home.id)), "Return point inside expanded home: " + str(home.id))
+		state.set("has_saved_position", true)
+		state.set("saved_position", legacy_edge)
+		world.call("_load_map", "village", "saved_position")
+		_check(player.position.is_equal_approx(Houses.return_position(home.id)), "Loaded old save did not escape expanded home")
+	state.set("has_saved_position", false)
 	var save_path := "user://house_visit_test_%d.json" % OS.get_process_id()
 	for home: Dictionary in Houses.HOMES:
 		player.position = Houses.return_position(home.id)

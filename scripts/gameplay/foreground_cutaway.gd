@@ -61,6 +61,16 @@ func obstructs_view() -> bool:
 	# Sample feet, torso and head, plus torso width. A center ray alone misses
 	# partial occlusion of the billboard when standing by a roof edge.
 	var offsets: Array[Vector3] = [Vector3.UP * 0.15, Vector3.UP * 0.8, Vector3.UP * 1.45, Vector3.UP * 0.8 + right * 0.25, Vector3.UP * 0.8 - right * 0.25]
+	# Fully billboarded character art tilts with the camera. Its visible face
+	# can penetrate scenery behind the vertical collision body, so sample that
+	# rendered plane as well. Keep body rays for ordinary upright occlusion.
+	var sprite := _target.get_node_or_null("Sprite3D") as SpriteBase3D
+	if sprite != null and sprite.billboard == BaseMaterial3D.BILLBOARD_ENABLED:
+		var up := _camera.global_basis.y
+		for height: float in [0.15, 0.8, 1.45]:
+			offsets.append(up * height)
+		offsets.append(up * 0.8 + right * 0.25)
+		offsets.append(up * 0.8 - right * 0.25)
 	for offset: Vector3 in offsets:
 		var endpoint := _house.to_local(_target.global_position + offset)
 		if _bounds.intersects_segment(origin, endpoint) == null:

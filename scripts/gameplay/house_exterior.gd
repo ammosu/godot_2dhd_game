@@ -11,6 +11,7 @@ static func build(house: Node3D, house_id: String, wood: Material) -> void:
 	root.name = "ExteriorDressing"
 	root.set_meta("theme", THEMES[house_id])
 	house.add_child(root)
+	preload("res://scripts/gameplay/facade_planters.gd").build(root, house_id, wood)
 	if house_id not in ["house_02", "house_04"]:
 		var kind: String = THEMES[house_id]
 		preload("res://scripts/gameplay/house_emblem.gd").build(root, kind, wood)
@@ -43,11 +44,11 @@ static func _planter(root: Node3D, x: float, wood: Material) -> void:
 		var flowers := Sprite3D.new()
 		flowers.name = "WindowFlowers"
 		flowers.texture = preload("res://assets/generated/flowers_mauve.tres")
-		flowers.pixel_size = 0.0012
+		flowers.pixel_size = 0.00085
 		flowers.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		flowers.shaded = true
 		flowers.double_sided = true
-		flowers.position = Vector3(x + float(index - 1) * 0.23, 1.00, -1.97)
+		flowers.position = Vector3(x + float(index - 1) * 0.17, 0.89 + 300.0 * flowers.pixel_size, -1.97)
 		root.add_child(flowers)
 
 

@@ -24,9 +24,10 @@ func _initialize() -> void:
 		assert(normals[index].dot(Vector3(vertices[index].x, 0, vertices[index].z)) > 0.0)
 	var light := first.get_node("RoadLight") as OmniLight3D
 	assert(is_equal_approx(light.position.y, 1.42))
-	assert(is_equal_approx(light.light_energy, 3.2))
-	assert(is_equal_approx(light.omni_range, 4.5))
+	assert(is_equal_approx(light.light_energy, 5.5))
+	assert(is_equal_approx(light.omni_range, 5.0))
+	assert(is_equal_approx(light.omni_attenuation, 1.25))
 	assert(light.light_color == Color("ffb968"))
 	parent.free()
-	print("STREET_LANTERN_TEST_PASS shared_meshes grounded outward_panes unchanged_light")
+	print("STREET_LANTERN_TEST_PASS shared_meshes grounded outward_panes localized_light")
 	quit()

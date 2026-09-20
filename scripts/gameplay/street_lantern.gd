@@ -26,8 +26,9 @@ static func build(parent: Node3D, position: Vector3) -> Node3D:
 	light.name = "RoadLight"
 	light.position.y = 1.42
 	light.light_color = Color("ffb968")
-	light.light_energy = 3.2
-	light.omni_range = 4.5
+	light.light_energy = 5.5
+	light.omni_range = 5.0
+	light.omni_attenuation = 1.25
 	root.add_child(light)
 	return root
 

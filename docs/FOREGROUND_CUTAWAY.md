@@ -2,7 +2,9 @@
 
 `scripts/gameplay/foreground_cutaway.gd` is attached to each village house after
 its geometry is built. Five camera-to-player segments sample feet, torso, head
-and torso width. A house-local aggregate AABB rejects distant houses, then
+and torso width. Fully billboarded character art adds five matching samples in
+the camera-facing plane: its tilted head can intersect a facade behind the
+vertical collision body. A house-local aggregate AABB rejects distant houses, then
 cached per-part AABBs identify possible occluders. These conservative bounds
 are not triangle-accurate silhouette tests.
 
@@ -33,6 +35,12 @@ The custom bounds also make the roof's culling extent explicit.
   It also repeats twelve interrupted clear-sight intervals to verify that the
   restore timer resets, and removes the camera while occluded to verify that
   original visibility and shadow settings recover during teardown.
+  A fixed regression places the player at house 07's return spawn at 45 degrees
+  and requires house 04's facade to be detected. This assertion failed before
+  adding billboard-plane rays; hiding trees did not remove the visible face
+  triangle, while hiding the neighboring house did. Final Forward+ and
+  Compatibility entrance captures confirm the face is unobstructed, with the
+  low foundation and scenery shadows preserved.
 - Run `tests/house_exterior_test.gd` without headless, with
   `-- --emblem-capture --mute-audio`, on both renderers for actual images.
   House 01 and 07 reproduce the previously obstructed angles.

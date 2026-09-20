@@ -37,7 +37,7 @@ func _run() -> void:
 		var collisions := house.find_children("*", "CollisionShape3D", false, false)
 		_check(collisions.size() == 1, "House collision count changed")
 		var collision := collisions[0] as CollisionShape3D
-		_check((collision.shape as BoxShape3D).size == Vector3(4.0, 2.3, 3.2), "House gameplay footprint changed")
+		_check((collision.shape as BoxShape3D).size == preload("res://scripts/gameplay/house_catalog.gd").EXTERIOR_COLLISION, "House collision differs from exterior proportions")
 		var tiles := batch.multimesh
 		_check(tiles.instance_count == 192, "Roof needs two slopes of eight twelve-tile courses")
 		var bounds := tiles.mesh.get_aabb()

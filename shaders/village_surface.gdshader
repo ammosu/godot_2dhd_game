@@ -37,8 +37,10 @@ void fragment() {
 	float wear = 1.0 - smoothstep(0.0, 0.40, max(edge, 0.0));
 	grass = mix(grass, soil_color.rgb, wear * 0.13);
 	if (road_surface) {
-		vec3 cobble = texture(cobble_texture, p / 5.0).rgb * vec3(0.68, 0.62, 0.65);
+		vec3 cobble = texture(cobble_texture, p / 3.2).rgb * vec3(0.96, 0.88, 0.78);
 		float paving = smoothstep(0.04, 0.32, -edge + breakup * 0.10);
+		// The central planted island breaks up the uninterrupted stone square.
+		paving *= smoothstep(1.04, 1.40, length(p) + breakup * 0.045);
 		ALBEDO = mix(grass, cobble, paving);
 	} else {
 		ALBEDO = grass;

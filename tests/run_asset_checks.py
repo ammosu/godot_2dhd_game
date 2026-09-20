@@ -15,7 +15,7 @@ ADDITIONAL_CASES = (
     "caster_motion", "physical_hit_art", "party_ward", "magic_burst",
     "party_weapon_audio", "party_battle", "party_battle_balance",
     "party_battle_ui", "music", "ambience", "audio_preferences",
-    "battle_font", "map_resource_cache", "furniture_cutaway", "house_circulation",
+    "battle_font", "map_resource_cache", "furniture_cutaway", "house_circulation", "pillar_art", "crystal_material", "mini_map_rotation",
 )
 GPU_CASES = ("roof_art", "water_render", "interior_backdrop", "interior_textiles")
 MARKERS = {"party_battle_balance": "PARTY_BALANCE_TEST_PASS"}

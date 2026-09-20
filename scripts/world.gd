@@ -179,6 +179,9 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 	_environment.fog_enabled = not indoors
 	_environment.ambient_light_color = Color("d4bb98") if indoors else Color("6e83ad")
 	_environment.ambient_light_energy = 0.65 if indoors else 0.48
+	_environment.fog_density = 0.009
+	($Moonlight as DirectionalLight3D).light_energy = 0.92
+	($Moonlight as DirectionalLight3D).light_color = Color("b9c9ed")
 
 	if indoors:
 		var room := HouseInterior.new()
@@ -196,11 +199,18 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 		GameState.current_map = "village"
 		_build_village()
 		_environment.background_color = Color("111425")
-		_environment.fog_light_color = Color("70758d")
+		_environment.fog_light_color = Color("344b78")
+		_environment.fog_density = 0.004
+		_environment.ambient_light_color = Color("7892bd")
+		_environment.ambient_light_energy = 0.50
+		($Moonlight as DirectionalLight3D).light_energy = 0.70
+		($Moonlight as DirectionalLight3D).light_color = Color("91b3ed")
 
 	var target_position := _get_spawn_position(GameState.current_map, spawn_id)
 	if spawn_id == "saved_position" and GameState.has_saved_position:
 		target_position = GameState.saved_position
+		if GameState.current_map == "village":
+			target_position = HouseCatalog.safe_village_position(target_position)
 	player.global_position = target_position
 	player.velocity = Vector3.ZERO
 	($CameraRig as Hd2dCameraRig).snap_to_target()
@@ -275,18 +285,28 @@ func _get_spawn_position(map_id: String, spawn_id: String) -> Vector3:
 
 func _build_village() -> void:
 	var stamp: int = Time.get_ticks_usec()
-	_add_box("Ground", Vector3(0.0, -0.35, 0.0), Vector3(38.0, 0.7, 32.0), Color("304b48"), true)
-	_add_cobble_box("CentralPlaza", Vector3(0.0, -0.02, 0.0), Vector3(10.5, 0.12, 8.5), true)
+	_add_box("Ground", Vector3(0.0, -0.35, 0.0), Vector3(46.0, 0.7, 40.0), Color("304b48"), true)
+	_add_cobble_box("CentralPlaza", Vector3(0.0, -0.02, 0.0), Vector3(7.8, 0.12, 8.0), true)
 	WaterFeature.build(_map_root, Vector3(11.5, 0.02, -10.0), Vector2(9.0, 5.0))
 
 	_add_cobble_box("NorthRoad", Vector3(0.0, 0.025, 0.0), Vector3(2.35, 0.08, 25.0), false)
 	_add_cobble_box("MarketRoad", Vector3(0.0, 0.023, 4.6), Vector3(29.0, 0.075, 2.25), false)
 	_add_cobble_box("GateRoad", Vector3(0.0, 0.022, -4.8), Vector3(29.0, 0.07, 1.9), false)
 	_configure_village_surfaces()
-	for x_position in [-18.3, 18.3]:
-		_add_box("BoundaryWall", Vector3(x_position, 0.75, 0.0), Vector3(0.7, 1.8, 31.0), PALETTE.stone_dark, true)
-	for z_position in [-15.3, 15.3]:
-		_add_box("BoundaryWall", Vector3(0.0, 0.75, z_position), Vector3(37.3, 1.8, 0.7), PALETTE.stone_dark, true)
+	for x_position in [-22.3, 22.3]:
+		_add_box("BoundaryWall", Vector3(x_position, 0.75, 0.0), Vector3(0.7, 1.8, 39.0), PALETTE.stone_dark, true)
+	for z_position in [-19.3, 19.3]:
+		_add_box("BoundaryWall", Vector3(0.0, 0.75, z_position), Vector3(45.3, 1.8, 0.7), PALETTE.stone_dark, true)
+	# Outer garden promenade expands exploration without stretching the village square.
+	for x_position: float in [-19.0, 19.0]:
+		_add_cobble_box("GardenWalk", Vector3(x_position, 0.022, 0), Vector3(1.8, 0.07, 34), false)
+	for z_position: float in [-16.8, 16.8]:
+		_add_cobble_box("GardenWalk", Vector3(0, 0.022, z_position), Vector3(38, 0.07, 1.8), false)
+	for x_position: float in [-20.7, 20.7]:
+		for z_position: float in [-15, -7, 2, 11, 17]:
+			_add_tree(Vector3(x_position, 0, z_position))
+	for position: Vector3 in [Vector3(-19, 0, -12), Vector3(19, 0, -12), Vector3(-19, 0, 10), Vector3(19, 0, 10), Vector3(-6, 0, 16.8), Vector3(6, 0, 16.8)]:
+		_add_lamp(position)
 	stamp = _profile_map_stamp("village_surfaces", stamp)
 
 	for column_position in [Vector3(-4.6, 0.0, -3.6), Vector3(4.6, 0.0, -3.6), Vector3(-4.6, 0.0, 3.6), Vector3(4.6, 0.0, 3.6)]:
@@ -323,6 +343,24 @@ func _build_village() -> void:
 	stamp = _profile_map_stamp("village_props_gardens", stamp)
 
 	_add_moon_lamp(Vector3(0.0, 0.0, 0.0))
+	# Low planted crescent frames the landmark but leaves its south approach open.
+	var planting := Node3D.new()
+	planting.name = "MoonGarden"
+	_map_root.add_child(planting)
+	for index: int in range(20):
+		var angle := PI + index * PI / 19.0
+		var flower := Sprite3D.new()
+		flower.texture = preload("res://assets/generated/flowers_ivory.tres")
+		flower.pixel_size = 0.00065
+		flower.position = Vector3(cos(angle) * 1.16, 0.015, sin(angle) * 1.16)
+		flower.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		flower.shaded = true
+		flower.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		flower.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		flower.modulate = Color("bc95da") if index % 3 != 0 else Color.WHITE
+		planting.add_child(flower)
+		SpriteGrounding.anchor(flower, flower.texture, SpriteGrounding.foot_baseline(flower.texture, flower.alpha_scissor_threshold))
+		flower.remove_from_group("grounded_character_art")
 	stamp = _profile_map_stamp("village_moon_lamp", stamp)
 	_add_actor_interactable("elder", "與長老交談", Vector3(-3.0, 0.0, 1.2), "res://assets/generated/elder.tres", 1.6 / 724.0, Color.WHITE, false, MAIN_QUEST_MARKER)
 	_add_actor_interactable("rumi", "與露米交談", Vector3(6.4, 0.0, 4.2), "res://assets/generated/rumi.tres", 1.6 / 724.0, Color.WHITE, false, SIDE_CONTENT_MARKER)
@@ -681,7 +719,7 @@ func _add_moon_lamp(world_position: Vector3) -> void:
 	interaction_shape.shape = sphere_shape
 	lamp.add_child(interaction_shape)
 
-	var art := (load("res://assets/generated/moon_lamp.glb") as PackedScene).instantiate() as Node3D
+	var art := (load("res://assets/generated/moon_halo.glb") as PackedScene).instantiate() as Node3D
 	art.name = "MoonLampArt"
 	lamp.add_child(art)
 	for mesh: MeshInstance3D in art.find_children("*", "MeshInstance3D", true, false):
@@ -692,10 +730,13 @@ func _add_moon_lamp(world_position: Vector3) -> void:
 		# shimmering speckles. Each level still uses nearest-neighbor sampling.
 		material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 		if mesh.name == "MoonLampBronzework":
-			material.albedo_color = Color("ded7bb")
+			material.albedo_color = Color("ffd78a")
 			material.metallic = 0.25
+			material.emission_enabled = true
+			material.emission = Color("ffb52e")
+			material.emission_energy_multiplier = 3.5
 		elif mesh.name == "MoonLampPatinaPanels":
-			material.albedo_color = Color(0.72, 1.0, 0.92)
+			material.albedo_color = Color("696475")
 		elif mesh.name == "MoonLampPlinth":
 			material.albedo_color = Color("9fa1ae")
 			var weathering := NoiseTexture2D.new()
@@ -1086,7 +1127,7 @@ func _make_village_surface(road_surface: bool) -> ShaderMaterial:
 	var material := ShaderMaterial.new()
 	material.shader = preload("res://shaders/village_surface.gdshader")
 	material.set_shader_parameter("meadow_texture", preload("res://assets/generated/meadow_albedo.png"))
-	material.set_shader_parameter("cobble_texture", preload("res://assets/generated/village_cobblestone.png"))
+	material.set_shader_parameter("cobble_texture", preload("res://assets/generated/village_paving_v2.png"))
 	material.set_shader_parameter("road_surface", road_surface)
 	return material
 
@@ -1102,6 +1143,8 @@ func _add_cobble_box(node_name: String, world_position: Vector3, size: Vector3, 
 	mesh.size = size
 	mesh_instance.mesh = mesh
 	mesh_instance.material_override = _make_village_surface(true)
+	if node_name == "GardenWalk":
+		(mesh_instance.material_override as ShaderMaterial).set_shader_parameter("plaza_rect", Vector4(world_position.x, world_position.z, size.x * 0.5, size.z * 0.5))
 	# Visual paving and collision share the same top, avoiding invisible steps.
 	mesh_instance.position.y = 0.006 - world_position.y - size.y * 0.5
 	# These shallow paving overlays blend into the ground; their straight box
@@ -1166,18 +1209,24 @@ func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, r
 		_add_portal_box(house, Vector3(1.15, 3.49, 0.72 + cap_z), Vector3(0.38, 0.13, 0.13), foundation_material)
 	HouseDetails.build(house, timber_material, roof_material, wall_material)
 	HouseExterior.build(house, house_id, timber_material)
+	# Scale visual roots together, but resize physics shapes explicitly: a
+	# non-uniformly scaled StaticBody3D would give unreliable collisions.
+	var exterior_transform := Transform3D(Basis.from_scale(HouseCatalog.EXTERIOR_SCALE), Vector3.ZERO)
+	for child: Node in house.get_children():
+		if child is Node3D:
+			(child as Node3D).transform = exterior_transform * (child as Node3D).transform
 
 	var collision_shape := CollisionShape3D.new()
-	collision_shape.position.y = 1.15
+	collision_shape.position.y = 1.15 * HouseCatalog.EXTERIOR_SCALE.y
 	var shape := BoxShape3D.new()
-	shape.size = Vector3(4.0, 2.3, 3.2)
+	shape.size = HouseCatalog.EXTERIOR_COLLISION
 	collision_shape.shape = shape
 	house.add_child(collision_shape)
 	var entrance := Interactable3D.new()
 	entrance.name = "HouseEntrance"
 	entrance.interaction_id = "enter_" + house_id
 	entrance.prompt_text = "進入" + str(HouseCatalog.find_home(house_id).name)
-	entrance.position = Vector3(0, 0.7, -2.1)
+	entrance.position = Vector3(0, 0.7, -2.1) * HouseCatalog.EXTERIOR_SCALE
 	entrance.collision_layer = 8
 	entrance.collision_mask = 0
 	entrance.add_to_group("house_entrances")
@@ -1199,9 +1248,17 @@ func _add_column(world_position: Vector3) -> void:
 	root.name = "Column"
 	root.position = world_position
 	_map_root.add_child(root)
-	var pillar_scene := load("res://assets/generated/weathered_pillar.glb") as PackedScene
+	var pillar_scene := load("res://assets/generated/weathered_pillar_v2.glb") as PackedScene
 	var pillar := pillar_scene.instantiate() as Node3D
+	pillar.add_to_group("weathered_pillar_art")
+	pillar.rotation.y = fposmod(world_position.x * 0.73 + world_position.z * 0.41, TAU)
 	root.add_child(pillar)
+	for node: Node in pillar.find_children("*", "MeshInstance3D", true, false):
+		var mesh := node as MeshInstance3D
+		for surface: int in range(mesh.mesh.get_surface_count()):
+			var material := mesh.mesh.surface_get_material(surface) as BaseMaterial3D
+			if material != null:
+				material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	# A low collar stays visible during cutaway and marks the unchanged collider.
 	var base := MeshInstance3D.new()
 	base.name = "ColumnFooting"
@@ -1219,6 +1276,21 @@ func _add_column(world_position: Vector3) -> void:
 	stone.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	base.material_override = stone
 	root.add_child(base)
+	# A few original low grass blades soften the clean footing edge; no new
+	# obstacle is added, and this low layer remains visible during cutaway.
+	for index: int in range(4):
+		var angle: float = pillar.rotation.y + float(index) * TAU / 4.0
+		var grass := Sprite3D.new()
+		grass.name = "ColumnGrass%d" % index
+		grass.texture = preload("res://assets/generated/grass_low.tres")
+		grass.pixel_size = 0.00055
+		grass.position = Vector3(cos(angle) * 0.39, 0.01 + 328.0 * grass.pixel_size, sin(angle) * 0.39)
+		grass.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		grass.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		grass.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		grass.shaded = true
+		grass.double_sided = true
+		root.add_child(grass)
 	var collision_shape := CollisionShape3D.new()
 	collision_shape.position.y = 1.0
 	var shape := CylinderShape3D.new()
@@ -1269,7 +1341,8 @@ func _add_village_gardens() -> void:
 			var z := garden_rng.randf_range(2.5, 3.2)
 			_add_grass_clump(Vector3(x, 0.01, z), grass_variants[index % 3], garden_rng.randf_range(0.00065, 0.00095))
 	for fence_data: Array in [
-		[Vector3(-8.4, 0.35, 1.8), Vector3(4.0, 0.7, 0.16)],
+		# Keep the garden-house doorway apron open; the fence borders its south bed.
+		[Vector3(-8.4, 0.35, 2.3), Vector3(4.0, 0.7, 0.16)],
 		[Vector3(8.2, 0.35, 1.8), Vector3(3.5, 0.7, 0.16)],
 		[Vector3(-8.5, 0.35, 7.3), Vector3(3.8, 0.7, 0.16)],
 		[Vector3(8.6, 0.35, 7.3), Vector3(3.2, 0.7, 0.16)],
@@ -1338,6 +1411,7 @@ func _add_supply_crate(world_position: Vector3, yaw: float) -> void:
 func _add_crystal(world_position: Vector3, scale_factor: float) -> void:
 	var crystal_scene := load("res://assets/generated/moon_crystal.glb") as PackedScene
 	var crystal := crystal_scene.instantiate() as Node3D
+	preload("res://scripts/gameplay/crystal_materials.gd").apply(crystal)
 	crystal.name = "GlowCrystal"
 	crystal.position = world_position
 	crystal.scale = Vector3.ONE * scale_factor

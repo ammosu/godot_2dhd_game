@@ -1,5 +1,45 @@
 # House-specific exterior dressing
 
+## All-angle facade planting
+
+`facade_planters.gd` adds six rear/side window boxes per home and two front
+boxes to the six homes without an existing garden/pottery showcase: 60 boxes
+total. These reuse original timber, meadow and flower textures. Each wooden
+box uses a six-board MultiMesh with explicit bounds for foreground cutaway;
+no external model, new raster asset, collider, doorway or save field is added.
+This is a reuse of the existing box-and-flower art construction, not a new
+building model or layout change. Ivory, mauve and blue flowers vary by home.
+
+The 640-pixel flower canvas has its root at pixel 620. Both the new boxes
+and original garden front boxes now use the corresponding 300-pixel offset
+above their soil surfaces; the old front flowers were partly buried in wood.
+The garden front flowers also use the same 0.00085 pixel scale as the new
+planters after close inspection showed the old 0.0012 scale obscuring too much
+of the windows once correctly rooted.
+Front window boxes leave the central 1.6 m doorway corridor clear. Side/rear
+boxes attach to the existing window centers and are removed by the same
+foreground cutaway as the rest of the upper house.
+
+The three flower sprites are spaced 0.17 m apart; entrance checks cover the
+whole flower canvas, not only the timber, so leaves do not consume the stated
+doorway clearance.
+
+`house_exterior_test.gd` checks all eight configurations, flower roots,
+cutout filtering, batch bounds, visual-only descendants and door clearance.
+For isolated close inspections of garden/pottery/traveler archetypes, create
+an output directory and run:
+
+```bash
+godot --path . --rendering-method forward_plus --script tests/house_facade_capture.gd -- --capture-dir=/absolute/existing/directory
+```
+
+Repeat with `gl_compatibility`. This diagnostic hides neighboring dressing
+and disables cutaway to inspect each facade; it is explicitly not normal
+gameplay evidence. The normal village capture and foreground regression
+remain separate. Broad village layout/proportion changes await user choice.
+
+## Original front showcases
+
 The garden house (`house_02`) now has two original timber window boxes with
 six flower clusters using the existing original `flowers_mauve.tres` atlas.
 The pottery house (`house_04`) has two wall-mounted timber shelves with six

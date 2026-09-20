@@ -7,14 +7,14 @@ class AssetRunnerTest(unittest.TestCase):
     def test_groups_are_disjoint_and_complete(self):
         cpu = manifest("godot", "cpu")
         gpu = manifest("godot", "gpu")
-        self.assertEqual(len(cpu), 45)
+        self.assertEqual(len(cpu), 48)
         self.assertEqual(len(gpu), 8)
         self.assertEqual(manifest("godot", "all"), cpu + gpu)
-        self.assertEqual(len({name for name, _, _ in cpu + gpu}), 53)
+        self.assertEqual(len({name for name, _, _ in cpu + gpu}), 56)
 
     def test_recent_interior_regressions_are_included(self):
         cpu_names = {name for name, _, _ in manifest("godot", "cpu")}
-        self.assertTrue({"furniture_cutaway", "house_circulation"} <= cpu_names)
+        self.assertTrue({"furniture_cutaway", "house_circulation", "pillar_art", "crystal_material"} <= cpu_names)
         gpu_names = {name for name, _, _ in manifest("godot", "gpu")}
         for renderer in ("forward_plus", "gl_compatibility"):
             self.assertIn(f"interior_textiles-{renderer}", gpu_names)

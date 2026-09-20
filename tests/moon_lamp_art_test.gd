@@ -50,14 +50,14 @@ func _run() -> void:
 	_check(stone_material.detail_enabled and stone_material.detail_albedo is NoiseTexture2D, "Stone weathering missing")
 	var fixture_light := lamp.get_node("FixtureLight") as OmniLight3D
 	_check(fixture_light.light_cull_mask == 2 and fixture_light.light_energy < 0.5, "Fixture fill leaks into plaza or overexposes frame")
-	_check(is_equal_approx(core.global_position.y, 1.52), "Core pivot moved from light center")
+	_check(is_equal_approx(core.global_position.y, 1.64), "Core pivot moved from halo center")
 	var base_bounds := plinth.mesh.get_aabb()
 	_check(base_bounds.size.x <= 1.65 and base_bounds.size.z <= 1.65, "Plinth expanded footprint")
 	_check(base_bounds.position.y >= 0.006 and base_bounds.position.y < 0.02, "Plinth floats or intersects plaza")
-	# Ribs lie on cardinal axes; probe both a rib and the clear gap beside it.
-	_check(_hits(metal, Vector3(0, 1.52, -2), Vector3(0, 1.52, 2)) > 0, "Front/back cage ribs missing")
-	_check(_hits(metal, Vector3(0.16, 1.52, -2), Vector3(0.16, 1.52, 2)) == 0, "Lantern cage gap was filled in")
-	_check(_hits(canopy, Vector3(0, 2.6, 0), Vector3(0, 1.7, 0)) > 0, "Lantern canopy missing")
+	_check(_hits(metal, Vector3(0, 1.70, -2), Vector3(0, 1.70, 2)) == 0, "Halo center should remain open")
+	_check(metal.mesh.get_aabb().size.y > 1.1, "Lunar ring is incomplete")
+	_check((metal.material_override as StandardMaterial3D).emission_enabled, "Golden ring lost illumination")
+	_check(canopy.mesh.get_aabb().end.y < 1.5, "Support blocks the open halo")
 	_check(lamp.collision_layer == 8 and lamp.collision_mask == 0, "Lamp interaction layer changed")
 	var collider := lamp.get_child(0) as CollisionShape3D
 	_check(collider.shape is SphereShape3D and is_equal_approx((collider.shape as SphereShape3D).radius, 0.9), "Interaction radius changed")
@@ -76,7 +76,7 @@ func _run() -> void:
 	_check(material.emission_energy_multiplier < 1.0, "Lamp should start dim")
 	var rotation_before: float = core.rotation.y
 	world.call("_process", 0.2)
-	_check(core.rotation.y != rotation_before and is_equal_approx(core.global_position.y, 1.52), "Core rotation displaced pivot")
+	_check(core.rotation.y != rotation_before and is_equal_approx(core.global_position.y, 1.64), "Core rotation displaced pivot")
 	state.set("quest_state", 3)
 	world.call("_update_moon_lamp_state")
 	_check(material.emission_energy_multiplier > 1.0 and material.emission_energy_multiplier < 2.0 and material.albedo_texture == texture, "Restoration lost bounded textured emission")
@@ -95,5 +95,5 @@ func _run() -> void:
 		root.get_node(singleton).call("stop_all")
 	await create_timer(0.3).timeout
 	if _failures == 0:
-		print("MOON_LAMP_ART_TEST_PASS meshes textures open_cage pivot interaction restored cleanup triangles=", triangles)
+		print("MOON_LAMP_ART_TEST_PASS meshes textures open_halo pivot interaction restored cleanup triangles=", triangles)
 	quit(0 if _failures == 0 else 1)

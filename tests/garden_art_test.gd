@@ -3,6 +3,7 @@ extends SceneTree
 
 var _failures: int = 0
 const MeadowDressing = preload("res://scripts/gameplay/meadow_dressing.gd")
+const Houses = preload("res://scripts/gameplay/house_catalog.gd")
 
 
 func _initialize() -> void:
@@ -42,6 +43,9 @@ func _run() -> void:
 	await process_frame
 	_check_surfaces(world.get("_map_root") as Node3D)
 	_check_understory(world.get("_map_root") as Node3D)
+	_check_borders(world.get("_map_root") as Node3D)
+	_check_groundcover(world.get("_map_root") as Node3D)
+	_check_entrances(world.get("_map_root") as Node3D)
 	var count: int = 0
 	var variants: Dictionary = {}
 	var grass_count: int = 0
@@ -68,6 +72,9 @@ func _run() -> void:
 	_check(grass_count == 305 and grass_variants.size() == 3, "Village needs 305 grass clumps across three variants")
 	world.queue_free()
 	await process_frame
+	for singleton: String in ["GameAudio", "GameMusic", "GameAmbience"]:
+		root.get_node(singleton).call("stop_all")
+	await create_timer(0.25).timeout
 	if _failures == 0:
 		print("GARDEN_ART_TEST_PASS atlas alpha baseline variants grounding grass")
 	quit(0 if _failures == 0 else 1)
@@ -91,6 +98,50 @@ func _check_grass_atlas() -> void:
 					_check(x > region.position.x and x < region.end.x - 1 and y > region.position.y and y < region.end.y - 1, "Grass silhouette clipped")
 		_check(visible > 1000, "Grass crop empty")
 		_check(is_equal_approx(float(bottom) + atlas.margin.position.y, 680.0), "Grass roots must share baseline")
+
+
+func _check_entrance_point(point: Vector3, radius: float) -> void:
+	# Independent local-space check, not the implementation's blocked rectangles.
+	for home: Dictionary in Houses.HOMES:
+		var local: Vector3 = Basis(Vector3.UP, -float(home.yaw)) * (point - (home.position as Vector3))
+		var far_z: float = -2.85 * Houses.EXTERIOR_SCALE.z - 0.65
+		var near_z: float = -Houses.EXTERIOR_COLLISION.z * 0.5
+		var overlaps: bool = absf(local.x) < 0.7 + radius and local.z > far_z - radius and local.z < near_z + radius
+		_check(not overlaps, "Foliage silhouette blocks doorstep/return spawn: " + str(home.id))
+
+
+func _check_entrances(map_root: Node3D) -> void:
+	for node: Node in map_root.find_children("*", "Sprite3D", true, false):
+		var sprite := node as Sprite3D
+		# Only ground foliage: window planters and other sprites are intentional.
+		if sprite.get_parent() == map_root:
+			if not sprite.texture.resource_path.begins_with("res://assets/generated/grass_") and not sprite.texture.resource_path.begins_with("res://assets/generated/flowers_"):
+				continue
+		elif sprite.get_parent().name not in [&"GardenBorders", &"MeadowUnderstory"]:
+			continue
+		_check_entrance_point(sprite.position, sprite.texture.get_width() * sprite.pixel_size * 0.5)
+	if DisplayServer.get_name() != "headless":
+		var batch := (map_root.get_node("GardenGroundcover") as MultiMeshInstance3D).multimesh
+		for index: int in range(batch.instance_count):
+			var transform := batch.get_instance_transform(index)
+			_check_entrance_point(transform.origin, 0.36 * transform.basis.get_scale().x)
+		for node: Node in map_root.get_children():
+			if not str(node.name).begins_with("GardenFence"):
+				continue
+			for child: Node in node.get_children():
+				var instance := child as MultiMeshInstance3D
+				if instance == null:
+					continue
+				for index: int in range(instance.multimesh.instance_count):
+					var transform: Transform3D = instance.global_transform * instance.multimesh.get_instance_transform(index)
+					for home: Dictionary in Houses.HOMES:
+						var local := Transform3D(Basis(Vector3.UP, float(home.yaw)), home.position).affine_inverse() * transform
+						var bounds: AABB = local * instance.multimesh.mesh.get_aabb()
+						var footprint := Rect2(Vector2(bounds.position.x, bounds.position.z), Vector2(bounds.size.x, bounds.size.z))
+						var far_z: float = -2.85 * Houses.EXTERIOR_SCALE.z - 0.65
+						var apron := Rect2(-0.7, far_z, 1.4, -Houses.EXTERIOR_COLLISION.z * 0.5 - far_z)
+						_check(not footprint.intersects(apron), "Fence blocks door apron: " + str(home.id))
+	print("GARDEN_ENTRANCES_CHECKED 8 independent local-space envelopes")
 
 
 func _check_surfaces(map_root: Node3D) -> void:
@@ -118,6 +169,11 @@ func _check_surfaces(map_root: Node3D) -> void:
 	var plaza := map_root.get_node("CentralPlaza") as StaticBody3D
 	var collision := plaza.get_child(1) as CollisionShape3D
 	_check(is_equal_approx((collision.shape as BoxShape3D).size.y, 0.12), "Plaza collision must remain unchanged")
+	var plaza_size: Vector3 = ((plaza.get_child(0) as MeshInstance3D).mesh as BoxMesh).size
+	for road_name: String in ["MarketRoad", "GateRoad"]:
+		var road := map_root.get_node(road_name) as Node3D
+		var road_size: Vector3 = ((road.get_child(0) as MeshInstance3D).mesh as BoxMesh).size
+		_check(absf(road.position.z - plaza.position.z) < (plaza_size.z + road_size.z) * 0.5, "Plaza leaves a thin grass seam before " + road_name)
 
 
 func _check_understory(map_root: Node3D) -> void:
@@ -138,3 +194,56 @@ func _check_understory(map_root: Node3D) -> void:
 		_check(is_equal_approx(sprite.position.y - 328.0 * sprite.pixel_size, 0.01), "Understory is not grounded")
 		_check(is_equal_approx(sprite.position.x, point.x) and is_equal_approx(sprite.position.z, point.z), "Understory position changed")
 	print("UNDERSTORY_INSTANCES ", points.size())
+
+
+func _check_borders(map_root: Node3D) -> void:
+	var borders := map_root.get_node("GardenBorders")
+	_check(borders.get_child_count() > 300 and borders.get_child_count() < 1100, "Border planting budget")
+	var blocked := MeadowDressing.exclusions(map_root, 0.04)
+	var variants: Dictionary = {}
+	for child: Node in borders.get_children():
+		var sprite := child as Sprite3D
+		_check(sprite != null and sprite.get_child_count() == 0, "Borders must remain visual only")
+		var texture := sprite.texture as AtlasTexture
+		var baseline: float = sprite.get_meta("root_baseline")
+		if not variants.has(texture.region):
+			var image := texture.atlas.get_image()
+			var region := Rect2i(texture.region)
+			var bottom: int = 0
+			var visible: int = 0
+			for y: int in range(region.position.y, region.end.y):
+				for x: int in range(region.position.x, region.end.x):
+					if image.get_pixel(x, y).a >= 0.5:
+						bottom = maxi(bottom, y + 1)
+						visible += 1
+						_check(x > region.position.x and x < region.end.x - 1, "Border crop clips leaves")
+			var canvas_bottom: float = float(bottom) - texture.region.position.y + texture.margin.position.y
+			_check(visible > 10000 and is_equal_approx(canvas_bottom, baseline), "Border alpha baseline or silhouette changed")
+			variants[texture.region] = true
+		_check(is_equal_approx(sprite.position.y - (baseline - texture.get_height() * 0.5) * sprite.pixel_size, 0.01), "Border roots drifted")
+		_check(sprite.shaded and sprite.billboard == BaseMaterial3D.BILLBOARD_FIXED_Y, "Border shading and upright view")
+		_check(sprite.alpha_cut == SpriteBase3D.ALPHA_CUT_DISCARD and sprite.texture_filter == BaseMaterial3D.TEXTURE_FILTER_NEAREST, "Border alpha and filtering")
+		for rectangle: Rect2 in blocked:
+			_check(not rectangle.grow(texture.get_width() * sprite.pixel_size * 0.5 - 0.00001).has_point(Vector2(sprite.position.x, sprite.position.z)), "Border silhouette enters clearance")
+	_check(variants.size() == 5, "Three border shrubs plus upright grass and ivory flowers required")
+	print("GARDEN_BORDER_INSTANCES ", borders.get_child_count())
+
+
+func _check_groundcover(map_root: Node3D) -> void:
+	var instance := map_root.get_node("GardenGroundcover") as MultiMeshInstance3D
+	var batch := instance.multimesh
+	_check(batch.instance_count > 1000 and batch.instance_count < 4000, "Groundcover density budget")
+	var quad := batch.mesh as QuadMesh
+	var material := quad.material as StandardMaterial3D
+	_check(material.billboard_mode == BaseMaterial3D.BILLBOARD_FIXED_Y and material.billboard_keep_scale, "Batched grass must stay upright and preserve scale")
+	_check(material.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR and material.texture_filter == BaseMaterial3D.TEXTURE_FILTER_NEAREST, "Groundcover alpha/filtering")
+	_check(is_equal_approx(quad.center_offset.y - quad.size.y * 0.5 + quad.size.y * 4.0 / 349.0, 0.0), "Groundcover alpha baseline")
+	if DisplayServer.get_name() != "headless":
+		var blocked := MeadowDressing.exclusions(map_root, 0.04)
+		for index: int in range(batch.instance_count):
+			var transform := batch.get_instance_transform(index)
+			_check(is_equal_approx(transform.origin.y, 0.01), "Groundcover roots drifted")
+			var radius := 0.36 * transform.basis.get_scale().x
+			for rectangle: Rect2 in blocked:
+				_check(not rectangle.grow(radius - 0.00001).has_point(Vector2(transform.origin.x, transform.origin.z)), "Groundcover intrudes on paths")
+	print("GARDEN_GROUNDCOVER_INSTANCES ", batch.instance_count)

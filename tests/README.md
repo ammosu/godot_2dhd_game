@@ -2,13 +2,31 @@
 
 ## 序章資產整體回歸
 
-六角色姿勢對照：建立暫存目錄後執行 `godot --path . --rendering-method gl_compatibility --script tests/party_motion_capture.gd -- --capture-dir=/absolute/existing/directory`，再改用 `forward_plus`。輸出四張實際戰鬥 UI 截圖，六角色分別同時顯示待機／蓄力／攻擊／收招；不使用 headless、不寫正常存檔。`PARTY_MOTION_CAPTURE_PASS` 只表示截图成功，不是自動美術判定，也不代表實際同時攻擊或完整演出時序；時序沿用 traveler／caster motion 回歸。此工具不納入 53 項清單。
+最新清單為 **56 項（48 CPU／8 GPU）**，新增 `mini_map_rotation_test.gd`（旋轉、相機同步與擴建地面），
+驗證裝飾晶體的礦紋發光、跨實例材質共用、原匯入材質／岩座／幾何未改動。
+下方 54 項數字保留為先前批次歷程。單項命令：
+`godot --headless --path . --script tests/crystal_material_test.gd`。
+此測試不等同材質美術驗收；來源與視覺比對見 `docs/CRYSTAL_MATERIALS.md`。
+
+村莊比例改版：八屋進出測試另覆蓋放大房屋後的舊存檔落點修正，以及所有返村點不進入相鄰住宅；屋頂測試的碰撞尺寸取自 HouseCatalog，物理節點不使用非等比縮放。花草測試另驗證廣場與兩條東西道路保持相交。參見 `docs/VILLAGE_LAYOUT.md`，整體清單仍為 54 項。
+
+戰鬥特效四階段檢視：`godot --path . --rendering-method forward_plus --script tests/party_effect_capture.gd -- --capture-dir=/absolute/existing/directory`，再以 `gl_compatibility` 重跑。實際執行六個敵我位置的霜星爆、單體治療與月光彈，依同一個特效實例的自然播放時間各拍四階段；每種 renderer 輸出 32 張完整畫面及 8 張由上到下排列的舞台對照圖。測試只設定施法者／目標並提高 HP 保留六名角色，不強制姿勢、特效時間或結算。完成後等待敵方回合及特效清理，不寫存檔。對照图裁出舞台方便檢視，HUD 必須看完整畫面；成功標記只代表捕捉／清理完成，仍需人工檢視，也不是連續動畫錄影。此診斷不納入 54 項清單。
+
+新版石柱：`pillar_art_test.gd` 已加入清單，檢查原創 GLB 的材質、284 三角形網格、脚底／破損冠部、半徑 0.49 m 內的輪廓、村莊 4 柱／遺跡 8 柱、既有碰撞與清理。與原 `foreground_cutaway_test.gd` 搭配驗證，整體清單現為 54 項（46 CPU、8 GPU）。
+
+探索主角姿勢對照：以兩種真實 renderer 執行 `tests/player_motion_capture.gd -- --capture-dir=/absolute/existing/directory`，各輸出四方向 × 四幀的實際玩家場景對照圖。這是固定姿勢檢查，不是連續動畫或一般遊玩截圖，不納入 54 項清單。既有 `player_art_test.gd` 現在另檢查八個鏡頭方位的畫面方向，以及 0°／225° 下四方向真實輸入、完整四幀循環、地面高度與停止後朝向；不寫正常存檔。
+
+住宅外牆近看：`tests/house_facade_capture.gd` 使用真實 renderer，要求 `-- --capture-dir=/absolute/existing/directory`，輸出花園／陶匠／旅人住宅各正背兩面。此為刻意隱藏周圍物件並停用遮擋剖開的隔離美術檢查，不是一般遊玩畫面，也不納入 54 項回歸。結構／根部高度由 `house_exterior_test.gd` 檢查，正常遮擋行為另跑 `foreground_cutaway_test.gd`。
+
+村莊植被：`garden_art_test.gd` 另檢查五種邊界植物（三種灌木、穗草、白花）的 alpha 腳底，依 atlas region／margin 換算 canvas 基線，檢查花床完整寬度與道路／碰撞淨空、批次低草的材質與數量。另以 `godot --path . --rendering-method forward_plus --script tests/garden_art_test.gd` 及 `gl_compatibility` 執行，可驗證真實 MultiMesh transforms；headless 不讀取 dummy renderer 的 instance transforms。這兩個額外 GPU 檢查不納入既有 54 項清單。
+
+六角色姿勢對照：建立暫存目錄後執行 `godot --path . --rendering-method gl_compatibility --script tests/party_motion_capture.gd -- --capture-dir=/absolute/existing/directory`，再改用 `forward_plus`。輸出四張實際戰鬥 UI 截圖，六角色分別同時顯示待機／蓄力／攻擊／收招；不使用 headless、不寫正常存檔。`PARTY_MOTION_CAPTURE_PASS` 只表示截图成功，不是自動美術判定，也不代表實際同時攻擊或完整演出時序；時序沿用 traveler／caster motion 回歸。此工具不納入 54 項清單。
 
 石柱回歸另檢查 `ColumnFooting`：柱體遮擋切除時石座保持可見／投影，底部貼齊柱根且半徑不超出原 0.5 m 碰撞，避免看不見的障礙物。沿用 `foreground_cutaway_test.gd`，不新增清單項目。
 
 `foreground_cutaway_test.gd` 除原有房屋 192 視角外，亦逐一檢查遺跡石柱的遮擋、清晰角度恢復、碰撞維持有效，以及進屋後 `column_cutaways` 清空；房屋與家具仍使用原 `foreground_cutaways` 群組。共用模型是完整網格，因此切除整柱而非局部裁切。實景仍須人工檢視。
 
-獨立音訊執行緒擷取：同一個 4187 本地伺服器，以 Playwright MCP 執行 `tests/web_audio_capture_test.js`（約 70 秒）。兩個隔離 Chrome context 比較正常 Sample 與診斷 Stream，26 秒後首次進屋再出屋；回傳每個 AudioContext 的樣本數、取樣率、峰值、連續近零輸出最長時間及發生時間，並保存屋內截圖。使用 AudioWorklet 逐樣本處理，觀察分支輸出零，不修改原音量或一般存檔。近零條件是所有輸入聲道絕對值均低於 0.00001，不能檢出被其他聲音蓋住的單一音軌間隙，也不能取代主觀聽感。不納入本地 53 項清單；出現錯誤、空擷取或樣本不足時不能作通過證據。
+獨立音訊執行緒擷取：同一個 4187 本地伺服器，以 Playwright MCP 執行 `tests/web_audio_capture_test.js`（約 70 秒）。兩個隔離 Chrome context 比較正常 Sample 與診斷 Stream，26 秒後首次進屋再出屋；回傳每個 AudioContext 的樣本數、取樣率、峰值、連續近零輸出最長時間及發生時間，並保存屋內截圖。使用 AudioWorklet 逐樣本處理，觀察分支輸出零，不修改原音量或一般存檔。近零條件是所有輸入聲道絕對值均低於 0.00001，不能檢出被其他聲音蓋住的單一音軌間隙，也不能取代主觀聽感。不納入本地 54 項清單；出現錯誤、空擷取或樣本不足時不能作通過證據。
 
 混音比較的村莊路線從花園屋門口開始，加入 26 秒循環觀察及首次進出屋。各聲道另回傳 `windows`／`silentWindows`（該 2048 樣本窗全部低於 0.00001 才算靜音）。主執行緒卡住時輪詢也會停止，零靜音窗不能證明沒有音訊 underrun；不得將這個診斷當成無縫播放的自動通過門檻。
 
@@ -18,7 +36,7 @@
 
 `python3 tests/audio_asset_test.py` 現涵蓋六段循環音訊的格式／長度、逐聲道削波與 DC、首尾樣本跳變及 100 ms 邊緣 RMS 檢查。2% 跳變與 2 倍 RMS 比值僅防止明顯回歸，不是無縫聽感門檻，也不驗證播放後端是否漏接循環。此擴充沿用既有 `audio_pcm` 清單項目。
 
-Web 混音診斷：同樣啟動 4187 本地伺服器，以 Playwright MCP 執行 `tests/web_mix_test.js`。獨立 Chrome context 分別跑村莊背景／腳步與戰鬥背景／兩次普通攻擊／三目標霜星爆及敵方回合；不靜音、不更動正常玩家設定。觀察分支匯總送往同一 AudioDestination 的訊號，再分別取左右聲道，原聲音路徑不變，觀察輸出為零音量。回傳各階段 peak、RMS 與接近滿刻度樣本數及結果截圖。2048 樣本窗每 10 ms 讀取，窗口重疊、計時器可能漏樣，RMS 不是 LUFS，也不證明無削波、主觀混音平衡或無縫循環；必須另看圖確認技能與回合確實執行。不納入 53 項本地清單。
+Web 混音診斷：同樣啟動 4187 本地伺服器，以 Playwright MCP 執行 `tests/web_mix_test.js`。獨立 Chrome context 分別跑村莊背景／腳步與戰鬥背景／兩次普通攻擊／三目標霜星爆及敵方回合；不靜音、不更動正常玩家設定。觀察分支匯總送往同一 AudioDestination 的訊號，再分別取左右聲道，原聲音路徑不變，觀察輸出為零音量。回傳各階段 peak、RMS 與接近滿刻度樣本數及結果截圖。2048 樣本窗每 10 ms 讀取，窗口重疊、計時器可能漏樣，RMS 不是 LUFS，也不證明無削波、主觀混音平衡或無縫循環；必須另看圖確認技能與回合確實執行。不納入 54 項本地清單。
 
 室內家具遮擋：`godot --headless --path . --script tests/furniture_cutaway_test.gd`，標記 `FURNITURE_CUTAWAY_TEST_PASS`。逐屋驗證實際遮擋、恢復延遲、陰影模式恢復、碰撞／互動保留，以及返回村莊後清理。已納入統一清單；實景使用 `house_visual_capture.gd --inspect-furniture`（放在 `--` 後）另行檢查。
 
@@ -28,7 +46,7 @@ Web 混音診斷：同樣啟動 4187 本地伺服器，以 Playwright MCP 執行
 
 `house_interior_test.gd` 現在同時涵蓋八屋專用家具的房屋 ID、主要物件數量、無新增碰撞，以及新增織布／育苗／藏書／月相／布料／旅人／草藥家具的平面邊界；原有八屋进出、桌面碰撞、出口通行、存讀檔及鏡頭測試保留。這些結構檢查不取代實景畫面驗收。
 
-八屋視覺證據：先建立暫存輸出目錄，執行 `godot --path . --rendering-method gl_compatibility --resolution 1280x720 --script tests/house_visual_capture.gd -- --capture-dir=/absolute/existing/directory`；再以 `forward_plus` 重跑。每屋從入口位置拍攝 45／225 度兩個視角，檔名包含渲染器、房屋 ID 與角度。不使用 headless，不寫存檔；`HOUSE_VISUAL_CAPTURE_PASS` 只證明 16 張截圖寫出，必須人工看圖，不納入 49 項自動美術判定。
+八屋視覺證據：先建立暫存輸出目錄，執行 `godot --path . --rendering-method gl_compatibility --resolution 1280x720 --script tests/house_visual_capture.gd -- --capture-dir=/absolute/existing/directory`；再以 `forward_plus` 重跑。每屋從入口位置拍攝 45／225 度兩個視角，檔名包含渲染器、房屋 ID 與角度。不使用 headless，不寫存檔；`HOUSE_VISUAL_CAPTURE_PASS` 只證明 16 張截圖寫出，必須人工看圖，不納入自動美術判定。
 
 桌面 Chrome 四場景 Web 驗收：重新匯出後以 `python3 -m http.server 4187 --bind 127.0.0.1 --directory build/web` 啟動本地伺服器，再由 Playwright MCP `browser_run_code_unsafe` 的 `filename` 執行 `tests/web_scene_test.js` 絕對路徑。每場景使用獨立瀏覽器 context，在攔截的 HTML 回應加入 preview 參數，不修改匯出檔或一般玩家存檔。結果含四張 `/tmp` 截圖、載入時間、錯誤、WebGL 裝置與 3 秒 requestAnimationFrame 間隔；必須另行看圖，程式 `pass` 不會辨識缺字或美術問題。回呼間隔不是 GPU 渲染耗時，也不是完整遊玩效能驗收。
 
@@ -49,7 +67,7 @@ python3 tests/run_asset_checks.py --group all
 python3 tests/asset_runner_test.py
 ```
 
-共 53 項：44 項 Godot headless 結構／行為測試、1 項 Python PCM 測試，以及屋頂／水面／室內背景／室內織物與地板在兩種實際渲染器下的 8 項測試。`--group cpu`（預設）只跑前 45 項；`--group gpu` 只跑需要桌面顯示的 8 項。家具遮擋與八屋十路點行走已納入 CPU 清單，地板位置檢查納入 GPU 清單。測試依序執行，每項預設 90 秒上限，需零退出碼、正確成功標記、無 Godot 錯誤及退出物件洩漏；完整日誌與 `results.json` 保存在印出的系統暫存目錄。
+共 54 項：45 項 Godot headless 結構／行為測試、1 項 Python PCM 測試，以及屋頂／水面／室內背景／室內織物與地板在兩種實際渲染器下的 8 項測試。`--group cpu`（預設）只跑前 46 項；`--group gpu` 只跑需要桌面顯示的 8 項。家具遮擋與八屋十路點行走已納入 CPU 清單，地板位置檢查納入 GPU 清單。測試依序執行，每項預設 90 秒上限，需零退出碼、正確成功標記、無 Godot 錯誤及退出物件洩漏；完整日誌與 `results.json` 保存在印出的系統暫存目錄。
 
 這份清單使用明確的成功標記與渲染需求，避免將屋頂測試誤放到 headless，或誤認 `PARTY_BALANCE_TEST_PASS` 為失敗。它不包含完整主線、Web 匯出／瀏覽器實機、主觀混音、畫面構圖或效能驗收；那些門檻仍須分別完成。
 
@@ -136,7 +154,7 @@ godot --path . scenes/enemy_art_gallery.tscn
 godot --headless --path . --script tests/moon_lamp_art_test.gd
 ```
 
-成功標記為 `MOON_LAMP_ART_TEST_PASS meshes textures open_cage pivot interaction restored cleanup triangles=2272`。驗證四個貼圖網格、三角形預算、底座接地、開放燈籠結構、旋轉中心、頂點色明暗範圍、互動範圍、修復後發光與換圖清理；不取代實機畫面的視覺檢查。
+成功標記為 `MOON_LAMP_ART_TEST_PASS meshes textures open_halo pivot interaction restored cleanup triangles=1144`。驗證四個貼圖網格、三角形預算、底座接地、開放月環結構、旋轉中心、頂點色明暗範圍、互動範圍、修復後發光與換圖清理；不取代實機畫面的視覺檢查。
 
 背景音樂循環、場景切換與淡入淡出：
 
@@ -245,6 +263,16 @@ godot --headless --path . --script tests/garden_art_test.gd
 
 新增低矮植被另檢查：固定 seed 的取樣可重現、實際实例數等於取樣數、位置避開地圖衍生的道路／碰撞範圍，並維持固定 Y 軸、最近鄰與根部高度。測試輸出 `UNDERSTORY_INSTANCES` 診斷數量；不將截圖或桌面短測當成行動裝置效能證明。
 
+八屋門前補驗證：`garden_art_test.gd` 以獨立房屋局部座標檢查全部地面植物輪廓不得侵入寬 1.4 m、從門前延伸至返村落點外 0.65 m 的區域；GPU 模式另檢查批次低草。`village_entrance_capture.gd` 保留真實村莊、HUD、景深與前景遮擋，在八個返村落點各拍 45／225 度，不隱藏其他房屋；不等同實際行走或所有角度驗收。
+
+```bash
+godot --path . --rendering-method forward_plus --script tests/village_entrance_capture.gd -- --capture-dir=/existing/output/directory
+```
+
+輸出目錄須先建立；改用 `gl_compatibility` 可取得另一套 16 張畫面。成功標記為 `VILLAGE_ENTRANCE_CAPTURE_PASS 16 views; manual review required`。此手動看圖工具不納入 54 項自動清單，不讀寫存檔。
+
+`garden_art_test.gd` 的 GPU 模式也逐一檢查四段裝飾圍欄的 MultiMesh 木條、柱帽及扣件，將實際零件 bounds 轉至各房屋局部座標，確認不與門前淨空區域相交。Headless 不讀取 dummy renderer 的批次 transforms，不能替代此檢查。
+
 主角戰鬥素材與防禦回歸測試（不寫入存檔）：
 
 ```bash
@@ -334,6 +362,16 @@ Expected `RUIN_SOIL_TEST_PASS material collision courts village_unchanged`.
 
 Foreground house cutaway: `godot --headless --path . --script tests/foreground_cutaway_test.gd`.
 Expected `FOREGROUND_CUTAWAY_TEST_PASS hysteresis shadows tiles 192_views map_cleanup`.
+Also covers house 07's 45-degree return view: the camera-tilted character face
+intersects house 04 even when vertical-body rays miss it. The regression must
+detect that neighboring facade; actual dual-renderer captures remain required.
+
+Manual audio listening: `tests/audio_mix_audition.gd` records four 33-second
+desktop Master mixes using the existing audio systems and authored cue timings.
+Requires a real audio device and existing `--capture-dir`; no headless or mute.
+It does not save preferences, normalize recordings or approve subjective sound.
+See `docs/AUDIO_LISTENING.md` for commands, timestamps and limits. This manual
+fixture is not part of the 54 automated asset checks.
 See `docs/FOREGROUND_CUTAWAY.md` for actual-renderer capture instructions and test limits.
 
 House exterior themes: `godot --headless --path . --script tests/house_exterior_test.gd`.

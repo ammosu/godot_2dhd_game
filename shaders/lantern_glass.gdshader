@@ -11,6 +11,6 @@ void fragment() {
 	float core = pow(max(0.0, 1.0 - length((UV - vec2(0.5, 0.48)) * vec2(1.8, 1.3))), 2.0);
 	vec3 amber = mix(vec3(0.28, 0.105, 0.025), vec3(0.82, 0.47, 0.13), core);
 	ALBEDO = mix(vec3(0.045, 0.034, 0.022), amber * (0.90 + grain * 0.12), pane);
-	EMISSION = vec3(1.0, 0.48, 0.12) * pane * (0.28 + core * 0.90) * (0.94 + grain * 0.06);
+	EMISSION = vec3(1.0, 0.48, 0.12) * pane * (0.55 + core * 3.2) * (0.94 + grain * 0.06);
 	ROUGHNESS = 0.85;
 }

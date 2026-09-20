@@ -16,6 +16,7 @@ func _run() -> void:
 		Exterior.build(house, id, wood)
 		var decor := house.get_node_or_null("ExteriorDressing")
 		assert(decor.get_meta("theme") == themes[id])
+		_check_facades(decor.get_node("FacadePlanters"), id)
 		if id not in ["house_02", "house_04"]:
 			var emblem := decor.get_node("GableEmblem") as Node3D
 			assert(emblem.position.is_equal_approx(Vector3(0, 2.43, -1.78)))
@@ -50,12 +51,16 @@ func _run() -> void:
 			var flowers: int = 0
 			var pots: int = 0
 			for child: Node in decor.get_children():
+				if child.name == &"FacadePlanters":
+					continue
 				assert(not child is CollisionObject3D)
 				var position: Vector3 = (child as Node3D).position
 				assert(absf(position.x) > 0.80, "Keep central entrance clear")
 				if child is Sprite3D:
 					flowers += 1
 					assert((child as Sprite3D).texture_filter == BaseMaterial3D.TEXTURE_FILTER_NEAREST)
+					assert(is_equal_approx(position.y - 300.0 * (child as Sprite3D).pixel_size, 0.89), "Front flowers root at soil surface")
+					assert(absf(position.x) - 320.0 * (child as Sprite3D).pixel_size > 0.8, "Front flower canvas leaves doorway clear")
 				elif str(child.name).begins_with("DisplayPot"):
 					pots += 1
 					assert(is_equal_approx(position.y, 0.76))
@@ -94,6 +99,31 @@ func _run() -> void:
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("res://.dream-loop/pottery-exterior.png")
 	quit()
+
+
+func _check_facades(root: Node, house_id: String) -> void:
+	assert(root.get_child_count() == (6 if house_id in ["house_02", "house_04"] else 8))
+	for child: Node in root.get_children():
+		var planter := child as Node3D
+		assert(absf(planter.position.x) > 1.14, "Wall mounts remain away from central approach")
+		if planter.position.z < -1.5:
+			assert(absf(planter.position.x) - 0.44 > 0.8, "Front boxes leave doorway corridor clear")
+		var boards := planter.get_node("TimberBoards") as MultiMeshInstance3D
+		assert(boards.multimesh.instance_count == 6)
+		assert(boards.multimesh.custom_aabb == boards.custom_aabb)
+		assert(boards.custom_aabb.position.y >= 0.5 and boards.custom_aabb.end.y < 1.0)
+		var soil := planter.get_node("Soil") as MeshInstance3D
+		var soil_top: float = soil.position.y + (soil.mesh as BoxMesh).size.y * 0.5
+		assert(is_equal_approx(soil_top, 0.87))
+		for index: int in range(3):
+			var flowers := planter.get_node("Flowers%d" % index) as Sprite3D
+			assert(is_equal_approx(flowers.position.y - 300.0 * flowers.pixel_size, soil_top), "Facade flowers root at soil surface")
+			assert(flowers.shaded and flowers.double_sided)
+			if planter.position.z < -1.5:
+				assert(absf(flowers.global_position.x) - 320.0 * flowers.pixel_size > 0.8, "Flower canopy leaves doorway clear")
+			assert(flowers.alpha_cut == SpriteBase3D.ALPHA_CUT_DISCARD and flowers.texture_filter == BaseMaterial3D.TEXTURE_FILTER_NEAREST)
+		for descendant: Node in planter.find_children("*", "", true, false):
+			assert(not descendant is CollisionObject3D and not descendant is CollisionShape3D, "Facade dressing cannot change movement")
 
 
 func _check_emblem_bounds(node: Node) -> void:
