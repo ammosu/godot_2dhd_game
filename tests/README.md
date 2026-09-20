@@ -1,5 +1,19 @@
 # Playthrough smoke test
 
+## 裝備系統
+
+最後兩張援軍混搭圖可用 `python3 tests/compose_party_equipment.py` 重建（需要 Pillow）。此步驟以既有素材及固定遮罩合成，不呼叫生圖服務、不覆寫來源圖集。
+
+隊伍整合：`godot --headless --path . --script tests/party_equipment_test.gd`。驗證三人十二搭配、84 戰鬥姿勢選擇、NPC 外觀、角色相容性、原子穿戴、獨立試穿草稿、存讀檔、戰鬥數值与鎖定。視覺截圖使用 `godot --path . --rendering-method forward_plus --script tests/party_equipment_test.gd -- --equipment-capture`，以及 `gl_compatibility`；輸出 `/tmp/wanderlight-party-equipment-*.png`。
+
+完整替換素材：`godot --headless --path . --script tests/equipment_replacement_test.gd`。驗證四種搭配、64 個行走畫格、28 個戰鬥姿勢、原裝還原、透明背景、裁切邊界、比例與接地資訊；亦檢查行走畫格不會被紋理快取合併。
+
+執行 `godot --headless --path . --script tests/equipment_system_test.gd`。成功標記為 `EQUIPMENT_SYSTEM_TEST_PASS catalog slots stats validation save migration`，驗證分類、能力重算、非法物品拒絕、version 3 存讀檔與 version 1／2 遷移。
+
+可視化整合：`godot --headless --path . --script tests/equipment_visual_test.gd`，驗證試穿不污染狀態、取消／重新開啟、確認、存讀檔外觀恢復、探索 16 畫格、戰鬥 7 姿勢、實際攻擊蓄力到收招的圖層與傷害，以及戰鬥換裝鎖定。成功標記：`EQUIPMENT_VISUAL_TEST_PASS preview cancel confirm world_16_frames battle_7_poses locks`。
+
+雙渲染器視覺驗收使用 `godot --path . --rendering-method forward_plus --script tests/equipment_visual_test.gd -- --equipment-capture`，再改為 `gl_compatibility`。會輸出 `/tmp/wanderlight-equipment-*.png`，含原裝、試穿、探索、戰鬥及七姿勢／16 行走畫格總覽。測試存檔使用獨立 user:// 路徑，不碰正式存檔。
+
 ## 序章資產整體回歸
 
 最新清單為 **56 項（48 CPU／8 GPU）**，新增 `mini_map_rotation_test.gd`（旋轉、相機同步與擴建地面），

@@ -121,6 +121,7 @@ func _draw() -> void:
 	_draw_round_button(_camera_left_center(), CAMERA_RADIUS, "", &"camera_rotate_left", Color(0.11, 0.09, 0.18, 0.78))
 	_draw_round_button(_camera_right_center(), CAMERA_RADIUS, "", &"camera_rotate_right", Color(0.11, 0.09, 0.18, 0.78))
 	_draw_round_button(_action_center(), ACTION_RADIUS, "互動", &"interact", Color(0.16, 0.62, 0.59, 0.88))
+	_draw_pill_button(_equipment_rect(), "裝備", &"equipment_menu")
 	_draw_pill_button(_save_rect(), "存檔", &"save_game")
 	_draw_pill_button(_load_rect(), "讀檔", &"load_game")
 
@@ -207,6 +208,8 @@ func _action_at(position: Vector2) -> StringName:
 		return &"save_game"
 	if _load_rect().grow(8.0).has_point(position):
 		return &"load_game"
+	if _equipment_rect().grow(8.0).has_point(position):
+		return &"equipment_menu"
 	return &""
 
 
@@ -338,6 +341,10 @@ func _camera_right_center() -> Vector2:
 
 func _save_rect() -> Rect2:
 	return Rect2(Vector2(size.x - 210.0, 66.0), Vector2(82.0, 48.0))
+
+
+func _equipment_rect() -> Rect2:
+	return Rect2(Vector2(size.x - 304.0, 66.0), Vector2(82.0, 48.0))
 
 
 func _load_rect() -> Rect2:

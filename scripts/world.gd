@@ -80,6 +80,9 @@ func _ready() -> void:
 	if _test_mode:
 		GameState.flags["intro_seen"] = true
 		_run_playthrough_test.call_deferred()
+	elif "--equipment-preview" in OS.get_cmdline_user_args():
+		GameState.flags["intro_seen"] = true
+		$EquipmentUI.open.call_deferred()
 	elif "--battle-preview" in OS.get_cmdline_user_args():
 		GameState.flags["intro_seen"] = true
 		_load_map("ruins", "from_village")
@@ -637,6 +640,9 @@ func _add_actor_interactable(interaction_id: String, prompt: String, world_posit
 
 	var sprite := Sprite3D.new()
 	sprite.name = "CharacterArt"
+	if interaction_id in ["noah", "elder"]:
+		sprite.set_script(preload("res://scripts/gameplay/equipment_actor.gd"))
+		sprite.set("actor_id", interaction_id)
 	sprite.texture = _art_texture(texture_path)
 	sprite.pixel_size = pixel_size
 	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -1555,7 +1561,7 @@ func _build_hud() -> void:
 	_quest_label.add_theme_font_size_override("font_size", 17)
 	info.add_child(_quest_label)
 	_controls_label = Label.new()
-	_controls_label.text = "左側移動｜右側互動｜↶/↷ 鏡頭｜右上存讀檔" if MobileControls.is_mobile_device() else "WASD 移動｜Space 互動｜Q/E 鏡頭｜F5 存檔｜F9 讀檔"
+	_controls_label.text = "左側移動｜右側互動｜↶/↷ 鏡頭｜右上裝備／存讀檔" if MobileControls.is_mobile_device() else "WASD 移動｜Space 互動｜I 裝備｜F5 存檔｜F9 讀檔"
 	_controls_label.add_theme_color_override("font_color", Color("b8a9bc"))
 	info.add_child(_controls_label)
 

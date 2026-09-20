@@ -7,6 +7,8 @@ extends CharacterBody3D
 const FACING_ANIMATIONS: Array[StringName] = [&"down", &"up", &"left", &"right"]
 const SpriteGrounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 const Footsteps = preload("res://scripts/gameplay/footsteps.gd")
+const EquipmentAppearance = preload("res://scripts/gameplay/equipment_appearance.gd")
+var _appearance_key: String = ""
 
 @onready var sprite: AnimatedSprite3D = $Sprite3D
 
@@ -26,6 +28,20 @@ func _ready() -> void:
 	_sprite_rest_height = sprite.position.y
 	SpriteGrounding.add_shadow(self, 0.32, 0.028)
 	_create_interaction_detector()
+	GameState.state_changed.connect(_refresh_equipment)
+	_refresh_equipment()
+
+
+func _refresh_equipment() -> void:
+	var key := EquipmentAppearance.variant(GameState.equipped)
+	if key == _appearance_key:
+		return
+	_appearance_key = key
+	var direction := sprite.animation
+	var frame := sprite.frame
+	sprite.sprite_frames = EquipmentAppearance.walking_frames(GameState.equipped)
+	sprite.animation = direction
+	sprite.frame = frame
 
 
 func _physics_process(delta: float) -> void:
@@ -122,6 +138,7 @@ func _update_sprite(input_vector: Vector2, move_direction: Vector3, delta: float
 		sprite.frame = 0
 		sprite.position.y = move_toward(sprite.position.y, _sprite_rest_height, delta * 0.5)
 		sprite.rotation.z = move_toward(sprite.rotation.z, 0.0, delta * 0.5)
+	_refresh_equipment()
 
 
 func _update_facing_column(input_vector: Vector2) -> void:

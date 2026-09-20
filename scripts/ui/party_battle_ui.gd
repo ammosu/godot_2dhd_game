@@ -8,6 +8,7 @@ const HealingBurst = preload("res://scripts/ui/healing_burst.gd")
 const MoonBoltBurst = preload("res://scripts/ui/moon_bolt_burst.gd")
 const Grounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 const SCALE: float = 56.0
+const EquipmentPortrait = preload("res://scripts/ui/equipment_portrait.gd")
 var session: RefCounted
 var _root: Control
 var _stage: Control
@@ -123,15 +124,20 @@ func _texture(index: int, pose: String) -> Texture2D:
 
 func _pose(index: int, pose: String) -> void:
 	var texture := _texture(index, pose)
-	if not _baseline_cache.has(texture.resource_path):
+	if index < 3:
+		var actor := str(session.actors[index].art)
+		_portraits[index].call("dress", texture, pose, GameState.get_loadout(actor), actor)
+		texture = _portraits[index].texture
+	var texture_key := texture.get_instance_id()
+	if not _baseline_cache.has(texture_key):
 		# Prone art has dropped weapons below the body contact line.
-		_baseline_cache[texture.resource_path] = float(texture.get_meta("ground_y")) if texture.has_meta("ground_y") else Grounding.foot_baseline(texture, 0.5)
+		_baseline_cache[texture_key] = float(texture.get_meta("ground_y")) if texture.has_meta("ground_y") else Grounding.foot_baseline(texture, 0.5)
 	# Raised weapons need extra canvas without shrinking the actor body.
 	var default_height: float = 145.0 if session.actors[index].art == "moss_wolf" else 175.0
 	var ratio: float = float(texture.get_meta("display_height", default_height)) / texture.get_height()
 	_portraits[index].texture = texture
 	_portraits[index].size = texture.get_size() * ratio
-	_portraits[index].position = _point(index) - Vector2(_portraits[index].size.x * 0.5, float(_baseline_cache[texture.resource_path]) * ratio)
+	_portraits[index].position = _point(index) - Vector2(_portraits[index].size.x * 0.5, float(_baseline_cache[texture_key]) * ratio)
 	_shadows[index].position = _point(index)
 	_shadows[index].scale = Vector2(1.8, 0.8) if pose == "defeated" else Vector2.ONE
 
@@ -466,7 +472,7 @@ func _build() -> void:
 		ward.hide()
 		_stage.add_child(ward)
 		_wards.append(ward)
-		var art := TextureRect.new()
+		var art: TextureRect = EquipmentPortrait.new() if index < 3 else TextureRect.new()
 		art.size = Vector2(210, 175)
 		var origin := Vector2(150, 215) if index < 3 else Vector2(650, 215)
 		var offset := Vector2((index % 3) * 1.6, 0.8 if index % 3 == 1 else 0.0) * SCALE
