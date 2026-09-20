@@ -1,5 +1,5 @@
 extends Node
-## Renderer-independent foreground cutaway for static houses.
+## Renderer-independent foreground cutaway for static scenery.
 ## Keeps low foundations, physics, interactions and shadow casting intact.
 
 const RESTORE_DELAY: float = 0.22
@@ -12,13 +12,13 @@ var _parts: Array[Dictionary] = []
 var _bounds: AABB
 
 
-func configure(house: Node3D, target: Node3D, camera: Camera3D) -> void:
+func configure(house: Node3D, target: Node3D, camera: Camera3D, group: StringName = &"foreground_cutaways") -> void:
 	_house = house
 	_target = target
 	_camera = camera
 	process_priority = 20 # Evaluate after the camera rig finishes following/orbiting.
 	_collect(house)
-	add_to_group("foreground_cutaways")
+	add_to_group(group)
 
 
 func _collect(node: Node) -> void:

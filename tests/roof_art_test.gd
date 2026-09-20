@@ -54,6 +54,9 @@ func _run() -> void:
 		_check(batch.find_children("*", "CollisionObject3D", true, false).is_empty(), "Roof detail must not add collision")
 	world.queue_free()
 	await process_frame
+	for singleton: String in ["GameAudio", "GameMusic", "GameAmbience"]:
+		root.get_node(singleton).call("stop_all")
+	await create_timer(0.25).timeout
 	if _failures == 0:
 		print("ROOF_ART_TEST_PASS batching relief texture slopes")
 	quit(0 if _failures == 0 else 1)

@@ -25,6 +25,9 @@ func _run() -> void:
 	battle.call("start_battle", {"max_hp": 64})
 	await process_frame
 	var model: RefCounted = state.get("battle_session")
+	_check((battle.get("_selection_labels")[0] as Label).text == "行動", "Acting character has no stage label")
+	_check((battle.get("_selection_labels")[3] as Label).text == "目標", "Target has no stage label")
+	_check((battle.get("_selection_marks")[0] as Line2D).visible and (battle.get("_selection_marks")[3] as Line2D).visible, "Initial acting/target markers missing")
 	battle.call("choose_action", "attack")
 	await _ready_for_action(battle)
 	_check(int(model.current) == 1, "Noah did not receive second turn")
@@ -40,10 +43,15 @@ func _run() -> void:
 	battle.call("_select_target", 4)
 	_check((battle.get("_ring") as Line2D).visible, "AoE range preview missing")
 	_check((battle.get("_preview") as Label).text.contains("3 人"), "AoE preview count differs from model")
+	for index: int in range(6):
+		_check((battle.get("_selection_marks")[index] as Line2D).visible == (index >= 2), "AoE stage marker differs from target list")
+		_check((battle.get("_shadows")[index] as Polygon2D).color == Color(0.02, 0.02, 0.04, 0.5), "Selection replaced grounding shadow")
 	if "--party-art-capture" in OS.get_cmdline_user_args():
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("res://.dream-loop/party-range-preview.png")
 	(battle.get("_confirm") as Button).pressed.emit()
+	for marker: Line2D in battle.get("_selection_marks"):
+		_check(not marker.visible, "Selection markers obscure action animation")
 	battle.call("choose_action", "magic")
 	_check(int(state.get("player_mp")) == 20, "MP charged before impact")
 	await create_timer(0.22).timeout
@@ -78,6 +86,7 @@ func _run() -> void:
 	battle.call("_select_action", "heal")
 	battle.call("_select_target", 0)
 	var before_heal: int = model.actors[0].hp
+	_check((battle.get("_selection_labels")[0] as Label).text == "治療", "Healing marker still says attack target")
 	battle.call("choose_action", "heal")
 	await create_timer(0.22).timeout
 	_check(int(model.actors[0].hp) == mini(100, before_heal + 30) and int(model.actors[2].mp) == 18, "Healing impact or mana failed")
@@ -110,6 +119,8 @@ func _run() -> void:
 				root.get_texture().get_image().save_png("res://.dream-loop/party-bolt-impact.png")
 		await _ready_for_action(battle)
 	_check(bool(battle.call("did_player_win")), "Party UI did not resolve victory")
+	for marker: Line2D in battle.get("_selection_marks"):
+		_check(not marker.visible, "Selection marker remains after victory")
 	for index: int in range(3, 6):
 		_check((battle.get("_portraits")[index] as TextureRect).texture.resource_path.ends_with("_defeated.tres"), "Defeated enemy is still standing")
 	_check((battle.get("_stage") as Control).find_children("*", "Node2D", true, false).filter(func(node: Node) -> bool: return node.get_script() == load("res://scripts/ui/moon_bolt_burst.gd")).is_empty(), "Moon bolt impact leaked")

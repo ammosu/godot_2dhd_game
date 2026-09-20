@@ -16,6 +16,33 @@ ROLE_CUES = {
 
 
 class AudioAssetTest(unittest.TestCase):
+    def test_loop_pcm_boundaries(self):
+        # Guard gross seam/DC regressions, not musical phrasing or backend gaps.
+        loops = {
+            "music_village": (2, 768000), "music_ruins": (2, 960000),
+            "music_battle": (2, 548571), "ambience_village": (1, 368000),
+            "ambience_ruins": (1, 368000), "ambience_house": (1, 368000),
+        }
+        for name, (channels, frames) in loops.items():
+            with self.subTest(loop=name), wave.open(str(ROOT / (name + ".wav"))) as clip:
+                self.assertEqual((clip.getnchannels(), clip.getsampwidth(), clip.getframerate()), (channels, 2, 32000))
+                self.assertEqual(clip.getnframes(), frames)
+                samples = array.array("h", clip.readframes(frames))
+                if sys.byteorder != "little":
+                    samples.byteswap()
+                for channel in range(channels):
+                    pcm = samples[channel::channels]
+                    self.assertLess(max(abs(value) for value in pcm), 32767, "Loop PCM clips")
+                    self.assertLess(abs(sum(pcm) / len(pcm)) / 32768, 0.001, "Loop has DC offset")
+                    self.assertLess(abs(pcm[0] - pcm[-1]) / 32768, 0.02, "Loop seam has a large sample jump")
+                    # 100 ms edge windows must contain signal, without a gross
+                    # loudness discontinuity. Neither window is required silent:
+                    # the source deliberately wraps reverb tails into its start.
+                    edge_rms = [math.sqrt(sum((v / 32768) ** 2 for v in window) / len(window))
+                                for window in (pcm[:3200], pcm[-3200:])]
+                    self.assertGreater(min(edge_rms), 0.005, "Loop has a silent edge")
+                    self.assertLess(max(edge_rms) / min(edge_rms), 2.0, "Loop edge levels differ by over 6 dB")
+
     def test_footstep_pcm(self):
         hashes = set()
         for surface, duration in {"dirt": 0.18, "stone": 0.16, "wood": 0.20}.items():

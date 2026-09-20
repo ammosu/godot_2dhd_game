@@ -21,8 +21,9 @@ static func foot_baseline(texture: Texture2D, threshold: float = 0.25) -> float:
 	return float(texture.get_height())
 
 
-static func anchor(sprite: SpriteBase3D, texture: Texture2D) -> void:
-	sprite.offset.y = foot_baseline(texture, sprite.alpha_scissor_threshold) - float(texture.get_height()) * 0.5
+static func anchor(sprite: SpriteBase3D, texture: Texture2D, measured_baseline: float = -1.0) -> void:
+	var baseline: float = measured_baseline if measured_baseline >= 0.0 else foot_baseline(texture, sprite.alpha_scissor_threshold)
+	sprite.offset.y = baseline - float(texture.get_height()) * 0.5
 	sprite.position.y = 0.012
 	# Camera-tilted billboard shadows slide away from the feet as the view orbits.
 	# Use the stable ground-plane contact shadow instead of that card silhouette.

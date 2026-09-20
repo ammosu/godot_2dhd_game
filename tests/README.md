@@ -1,6 +1,81 @@
 # Playthrough smoke test
 
+## 序章資產整體回歸
+
+六角色姿勢對照：建立暫存目錄後執行 `godot --path . --rendering-method gl_compatibility --script tests/party_motion_capture.gd -- --capture-dir=/absolute/existing/directory`，再改用 `forward_plus`。輸出四張實際戰鬥 UI 截圖，六角色分別同時顯示待機／蓄力／攻擊／收招；不使用 headless、不寫正常存檔。`PARTY_MOTION_CAPTURE_PASS` 只表示截图成功，不是自動美術判定，也不代表實際同時攻擊或完整演出時序；時序沿用 traveler／caster motion 回歸。此工具不納入 53 項清單。
+
+石柱回歸另檢查 `ColumnFooting`：柱體遮擋切除時石座保持可見／投影，底部貼齊柱根且半徑不超出原 0.5 m 碰撞，避免看不見的障礙物。沿用 `foreground_cutaway_test.gd`，不新增清單項目。
+
+`foreground_cutaway_test.gd` 除原有房屋 192 視角外，亦逐一檢查遺跡石柱的遮擋、清晰角度恢復、碰撞維持有效，以及進屋後 `column_cutaways` 清空；房屋與家具仍使用原 `foreground_cutaways` 群組。共用模型是完整網格，因此切除整柱而非局部裁切。實景仍須人工檢視。
+
+獨立音訊執行緒擷取：同一個 4187 本地伺服器，以 Playwright MCP 執行 `tests/web_audio_capture_test.js`（約 70 秒）。兩個隔離 Chrome context 比較正常 Sample 與診斷 Stream，26 秒後首次進屋再出屋；回傳每個 AudioContext 的樣本數、取樣率、峰值、連續近零輸出最長時間及發生時間，並保存屋內截圖。使用 AudioWorklet 逐樣本處理，觀察分支輸出零，不修改原音量或一般存檔。近零條件是所有輸入聲道絕對值均低於 0.00001，不能檢出被其他聲音蓋住的單一音軌間隙，也不能取代主觀聽感。不納入本地 53 項清單；出現錯誤、空擷取或樣本不足時不能作通過證據。
+
+混音比較的村莊路線從花園屋門口開始，加入 26 秒循環觀察及首次進出屋。各聲道另回傳 `windows`／`silentWindows`（該 2048 樣本窗全部低於 0.00001 才算靜音）。主執行緒卡住時輪詢也會停止，零靜音窗不能證明沒有音訊 underrun；不得將這個診斷當成無縫播放的自動通過門檻。
+
+循環後端比較：`web_mix_test.js` 現依序跑預設及 Stream 診斷模式的村莊／戰鬥，共四個隔離 context，以 `streamLoops` 區分。只有診斷組透過匯出 HTML 引數加入 `--stream-loop-audio`，讓 Web 的 Music／Ambience 使用 Stream；SFX、桌面及一般 Web 啟動都不變。短路線只比較輸出存在與幅度，不代表循環無縫或高負載穩定；`web_audio_test.js` 仍專測正常 Sample 後端。
+
+`web_audio_test.js` 另回傳 `loopScheduling`：同 PCM／固定播放倍率的循環間，下一次開始時間減前一次預期結束時間；正值代表晚接、負值代表重疊。後端可能重建 AudioBuffer，因此在取樣完成後比對完整 PCM，而非僅比較物件 identity 或長度。`loopSchedulingObserved` 只要求捕捉到可比較的接點，不要求零間隔；整體 `pass` 不代表無縫循環。這是 AudioContext 排程觀察，非聲波錄音或主觀驗收。
+
+`python3 tests/audio_asset_test.py` 現涵蓋六段循環音訊的格式／長度、逐聲道削波與 DC、首尾樣本跳變及 100 ms 邊緣 RMS 檢查。2% 跳變與 2 倍 RMS 比值僅防止明顯回歸，不是無縫聽感門檻，也不驗證播放後端是否漏接循環。此擴充沿用既有 `audio_pcm` 清單項目。
+
+Web 混音診斷：同樣啟動 4187 本地伺服器，以 Playwright MCP 執行 `tests/web_mix_test.js`。獨立 Chrome context 分別跑村莊背景／腳步與戰鬥背景／兩次普通攻擊／三目標霜星爆及敵方回合；不靜音、不更動正常玩家設定。觀察分支匯總送往同一 AudioDestination 的訊號，再分別取左右聲道，原聲音路徑不變，觀察輸出為零音量。回傳各階段 peak、RMS 與接近滿刻度樣本數及結果截圖。2048 樣本窗每 10 ms 讀取，窗口重疊、計時器可能漏樣，RMS 不是 LUFS，也不證明無削波、主觀混音平衡或無縫循環；必須另看圖確認技能與回合確實執行。不納入 53 項本地清單。
+
+室內家具遮擋：`godot --headless --path . --script tests/furniture_cutaway_test.gd`，標記 `FURNITURE_CUTAWAY_TEST_PASS`。逐屋驗證實際遮擋、恢復延遲、陰影模式恢復、碰撞／互動保留，以及返回村莊後清理。已納入統一清單；實景使用 `house_visual_capture.gd --inspect-furniture`（放在 `--` 後）另行檢查。
+
+八屋行走回歸：`godot --headless --path . --script tests/house_circulation_test.gd`。以實際 Player 碰撞體及 `move_and_slide` 逐屋走十個世界座標路點（家具前、中央、床與壁爐之間、返回入口），檢查抵達與接地；不寫存檔。標記 `HOUSE_CIRCULATION_TEST_PASS`，已納入統一清單。它不模擬鍵盤／相機相對輸入，也不涵蓋房內所有位置。
+
+側向近距離截圖：在 `house_visual_capture.gd` 的 `--` 後加 `--inspect-furniture`，角色定位家具前，改拍 135／315 度，與入口 45／225 度檔名分開。這個模式是定位取景，不是行走證據；行走由上述測試另行驗證。
+
+`house_interior_test.gd` 現在同時涵蓋八屋專用家具的房屋 ID、主要物件數量、無新增碰撞，以及新增織布／育苗／藏書／月相／布料／旅人／草藥家具的平面邊界；原有八屋进出、桌面碰撞、出口通行、存讀檔及鏡頭測試保留。這些結構檢查不取代實景畫面驗收。
+
+八屋視覺證據：先建立暫存輸出目錄，執行 `godot --path . --rendering-method gl_compatibility --resolution 1280x720 --script tests/house_visual_capture.gd -- --capture-dir=/absolute/existing/directory`；再以 `forward_plus` 重跑。每屋從入口位置拍攝 45／225 度兩個視角，檔名包含渲染器、房屋 ID 與角度。不使用 headless，不寫存檔；`HOUSE_VISUAL_CAPTURE_PASS` 只證明 16 張截圖寫出，必須人工看圖，不納入 49 項自動美術判定。
+
+桌面 Chrome 四場景 Web 驗收：重新匯出後以 `python3 -m http.server 4187 --bind 127.0.0.1 --directory build/web` 啟動本地伺服器，再由 Playwright MCP `browser_run_code_unsafe` 的 `filename` 執行 `tests/web_scene_test.js` 絕對路徑。每場景使用獨立瀏覽器 context，在攔截的 HTML 回應加入 preview 參數，不修改匯出檔或一般玩家存檔。結果含四張 `/tmp` 截圖、載入時間、錯誤、WebGL 裝置與 3 秒 requestAnimationFrame 間隔；必須另行看圖，程式 `pass` 不會辨識缺字或美術問題。回呼間隔不是 GPU 渲染耗時，也不是完整遊玩效能驗收。
+
+戰鬥內建字型覆蓋：`godot --headless --path . --script tests/battle_font_test.gd`，成功標記 `BATTLE_FONT_TEST_PASS`；停用系統 fallback，檢查三隊友全部指令的實際 Label／Button 文字。已納入整體清單。
+
+地圖資源快取：`godot --headless --path . --script tests/map_resource_cache_test.gd`，成功標記 `MAP_RESOURCE_CACHE_TEST_PASS`；十張地圖重建三輪，檢查材質／貼圖 identity 穩定、材質集合不增加、舊地圖立即釋放、節點數與任務旗標保持一致。測試不寫入存檔，不代表 GPU 記憶體峰值或切圖效能達標。
+
+Web 實際操作回歸：使用同一個本地伺服器與 Playwright 執行 `tests/web_interaction_test.js`。以鍵盤在花園小屋往返走動、返回村莊再進屋；另以鍵盤／滑鼠完成旅人與諾亞普通攻擊、長老三目標霜星爆及敵方回合。每階段截圖放在 `/tmp`，回傳執行錯誤與操作期間 rAF 間隔（含最大值）。`runtimeClean` 只表示日誌沒有錯誤，必須看圖確認地圖／姿勢／回合／HP／MP 結果，不能視為自動判讀遊戲成功。座標只適用固定 1280 × 720 測試畫面，不是多尺寸驗收。瀏覽器 context 隔離並於結束關閉，不改寫一般玩家存檔。
+
+操作測量依序執行 house-route baseline、室內 baseline、室內 diagnostic、戰鬥 baseline 四個獨立 context。`--house-route-preview` 只跳過開場對話並把角色放到花園小屋門外，保持正常鏡頭與村莊可見；先以 Space 進屋，再走相同往返路線。它不預先建立室內、不讀写存檔，用來區別實際進出屋與直接室內預覽的首次渲染。baseline 不包裝任何 WebGL API；diagnostic 才攔截呼叫並計時，`instrumentGL` 區分結果，截圖名稱也分開。`cadence.byPhase` 提供每段操作的樣本數、P95 與最大間隔。各測量依序執行，仍可能共享瀏覽器／驅動快取；不能直接相減推算工具成本。室內 preview 首次出屋是村莊首次可見渲染，並非一般回村的代表值；需另看 house-route 及 `warm-exit-to-village`。所有測量仍有自動操作與截圖成本，未涵蓋屋內存檔冷啟動。
+
+`map_resource_cache_test.gd` 另以 WeakRef 探針檢查 MultiMesh 的覆寫、表面及疊加材質：切圖後保留、世界釋放後銷毀。這涵蓋一般 MeshInstance3D 以外的批次材質生命週期，不是 GPU 記憶體峰值測量。
+
+室內地板批次的位置驗證需實際 renderer（headless 的 dummy renderer 不保存 MultiMesh transform）：分別執行 `godot --path . --rendering-method forward_plus --script tests/interior_textiles_test.gd` 與 `godot --path . --rendering-method gl_compatibility --script tests/interior_textiles_test.gd`。除既有織物檢查外，驗證 20 片木板的位置、方向、尺寸、木紋比例及原碰撞；headless 仍檢查非 transform 項目。這兩次 GPU 執行已納入統一清單。
+
+```bash
+python3 tests/run_asset_checks.py --group all
+python3 tests/asset_runner_test.py
+```
+
+共 53 項：44 項 Godot headless 結構／行為測試、1 項 Python PCM 測試，以及屋頂／水面／室內背景／室內織物與地板在兩種實際渲染器下的 8 項測試。`--group cpu`（預設）只跑前 45 項；`--group gpu` 只跑需要桌面顯示的 8 項。家具遮擋與八屋十路點行走已納入 CPU 清單，地板位置檢查納入 GPU 清單。測試依序執行，每項預設 90 秒上限，需零退出碼、正確成功標記、無 Godot 錯誤及退出物件洩漏；完整日誌與 `results.json` 保存在印出的系統暫存目錄。
+
+這份清單使用明確的成功標記與渲染需求，避免將屋頂測試誤放到 headless，或誤認 `PARTY_BALANCE_TEST_PASS` 為失敗。它不包含完整主線、Web 匯出／瀏覽器實機、主觀混音、畫面構圖或效能驗收；那些門檻仍須分別完成。
+
+## 環境資產回歸入口
+
+```bash
+python3 tests/run_environment_checks.py
+python3 tests/environment_runner_test.py
+```
+
+依序檢查住宅、主題陳設、外觀、窗框、前景遮擋、室內背景、路燈、腳步、遺跡地面／碎石、月光碎片及水池石沿，共 12 項。每項預設 90 秒上限；必須同時有成功標記、零退出碼且沒有 `ERROR:`／`SCRIPT ERROR:`。個別失敗仍繼續其餘項目，最後回傳非零退出碼；完整輸出保存在系統暫存目錄並印出路徑，不覆寫玩家存檔。可用 `--case ruin_rubble` 選擇項目，或用 `--godot /path/to/godot`、`--timeout 120` 調整執行設定。
+
+這是 headless 結構／行為回歸，不代替雙渲染器實機畫面、主觀聽感、效能與 Web 驗收；下方完整主線測試仍須執行。
+
+水面實際 GPU 動畫回歸（不可加 `--headless`）：
+
+```bash
+godot --path . --rendering-method forward_plus --script tests/water_render_test.gd
+godot --path . --rendering-method gl_compatibility --script tests/water_render_test.gd
+```
+
+成功標記 `WATER_RENDER_TEST_PASS`。以獨立視窗材質取樣確認水色、對比與跨時間像素變化；不會載入主線或改寫存檔。這不是效能或瀏覽器 GPU 驗收。
+
 正式主線已使用 3 對 3 隊伍戰鬥：
+
+月紋門／村界材質回歸：`godot --headless --path . --script tests/gate_art_test.gd`，成功標記 `GATE_ART_TEST_PASS`。涵蓋雙面門扉裝飾、四面牆材質與碰撞一致、封印朝向及任務開門後淡出，不覆寫存檔。
 
 角色姿勢測試檢查八個 AtlasTexture 的裁切、畫布與透明輪廓腳底基準。節奏測試是固定初始數值的確定性模擬，不代表完整難度評估：目前普通攻擊與全員零 MP 都在第 4 回合勝利（18 次角色行動），使用職業技能的策略在第 3 回合勝利（11 次行動）；仍需後續多場遭遇與玩家試玩。
 
@@ -34,6 +109,8 @@ godot --path . -- --battle-preview
 主角攻擊動畫測試依序等待蓄力、出劍、收招及待機，驗證普通攻擊／月影斬各一次傷害與 MP、蓄力不提早結算、連按鎖定、陰影回位與下一角色回合。桌面截圖選項另在正式測試前靜態展示各姿勢，輸出 `.dream-loop/traveler-attack-windup.png` 等預覽；不以截圖取代實際時序測試。
 
 模型測試驗證三對三、角色限定技能、中央／邊側 AoE、MP 扣一次、無效目標、倒地跳過、防禦、守護減傷／不疊加／到期／施術者倒下、治療上限與不可復活、敵方魔法、勝利與藥水／旅人狀態回寫。UI 測試操作實際確認按鈕，核對友方選取、預覽與爆發時傷害、連按鎖定、三位隊友及敵方回合、敵方 AoE、特效清理。完整 playthrough 已改為隊伍全勝／全滅，不再假設三次單人技能結束戰鬥。舊 `battle_ui.gd` 與其姿勢／音效測試保留為舊版單挑回歸，不是新隊伍流程的驗收依據。
+
+戰場選取標記：目前行動者使用金色托線與「行動」，受影響者使用菱形與「目標／治療／守護／自身」。角色原本的接地陰影不再染成選取色。UI 測試驗證單體／三人 AoE／治療標記與模型一致，演出及勝利時全部隱藏；此改動不增加點擊角色選取功能，仍由下方卡片操作。
 
 魔法特效及獨立範圍判定的底層測試：
 

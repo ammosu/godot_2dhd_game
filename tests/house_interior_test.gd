@@ -45,6 +45,78 @@ func _run() -> void:
 		_check(room != null, "Interior not built")
 		if room == null:
 			continue
+		var chest := room.get_node("StorageChest") as Node3D
+		_check(room.get_node("inspect_house_shelf").get("prompt_text") == "查看" + str(Houses.FURNITURE[home.id].name), "Furniture inspection prompt does not match art")
+		var new_themes: Dictionary = {"house_03": "MoonRecordStand", "house_05": "LinenCupboard", "house_06": "TravelGearStand", "house_07": "HerbDryingStand"}
+		for map_id: String in new_themes:
+			var furnishing := room.get_node_or_null(new_themes[map_id]) as Node3D
+			_check((furnishing != null) == (home.id == map_id), "Wrong themed furnishing: " + map_id)
+			if furnishing == null:
+				continue
+			_check(furnishing.find_children("*", "CollisionObject3D", true, false).is_empty(), "Themed furnishing added collision")
+			for part: Node in furnishing.find_children("*", "MeshInstance3D", true, false):
+				var visual := part as MeshInstance3D
+				var bounds: AABB = visual.global_transform * visual.get_aabb()
+				_check(bounds.position.x >= -3.76 and bounds.end.x <= -3.04 and bounds.position.z >= 0.725 and bounds.end.z <= 2.475, "Themed furnishing exceeds original footprint: " + map_id)
+			match map_id:
+				"house_03":
+					_check(furnishing.find_children("RecordRoll*", "MeshInstance3D", false, false).size() == 5, "Moon records missing")
+				"house_05":
+					_check(furnishing.find_children("FoldedLinen*", "MeshInstance3D", false, false).size() == 12, "Folded linen missing")
+					_check(furnishing.find_children("ClothBolt*", "MeshInstance3D", false, false).size() == 4, "Cloth bolts missing")
+				"house_06":
+					_check(furnishing.has_node("TravelPack") and furnishing.has_node("Bedroll") and furnishing.has_node("WalkingStaff"), "Travel equipment missing")
+				"house_07":
+					_check(furnishing.find_children("HerbBundle*", "Node3D", false, false).size() == 4, "Herb bundles missing")
+					_check(furnishing.find_children("HerbPot*", "Node3D", false, false).size() == 3, "Herb pots missing")
+		var rack := room.get_node_or_null("PotteryRack") as Node3D
+		var bench := room.get_node_or_null("PottingBench") as Node3D
+		var library := room.get_node_or_null("LibraryCabinet") as Node3D
+		var loom := room.get_node_or_null("WeavingFrame") as Node3D
+		_check((loom != null) == (home.id == "house_01"), "Weaving frame appeared in wrong home")
+		if loom != null:
+			_check(loom.find_children("Warp*", "MeshInstance3D", false, false).size() == 25, "Loom warp threads missing")
+			_check(loom.has_node("WovenCloth") and loom.has_node("Shuttle"), "Loom cloth or shuttle missing")
+			_check(loom.find_children("*", "CollisionObject3D", true, false).is_empty(), "Loom added collision")
+			for part: Node in loom.find_children("*", "MeshInstance3D", true, false):
+				var visual := part as MeshInstance3D
+				var bounds: AABB = visual.global_transform * visual.get_aabb()
+				_check(bounds.position.x >= -3.76 and bounds.end.x <= -3.04 and bounds.position.z >= 0.725 and bounds.end.z <= 2.475, "Loom extends into circulation lane")
+		_check((library != null) == (home.id == "house_08"), "Library cabinet appeared in wrong home")
+		if library != null:
+			_check(library.find_children("ArchiveBook*", "Node3D", false, false).size() == 9, "Archive books missing")
+			_check(library.find_children("ArchiveScroll*", "MeshInstance3D", false, false).size() == 9, "Archive scrolls missing")
+			_check(library.has_node("ReadingStand/BookCover"), "Open reading book missing")
+			_check(library.find_children("*", "CollisionObject3D", true, false).is_empty(), "Library cabinet added collision")
+			for part: Node in library.find_children("*", "MeshInstance3D", true, false):
+				var visual := part as MeshInstance3D
+				var bounds: AABB = visual.global_transform * visual.get_aabb()
+				_check(bounds.position.x >= -3.76 and bounds.end.x <= -3.04 and bounds.position.z >= 0.725 and bounds.end.z <= 2.475, "Library art extends into circulation lane")
+		_check((bench != null) == (home.id == "house_02"), "Potting bench appeared in wrong home")
+		if bench != null:
+			_check(bench.find_children("Seedling*", "Node3D", false, false).size() == 3, "Expected three nursery pots")
+			_check(bench.find_children("*", "CollisionObject3D", true, false).is_empty(), "Potting bench added collision")
+			for part: Node in bench.find_children("*", "MeshInstance3D", true, false):
+				var visual := part as MeshInstance3D
+				var bounds: AABB = visual.global_transform * visual.get_aabb()
+				_check(bounds.position.x >= -3.76 and bounds.end.x <= -3.04 and bounds.position.z >= 0.725 and bounds.end.z <= 2.475, "Nursery art extends into circulation lane")
+			for index: int in range(3):
+				var seedling := bench.get_node("Seedling%d" % index) as Node3D
+				_check(is_equal_approx(seedling.position.y, 0.96), "Nursery pot floats above bench")
+				_check(seedling.find_children("Leaf*", "MeshInstance3D", false, false).size() == 6, "Seedling leaves missing")
+		_check((rack != null) == (home.id == "house_04"), "Pottery rack appeared in wrong home")
+		if rack != null:
+			_check(rack.find_children("DryingPot*", "Node3D", false, false).size() == 9, "Drying rack needs nine pots")
+			_check(rack.find_children("*", "CollisionObject3D", true, false).is_empty(), "Drying rack added collision")
+			for level: int in range(3):
+				for column: int in range(3):
+					var pot := rack.get_node("DryingPot%d%d" % [level, column]) as Node3D
+					_check(is_equal_approx(pot.position.y, 0.225 + level * 0.67), "Pot is not supported on shelf")
+		_check(chest.get_node_or_null("Latch") != null and chest.get_node_or_null("LidSeam") != null, "Chest lid and latch missing")
+		var chest_bounds := AABB(Vector3(2.925, 0, 2.135), Vector3(0.85, 0.8, 0.83)).grow(0.001)
+		for part: Node in chest.get_children():
+			var mesh := part as MeshInstance3D
+			_check(chest_bounds.encloses(mesh.global_transform * mesh.get_aabb()), "Chest art exceeds existing collision bounds")
 		for required: String in ["FloorCollision", "BedFrame", "TableTop", "Hearth", "ShelfBack", "leave_house"]:
 			_check(room.get_node_or_null(required) != null, "Missing furnishing or exit: " + required)
 		_check(not (world.get_node("Moonlight") as DirectionalLight3D).visible, "Outdoor moonlight leaked inside")

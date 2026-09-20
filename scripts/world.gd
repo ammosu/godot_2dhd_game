@@ -35,6 +35,11 @@ const SIDE_CONTENT_MARKER_COLOR := Color("64e6ff")
 @onready var battle_ui: PartyBattleUI = $BattleUI
 
 var _map_root: Node3D
+# Keep immutable art resident while this world exists; map teardown must not
+# force another decode/upload of the same large atlases on the return trip.
+var _art_textures: Dictionary[String, Texture2D] = {}
+var _art_baselines: Dictionary[String, float] = {}
+var _resident_materials: Dictionary[String, Array] = {}
 var _environment: Environment
 var _ambient_time: float = 0.0
 var _moon_lamp_core: MeshInstance3D
@@ -86,6 +91,10 @@ func _ready() -> void:
 	elif "--interior-preview" in OS.get_cmdline_user_args():
 		GameState.flags["intro_seen"] = true
 		_load_map("house_02", "entry")
+	elif "--house-route-preview" in OS.get_cmdline_user_args():
+		GameState.flags["intro_seen"] = true
+		player.global_position = HouseCatalog.return_position("house_02")
+		($CameraRig as Hd2dCameraRig).snap_to_target()
 	elif "--village-preview" in OS.get_cmdline_user_args():
 		GameState.flags["intro_seen"] = true
 		player.global_position = Vector3(0.0, 0.1, 6.0)
@@ -138,8 +147,11 @@ func _on_map_change_requested(map_id: String, spawn_id: String) -> void:
 
 
 func _load_map(map_id: String, spawn_id: String) -> void:
+	var profile_started: int = Time.get_ticks_usec()
 	if _map_root != null and is_instance_valid(_map_root):
+		_retain_map_materials()
 		_map_root.free()
+	_profile_map_stamp("free_previous", profile_started)
 	_moon_lamp_core = null
 	_moon_lamp_light = null
 	_village_gate_portal = null
@@ -174,6 +186,7 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 		room.house_id = map_id
 		room.interaction_requested.connect(_handle_interaction)
 		_map_root.add_child(room)
+		room.configure_furniture_cutaway(player, get_viewport().get_camera_3d())
 		_environment.background_color = Color("141119")
 	elif map_id == "ruins":
 		_build_ruins()
@@ -194,6 +207,52 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 	GameMusic.sync_to_state()
 	GameAmbience.sync_to_state()
 	_refresh_hud()
+	_profile_map_stamp("total_" + map_id, profile_started)
+
+
+func _profile_map_stamp(stage: String, started: int) -> int:
+	var now: int = Time.get_ticks_usec()
+	if "--profile-map-build" in OS.get_cmdline_user_args():
+		print("MAP_BUILD_PROFILE ", stage, " ms=", float(now - started) / 1000.0)
+	return now
+
+
+func _art_texture(path: String) -> Texture2D:
+	if not _art_textures.has(path):
+		_art_textures[path] = load(path) as Texture2D
+	return _art_textures[path]
+
+
+func _retain_map_materials() -> void:
+	# Retain only the first material set per visited map for this world's lifetime.
+	# Resources stay resident; nodes, collisions and gameplay state are rebuilt.
+	var key := String(_map_root.name)
+	if _resident_materials.has(key):
+		return
+	var materials: Array[Material] = []
+	for node: Node in _map_root.find_children("*", "GeometryInstance3D", true, false):
+		var instance := node as GeometryInstance3D
+		if instance.material_override != null and not materials.has(instance.material_override):
+			materials.append(instance.material_override)
+		if instance.material_overlay != null and not materials.has(instance.material_overlay):
+			materials.append(instance.material_overlay)
+		var mesh: Mesh
+		if instance is MeshInstance3D:
+			mesh = (instance as MeshInstance3D).mesh
+		elif instance is MultiMeshInstance3D:
+			var batch := (instance as MultiMeshInstance3D).multimesh
+			if batch != null:
+				mesh = batch.mesh
+		if mesh != null:
+			for surface: int in range(mesh.get_surface_count()):
+				var material: Material = instance.material_override
+				if instance is MeshInstance3D:
+					material = (instance as MeshInstance3D).get_active_material(surface)
+				elif material == null:
+					material = mesh.surface_get_material(surface)
+				if material != null and not materials.has(material):
+					materials.append(material)
+	_resident_materials[key] = materials
 
 
 func _get_spawn_position(map_id: String, spawn_id: String) -> Vector3:
@@ -215,6 +274,7 @@ func _get_spawn_position(map_id: String, spawn_id: String) -> Vector3:
 
 
 func _build_village() -> void:
+	var stamp: int = Time.get_ticks_usec()
 	_add_box("Ground", Vector3(0.0, -0.35, 0.0), Vector3(38.0, 0.7, 32.0), Color("304b48"), true)
 	_add_cobble_box("CentralPlaza", Vector3(0.0, -0.02, 0.0), Vector3(10.5, 0.12, 8.5), true)
 	WaterFeature.build(_map_root, Vector3(11.5, 0.02, -10.0), Vector2(9.0, 5.0))
@@ -227,6 +287,7 @@ func _build_village() -> void:
 		_add_box("BoundaryWall", Vector3(x_position, 0.75, 0.0), Vector3(0.7, 1.8, 31.0), PALETTE.stone_dark, true)
 	for z_position in [-15.3, 15.3]:
 		_add_box("BoundaryWall", Vector3(0.0, 0.75, z_position), Vector3(37.3, 1.8, 0.7), PALETTE.stone_dark, true)
+	stamp = _profile_map_stamp("village_surfaces", stamp)
 
 	for column_position in [Vector3(-4.6, 0.0, -3.6), Vector3(4.6, 0.0, -3.6), Vector3(-4.6, 0.0, 3.6), Vector3(4.6, 0.0, 3.6)]:
 		_add_column(column_position)
@@ -244,8 +305,10 @@ func _build_village() -> void:
 		_add_lamp(lamp_position)
 
 	# Eight homes form west, east, north, and south neighborhoods around the plaza.
+	stamp = _profile_map_stamp("village_columns_trees_lights", stamp)
 	for home: Dictionary in HouseCatalog.HOMES:
 		_add_house(home.position, home.wall, home.roof, home.yaw, home.id)
+	stamp = _profile_map_stamp("village_houses", stamp)
 
 	_add_crystal(Vector3(-7.0, 0.0, -3.2), 1.1)
 	_add_crystal(Vector3(7.2, 0.0, 1.2), 0.85)
@@ -257,13 +320,17 @@ func _build_village() -> void:
 		_add_grass_clump(grass_position, "seed", 0.001)
 	_add_village_pig(Vector3(8.5, 0.015, 8.4))
 	_add_village_gardens()
+	stamp = _profile_map_stamp("village_props_gardens", stamp)
 
 	_add_moon_lamp(Vector3(0.0, 0.0, 0.0))
+	stamp = _profile_map_stamp("village_moon_lamp", stamp)
 	_add_actor_interactable("elder", "與長老交談", Vector3(-3.0, 0.0, 1.2), "res://assets/generated/elder.tres", 1.6 / 724.0, Color.WHITE, false, MAIN_QUEST_MARKER)
 	_add_actor_interactable("rumi", "與露米交談", Vector3(6.4, 0.0, 4.2), "res://assets/generated/rumi.tres", 1.6 / 724.0, Color.WHITE, false, SIDE_CONTENT_MARKER)
 	_add_actor_interactable("noah", "與守門人交談", Vector3(2.2, 0.0, -10.9), "res://assets/generated/noah.tres", 1.6 / 724.0, Color.WHITE)
 	_add_portal("portal_to_ruins", "前往北境遺跡", Vector3(0.0, 0.0, -13.1), Color("86d9ff"))
+	stamp = _profile_map_stamp("village_actors_portal", stamp)
 	MeadowDressing.build(_map_root)
+	_profile_map_stamp("village_meadow", stamp)
 
 
 func _build_ruins() -> void:
@@ -326,7 +393,10 @@ func _handle_interaction(interaction_id: String) -> void:
 			GameState.request_map("village", "from_" + GameState.current_map)
 		return
 	if interaction_id == "inspect_house_shelf":
-		dialogue_ui.show_dialogue([{"speaker": "屋內書架", "text": "書頁記錄著村人的日常：修補屋頂、收拾柴火，以及等待月燈再次亮起。桌椅與床鋪整理得很乾淨。"}])
+		if not HouseCatalog.is_interior(GameState.current_map):
+			return
+		var furniture: Dictionary = HouseCatalog.FURNITURE[GameState.current_map]
+		dialogue_ui.show_dialogue([{"speaker": furniture.name, "text": furniture.text}])
 		return
 	match interaction_id:
 		"elder":
@@ -529,7 +599,7 @@ func _add_actor_interactable(interaction_id: String, prompt: String, world_posit
 
 	var sprite := Sprite3D.new()
 	sprite.name = "CharacterArt"
-	sprite.texture = load(texture_path) as Texture2D
+	sprite.texture = _art_texture(texture_path)
 	sprite.pixel_size = pixel_size
 	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
@@ -539,7 +609,12 @@ func _add_actor_interactable(interaction_id: String, prompt: String, world_posit
 		sprite.hframes = 4
 		sprite.vframes = 7
 	actor.add_child(sprite)
-	SpriteGrounding.anchor(sprite, sprite.texture)
+	# These file-backed textures are immutable and retained by _art_textures.
+	# Keep the alpha threshold in the key so different cutouts cannot alias.
+	var baseline_key := "%s@%s" % [texture_path, str(sprite.alpha_scissor_threshold)]
+	if not _art_baselines.has(baseline_key):
+		_art_baselines[baseline_key] = SpriteGrounding.foot_baseline(sprite.texture, sprite.alpha_scissor_threshold)
+	SpriteGrounding.anchor(sprite, sprite.texture, _art_baselines[baseline_key])
 	var ground_height: float = 0.07 if interaction_id == "guardian" else 0.008
 	sprite.position.y += ground_height
 	SpriteGrounding.add_shadow(actor, 0.62 if interaction_id == "guardian" else 0.34, ground_height + 0.012)
@@ -781,9 +856,13 @@ func _add_portal(interaction_id: String, prompt: String, world_position: Vector3
 	shape_node.shape = shape
 	portal.add_child(shape_node)
 
-	var frame_material := _make_material(PALETTE.stone_dark.lightened(0.08), 0.86, 0.08)
+	var frame_material := _make_coursed_stone()
 	var trim_material := _make_material(PALETTE.gold.darkened(0.18), 0.48, 0.72)
+	trim_material.albedo_texture = preload("res://assets/generated/aged_bronze_albedo.png")
+	trim_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	var door_material := _make_material(Color("263e4b"), 0.78, 0.16)
+	door_material.albedo_texture = preload("res://assets/generated/timber_albedo.png")
+	door_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	var door_dark_material := _make_material(Color("172630"), 0.9, 0.22)
 
 	_add_portal_box(portal, Vector3(-1.48, 1.45, 0.0), Vector3(0.52, 2.9, 0.62), frame_material)
@@ -810,10 +889,16 @@ func _add_portal(interaction_id: String, prompt: String, world_position: Vector3
 	_add_portal_box(right_hinge, Vector3(-0.59, 0.72, -0.12), Vector3(1.06, 0.1, 0.1), trim_material)
 	_add_portal_box(right_hinge, Vector3(-0.59, -0.72, -0.12), Vector3(1.06, 0.1, 0.1), trim_material)
 	_add_portal_box(right_hinge, Vector3(-0.59, 0.0, -0.11), Vector3(0.09, 2.25, 0.08), door_dark_material)
+	for hinge: Node3D in [left_hinge, right_hinge]:
+		var leaf_center: float = 0.59 if hinge == left_hinge else -0.59
+		for height: float in [-0.72, 0.72]:
+			_add_portal_box(hinge, Vector3(leaf_center, height, 0.12), Vector3(1.06, 0.1, 0.1), trim_material)
+		_add_portal_box(hinge, Vector3(leaf_center, 0.0, 0.11), Vector3(0.09, 2.25, 0.08), door_dark_material)
+	var approach_side: float = 1.0 if interaction_id == "portal_to_ruins" else -1.0
 
 	var seal := MeshInstance3D.new()
 	seal.name = "MoonSeal"
-	seal.position = Vector3(0.0, 1.52, -0.19)
+	seal.position = Vector3(0.0, 1.52, approach_side * 0.19)
 	seal.rotation_degrees.x = 90.0
 	var seal_mesh := TorusMesh.new()
 	seal_mesh.inner_radius = 0.31
@@ -821,21 +906,21 @@ func _add_portal(interaction_id: String, prompt: String, world_position: Vector3
 	seal_mesh.rings = 12
 	seal_mesh.ring_segments = 8
 	seal.mesh = seal_mesh
-	seal.material_override = _make_material(color, 0.2, 0.35, color, 4.5)
+	seal.material_override = _make_material(color, 0.2, 0.35, color, 1.2)
 	portal.add_child(seal)
 
 	var seal_core := MeshInstance3D.new()
 	seal_core.name = "MoonSealCore"
-	seal_core.position = Vector3(0.0, 1.52, -0.2)
+	seal_core.position = Vector3(0.0, 1.52, approach_side * 0.2)
 	seal_core.rotation_degrees = Vector3(0.0, 0.0, 45.0)
 	var core_mesh := PrismMesh.new()
 	core_mesh.size = Vector3(0.25, 0.38, 0.14)
 	seal_core.mesh = core_mesh
-	seal_core.material_override = _make_material(color.lightened(0.18), 0.12, 0.0, color, 4.0)
+	seal_core.material_override = _make_material(color.lightened(0.18), 0.12, 0.0, color, 1.0)
 	portal.add_child(seal_core)
 
 	var light := OmniLight3D.new()
-	light.position = Vector3(0.0, 1.55, -0.45)
+	light.position = Vector3(0.0, 1.55, approach_side * 0.45)
 	light.light_color = color
 	light.light_energy = 1.7
 	light.omni_range = 3.4
@@ -843,7 +928,7 @@ func _add_portal(interaction_id: String, prompt: String, world_position: Vector3
 
 	var gate_sign := Label3D.new()
 	gate_sign.text = "月紋門"
-	gate_sign.position = Vector3(0.0, 3.13, -0.38)
+	gate_sign.position = Vector3(0.0, 3.13, approach_side * 0.38)
 	gate_sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	gate_sign.font_size = 38
 	gate_sign.outline_size = 8
@@ -943,7 +1028,7 @@ func _add_box(node_name: String, world_position: Vector3, size: Vector3, color: 
 	mesh_instance.material_override = _make_material(color, 0.88, metallic)
 	if node_name.ends_with("RuinCourt") or node_name == "RuinCourt" or node_name.begins_with("MoonPath_") or node_name.begins_with("RuinCrossPath_"):
 		var ruin_material := _make_material(Color("b8b7d0"), 0.97)
-		ruin_material.albedo_texture = load("res://assets/generated/ruin_flagstone.png") as Texture2D
+		ruin_material.albedo_texture = _art_texture("res://assets/generated/ruin_flagstone.png")
 		ruin_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		ruin_material.uv1_scale = Vector3(maxf(size.x / 4.0, 0.25), maxf(size.z / 4.0, 0.25), 1.0)
 		mesh_instance.material_override = ruin_material
@@ -964,6 +1049,8 @@ func _add_box(node_name: String, world_position: Vector3, size: Vector3, color: 
 		soil.shader = preload("res://shaders/ruin_soil.gdshader")
 		soil.set_shader_parameter("mineral_texture", preload("res://assets/generated/moon_lamp_cut_limestone_albedo.png"))
 		mesh_instance.material_override = soil
+	elif node_name == "BoundaryWall":
+		mesh_instance.material_override = _make_coursed_stone()
 	root.add_child(mesh_instance)
 	if collision:
 		var collision_shape := CollisionShape3D.new()
@@ -971,6 +1058,13 @@ func _add_box(node_name: String, world_position: Vector3, size: Vector3, color: 
 		box_shape.size = size
 		collision_shape.shape = box_shape
 		root.add_child(collision_shape)
+
+
+func _make_coursed_stone() -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = preload("res://shaders/coursed_stone.gdshader")
+	material.set_shader_parameter("stone_texture", preload("res://assets/generated/moon_lamp_cut_limestone_albedo.png"))
+	return material
 
 
 func _configure_village_surfaces() -> void:
@@ -1032,19 +1126,19 @@ func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, r
 
 	var wall_material := _make_material(wall_color, 0.92)
 	wall_material.albedo_color = wall_color.lightened(0.32)
-	wall_material.albedo_texture = load("res://assets/generated/plaster_albedo.png") as Texture2D
+	wall_material.albedo_texture = _art_texture("res://assets/generated/plaster_albedo.png")
 	wall_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	wall_material.uv1_scale = Vector3(2.0, 1.0, 1.0)
 	var timber_material := _make_material(Color("a99b92"), 0.92)
-	timber_material.albedo_texture = load("res://assets/generated/timber_albedo.png") as Texture2D
+	timber_material.albedo_texture = _art_texture("res://assets/generated/timber_albedo.png")
 	timber_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	var roof_material := _make_material(roof_color.lightened(0.78), 0.94)
-	roof_material.albedo_texture = load("res://assets/generated/slate_roof_albedo.png") as Texture2D
+	roof_material.albedo_texture = _art_texture("res://assets/generated/slate_roof_albedo.png")
 	roof_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	var window_material := ShaderMaterial.new()
 	window_material.shader = preload("res://shaders/house_window.gdshader")
 	var foundation_material := _make_material(Color("aaa6af"), 0.96)
-	foundation_material.albedo_texture = load("res://assets/generated/ruin_flagstone.png") as Texture2D
+	foundation_material.albedo_texture = _art_texture("res://assets/generated/ruin_flagstone.png")
 	foundation_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_add_portal_box(house, Vector3(0.0, 0.18, 0.0), Vector3(4.16, 0.35, 3.36), foundation_material)
 	_add_portal_box(house, Vector3(0.0, 1.15, 0.0), Vector3(4.0, 1.9, 3.2), wall_material)
@@ -1108,6 +1202,23 @@ func _add_column(world_position: Vector3) -> void:
 	var pillar_scene := load("res://assets/generated/weathered_pillar.glb") as PackedScene
 	var pillar := pillar_scene.instantiate() as Node3D
 	root.add_child(pillar)
+	# A low collar stays visible during cutaway and marks the unchanged collider.
+	var base := MeshInstance3D.new()
+	base.name = "ColumnFooting"
+	var footing := CylinderMesh.new()
+	footing.bottom_radius = 0.5
+	footing.top_radius = 0.46
+	footing.height = 0.14
+	footing.radial_segments = 16
+	base.mesh = footing
+	base.position.y = 0.07
+	var stone := StandardMaterial3D.new()
+	stone.albedo_texture = preload("res://assets/generated/cut_limestone_albedo.png")
+	stone.albedo_color = Color("8d929b")
+	stone.roughness = 0.96
+	stone.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	base.material_override = stone
+	root.add_child(base)
 	var collision_shape := CollisionShape3D.new()
 	collision_shape.position.y = 1.0
 	var shape := CylinderShape3D.new()
@@ -1115,6 +1226,10 @@ func _add_column(world_position: Vector3) -> void:
 	shape.height = 2.0
 	collision_shape.shape = shape
 	root.add_child(collision_shape)
+	var cutaway := ForegroundCutaway.new()
+	cutaway.name = "ColumnCutaway"
+	root.add_child(cutaway)
+	cutaway.configure(root, player, get_viewport().get_camera_3d(), &"column_cutaways")
 
 
 func _add_tree(world_position: Vector3) -> void:
@@ -1123,7 +1238,7 @@ func _add_tree(world_position: Vector3) -> void:
 	root.position = world_position
 	_map_root.add_child(root)
 	var tree := Sprite3D.new()
-	tree.texture = load("res://assets/generated/village_oak.png") as Texture2D
+	tree.texture = _art_texture("res://assets/generated/village_oak.png")
 	var height := 3.4
 	tree.pixel_size = height / float(tree.texture.get_height())
 	tree.position.y = height * 0.47
@@ -1176,7 +1291,7 @@ func _add_village_gardens() -> void:
 func _add_grass_clump(world_position: Vector3, variant: String, pixel_size: float) -> void:
 	var grass := Sprite3D.new()
 	grass.name = "MeadowGrass"
-	grass.texture = load("res://assets/generated/grass_%s.tres" % variant) as Texture2D
+	grass.texture = _art_texture("res://assets/generated/grass_%s.tres" % variant)
 	grass.pixel_size = pixel_size
 	# 704px canvas, root baseline at 680. Keep roots fixed while orbiting.
 	grass.position = world_position + Vector3.UP * (680.0 - 352.0) * pixel_size
@@ -1191,7 +1306,7 @@ func _add_grass_clump(world_position: Vector3, variant: String, pixel_size: floa
 func _add_flower_clump(world_position: Vector3, variant: String) -> void:
 	var flower := Sprite3D.new()
 	flower.name = "FlowerClump"
-	flower.texture = load("res://assets/generated/flowers_%s.tres" % variant) as Texture2D
+	flower.texture = _art_texture("res://assets/generated/flowers_%s.tres" % variant)
 	flower.pixel_size = 0.001
 	# All three 640px canvases share the root baseline at y=620.
 	# Ground the foliage instead of reusing the old floating sphere height.

@@ -16,6 +16,22 @@ func _check(condition: bool, message: String) -> void:
 func _run() -> void:
 	var room: Node3D = load("res://scripts/gameplay/house_interior.gd").new()
 	root.add_child(room)
+	var boards := room.get_node("FloorBoards") as MultiMeshInstance3D
+	_check(boards.multimesh.instance_count == 20, "Floor board batch incomplete")
+	_check((boards.multimesh.mesh as BoxMesh).size.is_equal_approx(Vector3(0.385, 0.024, 7)), "Floor board dimensions changed")
+	# Dummy rendering does not store MultiMesh transforms; check these on GPU.
+	if DisplayServer.get_name() != "headless":
+		for index: int in range(20):
+			var transform := boards.multimesh.get_instance_transform(index)
+			_check(transform.origin.is_equal_approx(Vector3(-3.8 + index * 0.4, 0.012, 0)), "Floor board position changed")
+			_check(transform.basis.is_equal_approx(Basis.IDENTITY), "Floor board orientation changed")
+	var floor_material := boards.material_override as StandardMaterial3D
+	_check(floor_material.uv1_scale.is_equal_approx(Vector3(0.12, 1, 1)), "Floor wood grain scale changed")
+	_check(floor_material.texture_filter == BaseMaterial3D.TEXTURE_FILTER_NEAREST, "Floor lost nearest sampling")
+	_check(boards.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON, "Floor shadows changed")
+	_check(boards.find_children("*", "CollisionObject3D", true, false).is_empty(), "Floor visuals added collision")
+	var floor_shape := room.get_node("FloorCollision").get_child(0) as CollisionShape3D
+	_check((floor_shape.shape as BoxShape3D).size.is_equal_approx(Vector3(8, 0.20, 7)), "Floor collision changed")
 	var quilt := room.get_node("Quilt") as MeshInstance3D
 	_check(quilt.mesh is ArrayMesh, "Quilt must have a draped surface")
 	var bounds := quilt.mesh.get_aabb()
@@ -37,6 +53,9 @@ func _run() -> void:
 	_check(quilt.find_children("*", "CollisionObject3D", true, false).is_empty(), "Cloth must not alter furniture collision")
 	room.queue_free()
 	await process_frame
+	for singleton: String in ["GameAudio", "GameMusic", "GameAmbience"]:
+		root.get_node(singleton).call("stop_all")
+	await create_timer(0.25).timeout
 	if _failures == 0:
 		print("INTERIOR_TEXTILES_TEST_PASS linen drape normals cushion fringe")
 	quit(0 if _failures == 0 else 1)

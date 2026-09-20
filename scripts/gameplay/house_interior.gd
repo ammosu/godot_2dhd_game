@@ -25,9 +25,19 @@ func _ready() -> void:
 	Footsteps.register_surface(floor_body, Vector3(8, 0.20, 7), &"wood")
 	var floor_wood := wood.duplicate() as StandardMaterial3D
 	floor_wood.uv1_scale = Vector3(0.12, 1.0, 1.0)
+	var boards := MultiMeshInstance3D.new()
+	boards.name = "FloorBoards"
+	boards.multimesh = MultiMesh.new()
+	boards.multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	var plank := BoxMesh.new()
+	plank.size = Vector3(0.385, 0.024, 7)
+	boards.multimesh.mesh = plank
+	boards.multimesh.instance_count = 20
 	for board: int in range(20):
-		var plank := _box(self, "FloorPlank", Vector3(-3.8 + board * 0.4, 0.012, 0), Vector3(0.385, 0.024, 7), floor_wood, false)
-		plank.set_meta("floor_detail", true)
+		boards.multimesh.set_instance_transform(board, Transform3D(Basis.IDENTITY, Vector3(-3.8 + board * 0.4, 0.012, 0)))
+	boards.material_override = floor_wood
+	boards.set_meta("floor_detail", true)
+	add_child(boards)
 	for index: int in range(4):
 		var normal := Vector3.FORWARD.rotated(Vector3.UP, float(index) * PI * 0.5)
 		var wall := Node3D.new()
@@ -87,7 +97,11 @@ func _ready() -> void:
 	_light(Vector3(-1.8, 2.2, 0.5), Color("ffe1b0"), 1.7, 8.0)
 	_build_shelf(wood, blanket, linen)
 	Dressing.build(self, _walls[1], house_id, wood, linen, blanket)
-	var crate := (load("res://assets/generated/supply_crate.glb") as PackedScene).instantiate() as Node3D
+	var crate := Node3D.new()
+	crate.set_script(preload("res://scripts/gameplay/storage_chest.gd"))
+	crate.name = "StorageChest"
+	crate.scale.z = 0.94
+	crate.rotation.y = PI
 	crate.position = Vector3(3.35, 0.024, 2.55)
 	add_child(crate)
 	_box(self, "CrateCollision", Vector3(3.35, 0.4, 2.55), Vector3(0.85, 0.8, 0.83), wood, true, false)
@@ -101,7 +115,7 @@ func _ready() -> void:
 		_box(_walls[2], "DoorBoard", Vector3(-0.525 + board * 0.21, 1.04, 3.37), Vector3(0.20, 1.98, 0.05), wood, false)
 	_box(_walls[2], "DoorHandle", Vector3(0.42, 0.97, 3.29), Vector3(0.07, 0.12, 0.08), stone, false)
 	_interaction("leave_house", "返回村莊", Vector3(0, 0.7, 2.95))
-	_interaction("inspect_house_shelf", "查看書架", Vector3(-3.0, 0.7, 1.4))
+	_interaction("inspect_house_shelf", "查看" + str(preload("res://scripts/gameplay/house_catalog.gd").FURNITURE[house_id].name), Vector3(-3.0, 0.7, 1.4))
 	var sign := Label3D.new()
 	sign.text = "出口"
 	sign.font = load("res://assets/fonts/Cubic_11.ttf") as Font
@@ -169,6 +183,17 @@ func _build_rug_edges(linen: Material) -> void:
 	add_child(fringe)
 
 
+func configure_furniture_cutaway(target: Node3D, camera: Camera3D) -> void:
+	for label: String in ["WeavingFrame", "PottingBench", "MoonRecordStand", "PotteryRack", "LinenCupboard", "TravelGearStand", "HerbDryingStand", "LibraryCabinet"]:
+		var furniture := get_node_or_null(label) as Node3D
+		if furniture == null:
+			continue
+		var cutaway := preload("res://scripts/gameplay/foreground_cutaway.gd").new()
+		cutaway.name = "FurnitureCutaway"
+		add_child(cutaway)
+		cutaway.configure(furniture, target, camera)
+
+
 func _process(_delta: float) -> void:
 	var camera := get_viewport().get_camera_3d()
 	if camera == null:
@@ -212,6 +237,31 @@ func _stool(origin: Vector3, wood: Material) -> void:
 
 
 func _build_shelf(wood: Material, cloth: Material, linen: Material) -> void:
+	if preload("res://scripts/gameplay/household_furnishings.gd").THEMES.has(house_id):
+		preload("res://scripts/gameplay/household_furnishings.gd").build(self, house_id, wood, cloth, linen)
+		_box(self, "ShelfBack", Vector3(-3.68, 1.0, 1.6), Vector3(0.15, 1.9, 1.65), wood, true, false)
+		_box(self, "ShelfCollision", Vector3(-3.4, 0.9, 1.6), Vector3(0.72, 1.8, 1.75), wood, true, false)
+		return
+	if house_id == "house_01":
+		preload("res://scripts/gameplay/weaving_frame.gd").build(self, wood, cloth, linen)
+		_box(self, "ShelfBack", Vector3(-3.68, 1.0, 1.6), Vector3(0.15, 1.9, 1.65), wood, true, false)
+		_box(self, "ShelfCollision", Vector3(-3.4, 0.9, 1.6), Vector3(0.72, 1.8, 1.75), wood, true, false)
+		return
+	if house_id == "house_08":
+		preload("res://scripts/gameplay/library_cabinet.gd").build(self, wood, cloth, linen)
+		_box(self, "ShelfBack", Vector3(-3.68, 1.0, 1.6), Vector3(0.15, 1.9, 1.65), wood, true, false)
+		_box(self, "ShelfCollision", Vector3(-3.4, 0.9, 1.6), Vector3(0.72, 1.8, 1.75), wood, true, false)
+		return
+	if house_id == "house_02":
+		preload("res://scripts/gameplay/potting_bench.gd").build(self, wood)
+		_box(self, "ShelfBack", Vector3(-3.68, 1.0, 1.6), Vector3(0.15, 1.9, 1.65), wood, true, false)
+		_box(self, "ShelfCollision", Vector3(-3.4, 0.9, 1.6), Vector3(0.72, 1.8, 1.75), wood, true, false)
+		return
+	if house_id == "house_04":
+		preload("res://scripts/gameplay/pottery_rack.gd").build(self, wood)
+		_box(self, "ShelfBack", Vector3(-3.68, 1.0, 1.6), Vector3(0.15, 1.9, 1.65), wood, true, false)
+		_box(self, "ShelfCollision", Vector3(-3.4, 0.9, 1.6), Vector3(0.72, 1.8, 1.75), wood, true, false)
+		return
 	_box(self, "ShelfBack", Vector3(-3.68, 1.0, 1.6), Vector3(0.15, 1.9, 1.65), wood, true)
 	for y: float in [0.18, 0.85, 1.52, 1.95]:
 		_box(self, "ShelfBoard", Vector3(-3.42, y, 1.6), Vector3(0.68, 0.09, 1.7), wood, false)

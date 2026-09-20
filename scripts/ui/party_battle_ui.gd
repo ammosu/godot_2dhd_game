@@ -22,6 +22,8 @@ var _cards: Array[Button] = []
 var _actions: Array[Button] = []
 var _shadows: Array[Polygon2D] = []
 var _wards: Array[TextureRect] = []
+var _selection_marks: Array[Line2D] = []
+var _selection_labels: Array[Label] = []
 var _baseline_cache: Dictionary = {}
 var _ring: Line2D
 var _busy: bool = false
@@ -335,21 +337,33 @@ func _refresh() -> void:
 		targets = session.preview(_action, _target)
 	for index: int in range(6):
 		var actor: Dictionary = session.actors[index]
-		_cards[index].text = "%s%s%s\nHP %d/%d  MP %d" % ["▶ " if session.current == index and not _resolved else "", actor.name, " [倒下]" if int(actor.hp) == 0 else (" [命中]" if targets.has(index) else ""), actor.hp, actor.max_hp, actor.mp]
+		_cards[index].text = "%s%s%s\nHP %d/%d  MP %d" % ["> " if session.current == index and not _resolved else "", actor.name, " [倒下]" if int(actor.hp) == 0 else (" [命中]" if targets.has(index) else ""), actor.hp, actor.max_hp, actor.mp]
 		if session.is_protected(index) and int(actor.hp) > 0:
 			_cards[index].text += " 守護"
 		_cards[index].disabled = not allowed or _action in ["guard", "potion"] or session.preview(_action, index).is_empty()
 		_portraits[index].modulate = Color("686473") if int(actor.hp) <= 0 else Color.WHITE
 		_wards[index].visible = not _resolved and int(actor.hp) > 0 and session.is_protected(index)
 		_wards[index].position = _point(index) - _wards[index].size * Vector2(0.5, 0.8)
-		_shadows[index].color = Color(0.4, 0.85, 1.0, 0.6) if targets.has(index) else Color(0.02, 0.02, 0.04, 0.5)
+		_shadows[index].color = Color(0.02, 0.02, 0.04, 0.5)
+		var selected: bool = targets.has(index)
+		var acting: bool = allowed and session.current == index
+		var marked: bool = allowed and int(actor.hp) > 0 and (selected or acting)
+		_selection_marks[index].visible = marked
+		_selection_labels[index].visible = marked
+		_selection_marks[index].position = _point(index)
+		_selection_marks[index].points = PackedVector2Array([Vector2(-36, 0), Vector2(0, -11), Vector2(36, 0), Vector2(0, 11), Vector2(-36, 0)]) if selected else PackedVector2Array([Vector2(-28, 8), Vector2(-28, 13), Vector2(28, 13), Vector2(28, 8)])
+		var selection_color := Color("a3eaff") if selected else Color("f1d39a")
+		_selection_marks[index].default_color = selection_color
+		_selection_labels[index].add_theme_color_override("font_color", selection_color)
+		_selection_labels[index].position = _point(index) + Vector2(-70, 16)
+		_selection_labels[index].text = ("治療" if _action == "heal" else "守護" if _action == "protect" else "自身" if _action in ["guard", "potion"] else "目標") if selected else "行動"
 	for index: int in range(_actions.size()):
 		var available: Array[String] = session.available_actions()
 		_actions[index].visible = index < available.size()
 		_actions[index].disabled = not allowed
 		if index < available.size():
 			var id: String = available[index]
-			_actions[index].text = "%d %s%s  MP %d" % [index + 1, "▶ " if id == _action else "", Model.SKILLS[id].name, Model.SKILLS[id].cost]
+			_actions[index].text = "%d %s%s  MP %d" % [index + 1, "> " if id == _action else "", Model.SKILLS[id].name, Model.SKILLS[id].cost]
 	var error: String = session.validate(_action, _target)
 	if _action == "potion" and int(GameState.inventory.get("potion", 0)) <= 0:
 		error = "藥水已用完。"
@@ -427,6 +441,21 @@ func _build() -> void:
 		shadow.polygon = points
 		_stage.add_child(shadow)
 		_shadows.append(shadow)
+		var selection := Line2D.new()
+		selection.width = 2.0
+		selection.hide()
+		_stage.add_child(selection)
+		_selection_marks.append(selection)
+		var selection_label := Label.new()
+		selection_label.size = Vector2(140, 24)
+		selection_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		selection_label.add_theme_font_size_override("font_size", 14)
+		selection_label.add_theme_constant_override("outline_size", 4)
+		selection_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		selection_label.z_index = 5
+		selection_label.hide()
+		_stage.add_child(selection_label)
+		_selection_labels.append(selection_label)
 		var ward := TextureRect.new()
 		ward.texture = load("res://assets/generated/moon_ward.png") as Texture2D
 		ward.expand_mode = TextureRect.EXPAND_IGNORE_SIZE

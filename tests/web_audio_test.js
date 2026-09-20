@@ -16,7 +16,7 @@ async (page) => {
       if (message.type() === 'error') report.errors.push(message.text());
     });
     await testPage.addInitScript(() => {
-      window.__audioProbe = { contexts: [], analysers: [], starts: [] };
+      window.__audioProbe = { contexts: [], analysers: [], starts: [], schedules: [] };
       const Original = window.AudioContext;
       window.AudioContext = new Proxy(Original, {
         construct(Target, args) {
@@ -44,6 +44,14 @@ async (page) => {
       const start = AudioBufferSourceNode.prototype.start;
       AudioBufferSourceNode.prototype.start = function (...args) {
         window.__audioProbe.starts.push(this);
+        window.__audioProbe.schedules.push({
+          buffer: this.buffer,
+          calledAt: this.context.currentTime,
+          scheduledAt: Math.max(this.context.currentTime, args[0] || 0),
+          offset: args[1] || 0,
+          duration: args[2] ?? this.buffer?.duration,
+          rate: this.playbackRate.value,
+        });
         return start.apply(this, args);
       };
     });
@@ -96,6 +104,36 @@ async (page) => {
     // AudioBufferSourceNode.loop. Verify actual repeats beyond the longest loop.
     await testPage.waitForTimeout(25000);
     report.afterLoopBoundary = await read();
+    report.loopScheduling = (await cdp.send('Runtime.evaluate', {
+      userGesture: false, returnByValue: true,
+      expression: '(' + (() => {
+        const records = window.__audioProbe.schedules;
+        const samePCM = (a, b) => {
+          if (a === b) return true;
+          if (!a || !b || a.length !== b.length || a.sampleRate !== b.sampleRate || a.numberOfChannels !== b.numberOfChannels) return false;
+          for (let channel = 0; channel < a.numberOfChannels; channel++) {
+            const left = a.getChannelData(channel), right = b.getChannelData(channel);
+            for (let sample = 0; sample < left.length; sample++) if (left[sample] !== right[sample]) return false;
+          }
+          return true;
+        };
+        return [24, 11.5].map(duration => {
+          const matching = records.filter(record => Math.abs((record.buffer?.duration || 0) - duration) < 0.01);
+          const transitions = [];
+          for (let index = 1; index < matching.length; index++) {
+            const previous = matching[index - 1];
+            const current = matching[index];
+            // The backend may copy buffers at restart. Compare every PCM sample
+            // after playback sampling, never by duration alone or on the hot path.
+            if (!samePCM(previous.buffer, current.buffer) || previous.rate !== 1 || current.rate !== 1) continue;
+            const previousEnd = previous.scheduledAt + Math.min(previous.duration, previous.buffer.duration - previous.offset);
+            transitions.push({ gapMs: (current.scheduledAt - previousEnd) * 1000,
+              schedulingLeadMs: (current.scheduledAt - current.calledAt) * 1000 });
+          }
+          return { duration, starts: matching.length, transitions };
+        });
+      }).toString() + ')()',
+    })).result.value;
     const checks = {
       gestureRequired: report.beforeGesture.states.length === 1 && !report.beforeGesture.activated
         && report.beforeGesture.states.every(state => state === 'suspended'),
@@ -107,6 +145,7 @@ async (page) => {
       musicLoop: report.afterLoopBoundary.starts.filter(source => Math.abs(source.duration - 24) < 0.01).length >= 2,
       ambienceLoop: report.afterLoopBoundary.starts.filter(source => Math.abs(source.duration - 11.5) < 0.01).length >= 2,
       audibleAfterLoopBoundary: report.afterLoopBoundary.peak > 0.001,
+      loopSchedulingObserved: report.loopScheduling.every(loop => loop.transitions.length > 0),
       dialogueCue: report.afterDialogue.starts.filter(source => Math.abs(source.duration - 0.14) < 0.01).length
         > report.unmuted.starts.filter(source => Math.abs(source.duration - 0.14) < 0.01).length,
       noRuntimeErrors: report.errors.length === 0,

@@ -19,6 +19,9 @@ func _ready() -> void:
 		AudioServer.set_bus_name(AudioServer.bus_count - 1, "Ambience")
 		AudioServer.set_bus_send(AudioServer.bus_count - 1, "Master")
 	_player = AudioStreamPlayer.new()
+	# Compare continuous mixing without changing the normal Web backend.
+	if OS.has_feature("web") and "--stream-loop-audio" in OS.get_cmdline_user_args():
+		_player.playback_type = AudioServer.PLAYBACK_TYPE_STREAM
 	_player.bus = "Ambience"
 	_player.volume_linear = 0.0
 	add_child(_player)

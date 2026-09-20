@@ -30,6 +30,9 @@ func _ready() -> void:
 		_streams[key] = stream
 	for index: int in range(2):
 		var player := AudioStreamPlayer.new()
+		# Opt-in diagnostic only; keep normal single-threaded Web sample playback.
+		if OS.has_feature("web") and "--stream-loop-audio" in OS.get_cmdline_user_args():
+			player.playback_type = AudioServer.PLAYBACK_TYPE_STREAM
 		player.name = "MusicCrossfade%d" % index
 		player.bus = "Music"
 		player.volume_linear = 0.0
