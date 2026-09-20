@@ -1,0 +1,9 @@
+[gd_resource type="AtlasTexture" load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/generated/meadow_grass.png" id="1"]
+
+[resource]
+atlas = ExtResource("1")
+region = Rect2(1464, 215, 643, 444)
+margin = Rect2(30, 240, 61, 260)
+filter_clip = true

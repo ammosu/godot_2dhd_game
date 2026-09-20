@@ -1,0 +1,9 @@
+[gd_resource type="AtlasTexture" load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/generated/garden_flowers.png" id="1"]
+
+[resource]
+atlas = ExtResource("1")
+region = Rect2(124, 101, 537, 563)
+margin = Rect2(51, 61, 103, 77)
+filter_clip = true

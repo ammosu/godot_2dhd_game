@@ -1,0 +1,9 @@
+[gd_resource type="AtlasTexture" load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/generated/eclipse_mage_poses.png" id="1"]
+
+[resource]
+atlas = ExtResource("1")
+region = Rect2(744, 655, 484, 543)
+margin = Rect2(158, 77, 316, 97)
+filter_clip = true

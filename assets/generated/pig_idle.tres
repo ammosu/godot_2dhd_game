@@ -1,0 +1,23 @@
+[gd_resource type="SpriteFrames" load_steps=4 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/generated/village_pig.png" id="1"]
+
+[sub_resource type="AtlasTexture" id="Pose_standing"]
+atlas = ExtResource("1")
+region = Rect2(125, 168, 663, 560)
+margin = Rect2(75, 64, 137, 80)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Pose_sniffing"]
+atlas = ExtResource("1")
+region = Rect2(970, 285, 650, 443)
+margin = Rect2(85, 181, 150, 197)
+filter_clip = true
+
+[resource]
+animations = [{
+"frames": [{"duration": 3.0, "texture": SubResource("Pose_standing")}, {"duration": 1.0, "texture": SubResource("Pose_sniffing")}],
+"loop": true,
+"name": &"idle",
+"speed": 2.0
+}]

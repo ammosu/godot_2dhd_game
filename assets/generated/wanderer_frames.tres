@@ -1,0 +1,122 @@
+[gd_resource type="SpriteFrames" load_steps=18 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/generated/wanderer_walk.png" id="1_atlas"]
+
+[sub_resource type="AtlasTexture" id="Frame_0_0"]
+atlas = ExtResource("1_atlas")
+region = Rect2(93, 26, 139, 290)
+margin = Rect2(90.5, 14, 181, 30)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Frame_1_0"]
+atlas = ExtResource("1_atlas")
+region = Rect2(403, 27, 140, 289)
+margin = Rect2(90, 15, 180, 31)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Frame_2_0"]
+atlas = ExtResource("1_atlas")
+region = Rect2(740, 28, 109, 288)
+margin = Rect2(105.5, 16, 211, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Frame_3_0"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1033, 27, 112, 289)
+margin = Rect2(104, 15, 208, 31)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Frame_0_1"]
+atlas = ExtResource("1_atlas")
+region = Rect2(84, 336, 158, 292)
+margin = Rect2(81, 12, 162, 28)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Frame_1_1"]
+atlas = ExtResource("1_atlas")
+region = Rect2(400, 336, 145, 293)
+margin = Rect2(87.5, 11, 175, 27)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Frame_2_1"]
+atlas = ExtResource("1_atlas")
+region = Rect2(711, 339, 152, 289)
+margin = Rect2(84, 15, 168, 31)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Frame_3_1"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1018, 338, 155, 289)
+margin = Rect2(82.5, 15, 165, 31)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Frame_0_2"]
+atlas = ExtResource("1_atlas")
+region = Rect2(92, 648, 140, 290)
+margin = Rect2(90, 14, 180, 30)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Frame_1_2"]
+atlas = ExtResource("1_atlas")
+region = Rect2(400, 648, 143, 290)
+margin = Rect2(88.5, 14, 177, 30)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Frame_2_2"]
+atlas = ExtResource("1_atlas")
+region = Rect2(707, 653, 149, 285)
+margin = Rect2(85.5, 19, 171, 35)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Frame_3_2"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1025, 651, 149, 287)
+margin = Rect2(85.5, 17, 171, 33)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Frame_0_3"]
+atlas = ExtResource("1_atlas")
+region = Rect2(91, 957, 144, 283)
+margin = Rect2(88, 21, 176, 37)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Frame_1_3"]
+atlas = ExtResource("1_atlas")
+region = Rect2(396, 957, 147, 283)
+margin = Rect2(86.5, 21, 173, 37)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Frame_2_3"]
+atlas = ExtResource("1_atlas")
+region = Rect2(710, 961, 156, 279)
+margin = Rect2(82, 25, 164, 41)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Frame_3_3"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1015, 961, 155, 279)
+margin = Rect2(82.5, 25, 165, 41)
+filter_clip = true
+
+[resource]
+animations = [{
+"frames": [{"duration": 1.0, "texture": SubResource("Frame_0_0")}, {"duration": 1.0, "texture": SubResource("Frame_0_1")}, {"duration": 1.0, "texture": SubResource("Frame_0_2")}, {"duration": 1.0, "texture": SubResource("Frame_0_3")}],
+"loop": true,
+"name": &"down",
+"speed": 8.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("Frame_1_0")}, {"duration": 1.0, "texture": SubResource("Frame_1_1")}, {"duration": 1.0, "texture": SubResource("Frame_1_2")}, {"duration": 1.0, "texture": SubResource("Frame_1_3")}],
+"loop": true,
+"name": &"up",
+"speed": 8.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("Frame_2_0")}, {"duration": 1.0, "texture": SubResource("Frame_2_1")}, {"duration": 1.0, "texture": SubResource("Frame_2_0")}, {"duration": 1.0, "texture": SubResource("Frame_2_3")}],
+"loop": true,
+"name": &"left",
+"speed": 8.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("Frame_3_0")}, {"duration": 1.0, "texture": SubResource("Frame_3_1")}, {"duration": 1.0, "texture": SubResource("Frame_3_0")}, {"duration": 1.0, "texture": SubResource("Frame_3_3")}],
+"loop": true,
+"name": &"right",
+"speed": 8.0
+}]
