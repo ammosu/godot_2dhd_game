@@ -11,6 +11,15 @@ godot --headless --path . --rendering-method gl_compatibility -- --playthrough-t
 
 測試從封閉北門、長老實際接任務對話開始，驗證對話不能被另一互動覆蓋、滿血／受傷月泉教學、戰敗回村與重新進入試煉、戰前存讀檔、守衛對話分流、戰鬥勝利、交付碎片及結尾回收。每次使用含 process ID 的獨立 `user://wanderlight_playthrough_test_*.json` 並於成功後刪除，不覆寫一般存檔。成功標記仍是 `PLAYTHROUGH_TEST_PASS dialogue quest maps save battle`；亦須檢查沒有 `ERROR:` 或 `SCRIPT ERROR:`。這是場景與流程測試，不代表已人工驗收所有鍵盤、觸控或畫面尺寸。
 
+## 可重組戰鬥場景
+
+配置回歸：`godot --headless --path . --script tests/battle_arena_layout_test.gd`。
+成功標記 `BATTLE_ARENA_LAYOUT_TEST_PASS reproducible variation themes clearance spacing rng lifecycle`；涵蓋五主題各 128 種種子、平面保留區／間距、重現／變化、裝飾池、全域 RNG 隔離、連續構圖去重、非法覆寫與戰鬥／新遊戲／讀檔清理，不寫任何存檔。
+
+互動預覽：`godot --path . scenes/battle_arena_gallery.tscn`，可換主題／種子、重現配置與隨機換景。加 `-- --capture-dir=/tmp/wanderlight-arena-forward` 可擷取五主題各兩種子；分別使用 `--rendering-method forward_plus` 與 `gl_compatibility` 並選不同輸出目錄。擷取需要實際顯示，不能加 `--headless`；成功標記 `BATTLE_ARENA_GALLERY_CAPTURE_PASS five_themes two_seeds six_actors` 不代表美術驗收。
+
+架構、API、範圍與限制見 [BATTLE_ARENAS.md](../docs/BATTLE_ARENAS.md)。此批回歸不併入下方歷史資產清單計數。
+
 ## 故事物件專項
 
 在專案根目錄執行 `godot --headless --path . --script tests/spring_memory_test.gd`，

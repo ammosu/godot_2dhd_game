@@ -8,10 +8,15 @@ const HealingBurst = preload("res://scripts/ui/healing_burst.gd")
 const MoonBoltBurst = preload("res://scripts/ui/moon_bolt_burst.gd")
 const Grounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 const SCALE: float = 56.0
+const WORLD_SCALE: float = 1.25
+const Arena3D = preload("res://scripts/gameplay/battle_arena_3d.gd")
 const EquipmentPortrait = preload("res://scripts/ui/equipment_portrait.gd")
 var session: RefCounted
 var _root: Control
 var _stage: Control
+var _arena_viewport: SubViewport
+var _arena: Node3D
+var _preview_only: bool = false
 var _title: Label
 var _log: Label
 var _preview: Label
@@ -42,7 +47,10 @@ func _ready() -> void:
 func start_battle(enemy: Dictionary) -> void:
 	if is_active():
 		return
+	_preview_only = false
 	session = GameState.begin_party_battle(enemy)
+	_arena.build(GameState.battle_visual)
+	_arena_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_resolved = false
 	_busy = false
 	_target = 3
@@ -70,7 +78,7 @@ func did_player_win() -> bool:
 
 
 func can_accept_action() -> bool:
-	return is_active() and not _resolved and not _busy and int(session.actors[session.current].team) == 0
+	return is_active() and not _preview_only and not _resolved and not _busy and int(session.actors[session.current].team) == 0
 
 
 func choose_action(action: String) -> void:
@@ -110,9 +118,41 @@ func _select_target(index: int) -> void:
 	_refresh()
 
 
+func _world_point(index: int) -> Vector3:
+	var point: Vector2 = session.actors[index].position
+	return Vector3((-7.0 if index < 3 else 3.0) + point.x * WORLD_SCALE, 0.0, point.y * WORLD_SCALE)
+
+
 func _point(index: int) -> Vector2:
-	var origin := Vector2(150, 215) if index < 3 else Vector2(650, 215)
-	return origin + Vector2(session.actors[index].position) * SCALE
+	return _arena.camera.unproject_position(_world_point(index))
+
+
+func _projected_range(index: int, radius: float) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	var center := _world_point(index)
+	for step: int in range(65):
+		var offset := Vector2.from_angle(TAU * step / 64.0) * radius * WORLD_SCALE
+		points.append(_arena.camera.unproject_position(center + Vector3(offset.x, 0.0, offset.y)) - _point(index))
+	return points
+
+
+func show_arena_preview(descriptor: Dictionary) -> void:
+	# Gallery state is local: no combat session, quest, inventory or save mutation.
+	_preview_only = true
+	session = Model.new()
+	session.setup(100, 20, 18, 4, {"max_hp": 64})
+	_arena.build(descriptor)
+	_arena_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_resolved = false
+	_busy = false
+	_root.show()
+	_continue.hide()
+	for index: int in range(6):
+		_pose(index, "idle")
+	_refresh()
+	_title.text = "戰鬥場景預覽"
+	_preview.text = "立體場景 · 六人站位 · 相同種子重現相同配置"
+	_log.text = "預覽不會進行戰鬥或變更存檔。"
 
 
 func _texture(index: int, pose: String) -> Texture2D:
@@ -180,6 +220,7 @@ func _execute(action: String, target: int) -> void:
 			_pose(caster, "attack")
 			var bolt := TextureRect.new()
 			bolt.name = "MoonBoltProjectile"
+			bolt.z_index = 10
 			bolt.texture = MoonBoltBurst.projectile_texture()
 			bolt.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			bolt.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -196,6 +237,9 @@ func _execute(action: String, target: int) -> void:
 		if action == "skill":
 			burst.position.y -= 70.0
 		burst.radius = float(Model.SKILLS[action].radius) * SCALE if action == "magic" else 72.0 if action == "heal" else 56.0
+		if action == "magic":
+			var ground_range := _projected_range(target, float(Model.SKILLS[action].radius))
+			burst.scale = Vector2(absf(ground_range[0].x), absf(ground_range[16].y)) / burst.radius
 		_stage.add_child(burst)
 		await burst.impact
 		_pose(caster, "attack")
@@ -226,6 +270,7 @@ func _execute(action: String, target: int) -> void:
 		_apply(action, target)
 		var slash := TextureRect.new()
 		slash.name = "PhysicalHit"
+		slash.z_index = 10
 		slash.texture = _physical_texture(caster, action)
 		slash.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		slash.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -336,7 +381,7 @@ func _floating_text(index: int, text: String, color: Color) -> void:
 
 func _refresh() -> void:
 	var allowed := can_accept_action()
-	_action_panel.visible = not _resolved
+	_action_panel.visible = not _resolved and not _preview_only
 	_title.text = "第 %d 回合  /  %s 行動" % [session.round_number, session.actors[session.current].name]
 	var targets: Array[int] = []
 	if allowed:
@@ -385,6 +430,7 @@ func _refresh() -> void:
 	_ring.visible = allowed and _action == "magic"
 	if _ring.visible:
 		_ring.position = _point(_target)
+		_ring.points = _projected_range(_target, float(Model.SKILLS.magic.radius))
 
 
 func _finish_battle() -> void:
@@ -392,6 +438,7 @@ func _finish_battle() -> void:
 		return
 	var victory := did_player_win()
 	_root.hide()
+	_arena_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	GameState.battle_session = null
 	GameState.set_mode(GameState.Mode.EXPLORE)
 	battle_finished.emit(victory)
@@ -431,14 +478,21 @@ func _build() -> void:
 	_stage.custom_minimum_size = Vector2(1120, 380)
 	_stage.clip_contents = true
 	box.add_child(_stage)
-	var background := TextureRect.new()
-	background.texture = load("res://assets/generated/ruins_battle_background.png") as Texture2D
-	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	background.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	background.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_stage.add_child(background)
+	var surface := SubViewportContainer.new()
+	surface.name = "BattleArenaSurface"
+	surface.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	surface.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	surface.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_stage.add_child(surface)
+	_arena_viewport = SubViewport.new()
+	_arena_viewport.name = "BattleArenaViewport"
+	_arena_viewport.size = Vector2i(1120, 380)
+	_arena_viewport.own_world_3d = true
+	_arena_viewport.gui_disable_input = true
+	_arena_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	surface.add_child(_arena_viewport)
+	_arena = Arena3D.new()
+	_arena_viewport.add_child(_arena)
 	for index: int in range(6):
 		var shadow := Polygon2D.new()
 		var points := PackedVector2Array()
@@ -469,6 +523,7 @@ func _build() -> void:
 		ward.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		ward.size = Vector2(216, 216)
 		ward.modulate.a = 0.85
+		ward.z_index = 3
 		ward.hide()
 		_stage.add_child(ward)
 		_wards.append(ward)
@@ -481,6 +536,7 @@ func _build() -> void:
 		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		art.z_index = 2 if index % 3 == 1 else 1
 		_stage.add_child(art)
 		_portraits.append(art)
 	_ring = Line2D.new()

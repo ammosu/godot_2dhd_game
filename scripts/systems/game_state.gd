@@ -42,10 +42,16 @@ var player_attack: int = 18
 var player_defense: int = 4
 var ui_theme: Theme
 const PartyBattle = preload("res://scripts/systems/party_battle.gd")
+const BattleArenaLayout = preload("res://scripts/systems/battle_arena_layout.gd")
 var battle_session: RefCounted
+# Transient presentation data; battle saves are not supported by this save schema.
+var battle_visual: Dictionary = {}
+var _battle_visual_rng := RandomNumberGenerator.new()
+var _last_battle_layout: Dictionary = {}
 
 
 func begin_party_battle(enemy: Dictionary) -> RefCounted:
+	_prepare_battle_visual(enemy)
 	battle_session = PartyBattle.new()
 	battle_session.setup(player_hp, player_mp, player_attack, player_defense, enemy)
 	for index: int in [1, 2]:
@@ -57,6 +63,26 @@ func begin_party_battle(enemy: Dictionary) -> RefCounted:
 	battle_session.actors[0].max_mp = player_max_mp
 	set_mode(Mode.BATTLE)
 	return battle_session
+
+
+func _prepare_battle_visual(enemy: Dictionary) -> void:
+	var default_theme := "village" if current_map == "village" or current_map.begins_with("house_") else "ruins"
+	var requested_theme: Variant = enemy.get("arena_theme", default_theme)
+	var theme := BattleArenaLayout.normalize_theme(requested_theme if requested_theme is String else default_theme)
+	var requested_seed: Variant = enemy.get("visual_seed")
+	var has_override: bool = requested_seed is int
+	var visual_seed: int = requested_seed if has_override else int(_battle_visual_rng.randi())
+	battle_visual = BattleArenaLayout.generate(theme, visual_seed)
+	# Explicit preview seeds reproduce exactly; ordinary encounters vary layouts.
+	if not has_override and int(_last_battle_layout.get(theme, -1)) == int(battle_visual.layout_index):
+		visual_seed += _battle_visual_rng.randi_range(1, BattleArenaLayout.LAYOUT_COUNT - 1)
+		battle_visual = BattleArenaLayout.generate(theme, visual_seed)
+	_last_battle_layout[theme] = int(battle_visual.layout_index)
+
+
+func clear_party_battle() -> void:
+	battle_session = null
+	battle_visual = {}
 
 
 func sync_party_battle() -> void:
@@ -81,6 +107,7 @@ func resolve_party_action(action: String, target: int) -> Dictionary:
 
 
 func _ready() -> void:
+	_battle_visual_rng.randomize()
 	var ui_font := load("res://assets/fonts/Cubic_11.ttf") as Font
 	if ui_font != null:
 		ui_theme = Theme.new()
@@ -89,6 +116,8 @@ func _ready() -> void:
 
 
 func reset_new_game(announce: bool = true) -> void:
+	clear_party_battle()
+	_last_battle_layout.clear()
 	mode = Mode.EXPLORE
 	current_map = "village"
 	spawn_id = "default"
@@ -109,6 +138,8 @@ func reset_new_game(announce: bool = true) -> void:
 
 
 func set_mode(new_mode: Mode) -> void:
+	if mode == Mode.BATTLE and new_mode != Mode.BATTLE:
+		clear_party_battle()
 	mode = new_mode
 	state_changed.emit()
 
@@ -368,6 +399,8 @@ func _serialize() -> Dictionary:
 
 
 func _apply_save(data: Dictionary) -> void:
+	clear_party_battle()
+	_last_battle_layout.clear()
 	mode = Mode.EXPLORE
 	current_map = str(data.get("current_map", "village"))
 	spawn_id = str(data.get("spawn_id", "default"))
