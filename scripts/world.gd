@@ -391,10 +391,30 @@ func _build_village() -> void:
 	_add_actor_interactable("elder", "與長老交談", Vector3(-3.0, 0.0, 1.2), "res://assets/generated/elder.tres", 1.6 / 724.0, Color.WHITE, false, MAIN_QUEST_MARKER)
 	_add_actor_interactable("rumi", "與露米交談", Vector3(6.4, 0.0, 4.2), "res://assets/generated/rumi.tres", 1.6 / 724.0, Color.WHITE, false, SIDE_CONTENT_MARKER)
 	_add_actor_interactable("noah", "與守門人交談", Vector3(2.2, 0.0, -17.0), "res://assets/generated/noah.tres", 1.6 / 724.0, Color.WHITE)
+	_add_wandering_villagers()
 	_add_portal("portal_to_ruins", "前往北境遺跡", Vector3(0.0, 0.0, -19.3), Color("86d9ff"))
 	stamp = _profile_map_stamp("village_actors_portal", stamp)
 	MeadowDressing.build(_map_root)
 	_profile_map_stamp("village_meadow", stamp)
+
+
+func _add_wandering_villagers() -> void:
+	var routes: Array[PackedVector3Array] = [
+		PackedVector3Array([Vector3(2.8, 0.15, 2.2), Vector3(2.8, 0.15, -2.2)]),
+		PackedVector3Array([Vector3(-3.0, 0.15, 5.5), Vector3(-9.0, 0.15, 5.5)]),
+		PackedVector3Array([Vector3(0.0, 0.15, -6.0), Vector3(0.0, 0.15, -12.0)]),
+	]
+	var tints: Array[Color] = [Color("b5dcc4"), Color("e5bba0"), Color("b9c8ef")]
+	for index: int in range(routes.size()):
+		var villager := preload("res://scripts/gameplay/wandering_villager.gd").new()
+		villager.name = "WalkingVillager%d" % (index + 1)
+		villager.route = routes[index]
+		villager.position = routes[index][0]
+		villager.player = player
+		villager.tint = tints[index]
+		villager.speed = 0.7 + float(index) * 0.12
+		villager.wait_time = float(index) * 0.8
+		_map_root.add_child(villager)
 
 
 func _build_village_routes() -> void:

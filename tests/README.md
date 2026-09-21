@@ -505,3 +505,7 @@ godot --path . --rendering-method gl_compatibility --script tests/occluded_chara
 
 
 柱前上半身遮擋修正：玩家圖面使用 `BILLBOARD_FIXED_Y`，保持直立並只繞 Y 軸朝向鏡頭，透視剪影使用相同基底。避免完全 billboard 隨俯視角後傾，讓角色頭部穿入腳後方的石柱／牆面。`occluded_character_render_test.gd` 另載入實際柱模型，驗證八個鏡頭方向、0.8／1.1 公尺兩種柱前距離：與無柱參考圖比較，角色像素應完全不被覆蓋或染色。成功標記追加 `pillar_front_16_views`；`foreground_cutaway_test.gd` 同時確認陶匠住宅返回點不再因頭部後傾誤報鄰屋遮擋。
+
+### 村莊散步村民
+
+`godot --headless --path . --script tests/wandering_villager_test.gd` 驗證三位村民移動、對話暫停、玩家接近停步、路線折返與地圖切換清理。預期 `WANDERING_VILLAGER_TEST_PASS movement pause proximity patrol maps`。
