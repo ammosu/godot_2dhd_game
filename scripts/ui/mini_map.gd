@@ -1,6 +1,7 @@
 class_name MiniMap
 extends Control
 
+const Outskirts = preload("res://scripts/gameplay/outskirts.gd")
 const HouseCatalog = preload("res://scripts/gameplay/house_catalog.gd")
 const INTERIOR_BOUNDS := Rect2(-4.3, -3.8, 8.6, 7.6)
 
@@ -123,6 +124,8 @@ func _draw_panel() -> void:
 
 	var font := ThemeDB.fallback_font
 	var title := "暮光村" if _map_id == "village" else "北境遺跡"
+	if Outskirts.NAMES.has(_map_id):
+		title = str(Outskirts.NAMES[_map_id])
 	if HouseCatalog.is_interior(_map_id):
 		title = str(HouseCatalog.find_home(_map_id).name)
 	draw_string(font, Vector2(12.0, 22.0), title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 16, Color("fff2d2"))
@@ -142,7 +145,7 @@ func _draw_map_geometry() -> void:
 		_draw_world_rect(Rect2(-23, -20, 46, 40), MAP_GROUND_COLOR.darkened(0.12))
 		_draw_world_rect(Rect2(21.5, 2.1, 6, 5), MAP_GROUND_COLOR.darkened(0.12))
 		_draw_world_rect(Rect2(14.5, 3.475, 12.5, 2.25), MAP_PATH_COLOR)
-		_draw_world_rect(Rect2(26.75, 2.1, 0.25, 5), Color("b49b77"))
+		draw_circle(_world_to_map(Vector3(26, 0, 4.6)), 4, EXIT_COLOR)
 		_draw_world_rect(Rect2(-3.9, -4.0, 7.8, 8.0), Color("686176"))
 		_draw_world_rect(Rect2(-1.175, -20, 2.35, 32.5), MAP_PATH_COLOR)
 		_draw_world_rect(Rect2(-14.5, 3.475, 29.0, 2.25), MAP_PATH_COLOR)
@@ -158,6 +161,17 @@ func _draw_map_geometry() -> void:
 			var size := Vector2(extent.x, extent.z)
 			var center := Vector2(home.position.x, home.position.z)
 			_draw_world_rect(Rect2(center - size * 0.5, size), Color("594e5e"))
+	elif Outskirts.NAMES.has(_map_id):
+		_draw_world_rect(Rect2(-17, -15, 34, 30), Color("304b48"))
+		_draw_world_rect(Rect2(-1.25, -13, 2.5, 26), MAP_PATH_COLOR)
+		if _map_id == "east_road":
+			_draw_world_rect(Rect2(-15, 3.5, 22, 3), MAP_PATH_COLOR)
+			_draw_world_rect(Rect2(0.5, -1.5, 7, 7), MAP_PATH_COLOR)
+			draw_circle(_world_to_map(Vector3(0, 0, -12)), 4, EXIT_COLOR)
+		else:
+			_draw_world_rect(Rect2(-9, -3.8, 18, 1.6), MAP_PATH_COLOR)
+			_draw_world_rect(Rect2(6.2, -7.5, 1.6, 5), MAP_PATH_COLOR)
+			_draw_world_rect(Rect2(-3, -12.5, 6, 5), MAP_PATH_COLOR)
 	elif HouseCatalog.is_interior(_map_id):
 		_draw_world_rect(Rect2(-4, -3.5, 8, 7), Color("86694f"))
 		_draw_world_rect(Rect2(-3.425, -3.075, 1.65, 2.45), Color("497c82"))
@@ -185,6 +199,10 @@ func _draw_exit_marker() -> void:
 	var exit_position := VILLAGE_EXIT if _map_id == "village" else RUINS_EXIT
 	if HouseCatalog.is_interior(_map_id):
 		exit_position = Vector3(0, 0, 2.95)
+	if _map_id == "east_road":
+		exit_position = Vector3(-14, 0, 5)
+	elif _map_id == "firefly_forest":
+		exit_position = Vector3(0, 0, 13)
 	var center := _world_to_map(exit_position)
 	var points := PackedVector2Array([
 		center + Vector2(0.0, -6.0), center + Vector2(6.0, 0.0),
@@ -226,6 +244,8 @@ func _world_to_map(world_position: Vector3) -> Vector2:
 	var bounds := VILLAGE_BOUNDS if _map_id == "village" else RUINS_BOUNDS
 	if HouseCatalog.is_interior(_map_id):
 		bounds = INTERIOR_BOUNDS
+	if Outskirts.NAMES.has(_map_id):
+		bounds = Rect2(-17, -15, 34, 30)
 	var map_rect := _get_map_rect()
 	# Fixed isotropic scale fits every rotation without zoom pulsing, skewing
 	# buildings, or clipping corner markers. Clamp only out-of-map positions.

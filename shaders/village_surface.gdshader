@@ -4,6 +4,7 @@ render_mode specular_disabled;
 uniform sampler2D meadow_texture : source_color, filter_nearest, repeat_enable;
 uniform sampler2D cobble_texture : source_color, filter_nearest, repeat_enable;
 uniform bool road_surface = false;
+uniform bool planted_island = true;
 // Filled from the actual BoxMesh footprints, never a second map definition.
 uniform vec4 plaza_rect;
 uniform vec4 north_rect;
@@ -40,7 +41,9 @@ void fragment() {
 		vec3 cobble = texture(cobble_texture, p / 3.2).rgb * vec3(0.96, 0.88, 0.78);
 		float paving = smoothstep(0.04, 0.32, -edge + breakup * 0.10);
 		// The central planted island breaks up the uninterrupted stone square.
-		paving *= smoothstep(1.04, 1.40, length(p) + breakup * 0.045);
+		if (planted_island) {
+			paving *= smoothstep(1.04, 1.40, length(p) + breakup * 0.045);
+		}
 		ALBEDO = mix(grass, cobble, paving);
 	} else {
 		ALBEDO = grass;

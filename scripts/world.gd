@@ -1,6 +1,8 @@
 class_name PrototypeWorld
 extends Node3D
 
+const Outskirts = preload("res://scripts/gameplay/outskirts.gd")
+
 const MiniMapControl = preload("res://scripts/ui/mini_map.gd")
 const HouseDetails = preload("res://scripts/gameplay/house_details.gd")
 const HouseExterior = preload("res://scripts/gameplay/house_exterior.gd")
@@ -92,6 +94,10 @@ func _ready() -> void:
 		GameState.flags["intro_seen"] = true
 		_load_map("ruins", "from_village")
 		_start_guardian_battle.call_deferred()
+	elif "--outskirts-preview" in OS.get_cmdline_user_args():
+		_test_mode = true
+		GameState.flags["intro_seen"] = true
+		_load_map("east_road", "from_village")
 	elif "--ruins-preview" in OS.get_cmdline_user_args():
 		GameState.flags["intro_seen"] = true
 		_load_map("ruins", "from_village")
@@ -219,6 +225,11 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 		_map_root.add_child(room)
 		room.configure_furniture_cutaway(player, get_viewport().get_camera_3d())
 		_environment.background_color = Color("141119")
+	elif Outskirts.NAMES.has(map_id):
+		Outskirts.build(self, map_id)
+		_environment.background_color = Color("101f24")
+		_environment.fog_light_color = Color("375c60")
+		_environment.fog_density = 0.006
 	elif map_id == "ruins":
 		_build_ruins()
 		_environment.background_color = Color("100e1d")
@@ -294,6 +305,10 @@ func _retain_map_materials() -> void:
 
 
 func _get_spawn_position(map_id: String, spawn_id: String) -> Vector3:
+	if Outskirts.NAMES.has(map_id):
+		return Outskirts.spawn(map_id, spawn_id)
+	if map_id == "village" and spawn_id == "from_east_road":
+		return Vector3(24, 0.1, 4.6)
 	if HouseCatalog.is_interior(map_id):
 		return Vector3(0, 0.15, 1.9)
 	if map_id == "village" and spawn_id.begins_with("from_house_"):
@@ -423,7 +438,7 @@ func _build_village_routes() -> void:
 	_add_cobble_box("NorthApproachRoad", Vector3(0, 0.025, -22.0), Vector3(2.35, 0.08, 5.5), false)
 	for side: float in [-1.0, 1.0]:
 		_add_tree(Vector3(side * 4.0, 0, -22.0))
-	# North is a genuine boundary checkpoint; east is an independent future road.
+	# North leads to the main quest; east leads to optional woodland routes.
 	_add_box("BoundaryWall", Vector3(-22.3, 0.75, 0.0), Vector3(0.7, 1.8, 39.0), PALETTE.stone_dark, true)
 	_add_box("BoundaryWall", Vector3(0.0, 0.75, 19.3), Vector3(45.3, 1.8, 0.7), PALETTE.stone_dark, true)
 	for side: float in [-1.0, 1.0]:
@@ -437,25 +452,11 @@ func _build_village_routes() -> void:
 		_add_tree(tree_position)
 	_add_box("EastRoadGround", Vector3(24.5, -0.35, 4.6), Vector3(6.0, 0.7, 5.0), Color("304b48"), true)
 	_add_cobble_box("EastRoad", Vector3(20.75, 0.025, 4.6), Vector3(12.5, 0.08, 2.25), false)
-	var timber := _make_material(Color("806247"), 0.96)
-	timber.albedo_texture = preload("res://assets/generated/timber_albedo.png")
-	timber.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	preload("res://scripts/gameplay/gate_details.gd").build_road_end(_map_root, timber)
-	var notice := Interactable3D.new()
-	notice.name = "EastRoadNotice"
-	notice.position = Vector3(26.0, 0.0, 4.6)
-	notice.interaction_id = "future_road"
-	notice.prompt_text = "查看舊路告示"
-	notice.collision_layer = 8
-	notice.collision_mask = 0
-	var collider := CollisionShape3D.new()
-	var shape := SphereShape3D.new()
-	shape.radius = 0.7
-	collider.shape = shape
-	collider.position.y = 0.6
-	notice.add_child(collider)
-	notice.activated.connect(_handle_interaction)
-	_map_root.add_child(notice)
+	# Keep the interaction-only map edge safe while the visible road continues beyond it.
+	_add_box("EastTrailEdge", Vector3(27.25, 0.5, 4.6), Vector3(0.35, 1.0, 5), Color("405b49"), true)
+	for z: float in [2.25, 6.95]:
+		_add_box("EastTrailEdge", Vector3(25, 0.5, z), Vector3(4.5, 1.0, 0.3), Color("405b49"), true)
+	Outskirts.add_interaction(self, "travel_east", "東行・前往東行舊道", Vector3(26, 0, 4.6), true)
 
 
 func _build_ruins() -> void:
@@ -517,8 +518,16 @@ func _handle_interaction(interaction_id: String) -> void:
 			_portal_transition_pending = true
 			GameState.request_map(destination, "entry")
 		return
-	if interaction_id == "future_road":
-		dialogue_ui.show_dialogue([{"speaker": "舊路告示", "text": "東行舊道・前路修復中。木柵外的路段尚未開放，請由此折返。"}])
+	if Outskirts.EXITS.has(interaction_id):
+		var route: Array = Outskirts.EXITS[interaction_id]
+		if GameState.current_map == route[0]:
+			_portal_transition_pending = true
+			GameState.request_map(route[1], route[2])
+		return
+	if Outskirts.EVENTS.has(interaction_id):
+		var event: Array = Outskirts.EVENTS[interaction_id]
+		if GameState.current_map == event[0]:
+			dialogue_ui.show_dialogue([{ "speaker": event[2], "text": GameState.resolve_outskirts_event(interaction_id) }])
 		return
 	if interaction_id == "leave_house":
 		if HouseCatalog.is_interior(GameState.current_map):
@@ -776,7 +785,7 @@ func _add_actor_interactable(interaction_id: String, prompt: String, world_posit
 	actor.add_child(shape_node)
 
 	# Keep the interaction area generous while blocking movement at the feet.
-	if interaction_id in ["elder", "rumi", "noah", "guardian"]:
+	if interaction_id in ["elder", "rumi", "noah", "guardian", "road_traveler"]:
 		var body := StaticBody3D.new()
 		body.name = "ActorBody"
 		body.collision_layer = 1
@@ -856,7 +865,7 @@ func _update_quest_markers() -> void:
 			"guardian":
 				marker.visible = GameState.quest_state == GameState.QuestState.ACTIVE and not bool(GameState.flags.get("guardian_defeated", false))
 			_:
-				marker.visible = true
+				marker.visible = not bool(GameState.flags.get(interaction_id, false)) if Outskirts.EVENTS.has(interaction_id) else true
 
 
 func _add_moon_lamp(world_position: Vector3) -> void:
@@ -1815,8 +1824,14 @@ func _refresh_hud() -> void:
 		return
 	_update_village_gate_state()
 	_update_quest_markers()
+	if GameState.current_map == "east_road" and is_instance_valid(_map_root):
+		var sign_board := _map_root.get_node_or_null("RoadSign") as Node3D
+		if sign_board != null:
+			sign_board.rotation.z = 0.0 if bool(GameState.flags.get("road_sign", false)) else -0.45
 	_update_mini_map_targets()
 	_map_label.text = "WANDERLIGHT  /  %s" % ("北境遺跡" if GameState.current_map == "ruins" else "暮光村")
+	if Outskirts.NAMES.has(GameState.current_map):
+		_map_label.text = "WANDERLIGHT  /  " + str(Outskirts.NAMES[GameState.current_map])
 	if HouseCatalog.is_interior(GameState.current_map):
 		_map_label.text = "WANDERLIGHT  /  " + str(HouseCatalog.find_home(GameState.current_map).name)
 	_quest_label.text = GameState.get_quest_text()
@@ -1846,6 +1861,13 @@ func _update_mini_map_targets() -> void:
 	elif HouseCatalog.is_interior(GameState.current_map):
 		main_target_position = Vector3(0, 0, 2.95)
 		main_target_visible = true
+	elif Outskirts.NAMES.has(GameState.current_map):
+		for id: String in Outskirts.EVENTS:
+			var event: Array = Outskirts.EVENTS[id]
+			if event[0] == GameState.current_map and not bool(GameState.flags.get(id, false)):
+				optional_target_position = event[1]
+				optional_target_visible = true
+				break
 	elif GameState.quest_state == GameState.QuestState.ACTIVE:
 		main_target_position = Vector3(0.0, 0.0, -8.2)
 		main_target_visible = not bool(GameState.flags.get("guardian_defeated", false))

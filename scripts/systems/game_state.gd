@@ -277,6 +277,8 @@ func complete_quest() -> void:
 
 
 func get_quest_text() -> String:
+	if current_map in ["east_road", "firefly_forest"]:
+		return "支線：在森林找回包裹，交給舊道旅人" if bool(flags.get("parcel_requested", false)) and not bool(flags.get("road_traveler", false)) else "探索：藍色記號是小事件；沿路標可返回暮光村繼續主線"
 	if current_map.begins_with("house_") and quest_state != QuestState.COMPLETE:
 		return "主線：從室內南側出口返回村莊，繼續旅程"
 	match quest_state:
@@ -445,3 +447,38 @@ func _apply_save(data: Dictionary) -> void:
 		saved_position = Vector3(float(position_data[0]), float(position_data[1]), float(position_data[2]))
 	else:
 		has_saved_position = false
+
+
+func resolve_outskirts_event(event_id: String) -> String:
+	var event_maps := {"road_sign": "east_road", "road_traveler": "east_road", "forest_parcel": "firefly_forest", "forest_herb": "firefly_forest", "forest_rest": "firefly_forest"}
+	if mode != Mode.EXPLORE or str(event_maps.get(event_id, "")) != current_map:
+		return "現在無法進行這個事件。"
+	if bool(flags.get(event_id, false)) and event_id != "forest_rest":
+		return "這裡的事情已經處理好了。謝謝你的幫忙。"
+	var message := ""
+	match event_id:
+		"road_sign":
+			message = "你扶正了鬆動的路標：西往暮光村，北入螢光森林。底座旁留著一瓶給過路人的藥水。獲得藥水 ×1。"
+			inventory["potion"] = int(inventory.get("potion", 0)) + 1
+		"road_traveler":
+			if int(inventory.get("lost_parcel", 0)) == 0:
+				flags["parcel_requested"] = true
+				state_changed.emit()
+				return "我在森林西側岔路丟了一個包裹，裡面是送給村裡的種子。若你找到它，請帶回來給我。"
+			inventory.erase("lost_parcel")
+			inventory["potion"] = int(inventory.get("potion", 0)) + 2
+			message = "正是我的種子！這兩瓶藥水請收下。等月光回來，我會把種子送進村裡。獲得藥水 ×2。"
+		"forest_parcel":
+			inventory["lost_parcel"] = 1
+			flags["parcel_requested"] = true
+			message = "你在樹根旁找到繫著藍布的包裹。紙籤寫著『村用種子・驛路旅人』，帶回東行舊道問問吧。"
+		"forest_herb":
+			inventory["potion"] = int(inventory.get("potion", 0)) + 1
+			message = "你只摘下成熟的月露草，留下新芽，調製成一瓶藥水。獲得藥水 ×1。"
+		"forest_rest":
+			player_hp = player_max_hp
+			player_mp = player_max_mp
+			message = "螢光在樹根的晶石間流動。你聽著葉聲休息片刻，體力與魔力完全恢復。"
+	flags[event_id] = true
+	state_changed.emit()
+	return message

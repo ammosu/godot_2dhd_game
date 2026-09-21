@@ -513,3 +513,13 @@ godot --path . --rendering-method gl_compatibility --script tests/occluded_chara
 ## 主要 NPC 碰撞
 
 `godot --headless --path . --script tests/npc_collision_test.gd` 驗證長老、露米、守門人與遺跡守護者會阻擋玩家，四面接近仍可取得互動目標，持續前進不能穿透、後退不會卡住，切圖返回後碰撞仍有效。成功標記為 `NPC_COLLISION_TEST_PASS blocking interaction retreat map_reload`。
+
+### Outskirts exploration
+
+```bash
+godot --headless --path . --rendering-method forward_plus --script tests/outskirts_test.gd
+godot --headless --path . --rendering-method gl_compatibility --script tests/outskirts_test.gd
+```
+
+Expect `OUTSKIRTS_TEST_PASS routes events early_pickup rewards save trails main_quest`.
+Checks village ↔ road ↔ forest transitions, map labels, map-local events, early parcel pickup, one-time rewards, rest recovery, save/load, unobstructed marked forest trails, and unchanged main quest. Uses only `user://outskirts_test.json`, removed after success. Add `-- --capture` in a graphical run to capture both maps to `/tmp/firefly_forest.png` and `/tmp/east_road.png`.
