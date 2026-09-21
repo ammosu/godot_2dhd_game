@@ -91,6 +91,13 @@ godot --headless --path . -- --playthrough-test
 
 直接試玩裝備畫面：`godot --path . -- --equipment-preview`。
 
+原版畫風的分層換裝測試：`godot --path . scenes/layered_equipment_lab.tscn`。
+旅人、諾亞、長老各以五張共用圖層組合兩武器、兩防具與四個戰鬥姿勢，共 48 組；1／2／3 切換角色，E 拆層。
+主遊戲加 `--layered-equipment` 可在裝備預覽及隊伍戰鬥使用已完成的四姿勢，
+例如 `godot --path . -- --equipment-preview --layered-equipment`。
+尚未拆層的行走／蓄力／收招／倒地會沿用原圖集；素材與提示詞見
+`assets/generated/equipment_layers/README.md`。Blender 角色小樣已因畫風差異停用。
+
 ## Web 版與 GitHub Pages
 
 專案保留桌面版的 Forward+ renderer，Web 匯出會自動改用 Compatibility renderer，並使用不需要跨來源隔離標頭的單執行緒版本。

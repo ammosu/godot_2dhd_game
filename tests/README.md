@@ -10,6 +10,15 @@
 
 ## 裝備系統
 
+分層角色測試：`godot --headless --path . --script tests/layered_equipment_test.gd -- --layered-equipment`。
+檢查三角色共 48 組的共用身體／手掌、獨立衣物／武器、遮擋順序、空欄、跨角色肖像快取、試穿取消、隊伍戰鬥與舊姿勢回退，不改存檔。
+互動圖層檢視：`godot --path . scenes/layered_equipment_lab.tscn`；1／2／3 切角色，E 拆層、B 底圖、W 武器、H 手掌、空白底色。
+加 `-- --layers-capture` 可截圖至 `/tmp/wanderlight-layers-<renderer>.png`，分別以 Forward+ 與 Compatibility 驗證。
+加 `--layers-actor=noah` 或 `--layers-actor=elder` 可指定角色；截圖檔名會加入角色名稱。整合測試加 `--layers-ui-capture` 會輸出三角色 × 四姿勢裝備預覽與四張全隊戰鬥截圖。
+遊戲測試：`godot --path . -- --equipment-preview --layered-equipment`，選擇三角色的待機／攻擊／受傷／防禦姿勢。
+目前只有這四個姿勢使用分層；行走、蓄力、收招、倒地仍回退完整圖集，未宣稱全量遷移。
+舊 Blender 小樣已停止使用並移至忽略的 `build/abandoned_blender/`，可復原。
+
 最後兩張援軍混搭圖可用 `python3 tests/compose_party_equipment.py` 重建（需要 Pillow）。此步驟以既有素材及固定遮罩合成，不呼叫生圖服務、不覆寫來源圖集。
 
 隊伍整合：`godot --headless --path . --script tests/party_equipment_test.gd`。驗證三人十二搭配、84 戰鬥姿勢選擇、NPC 外觀、角色相容性、原子穿戴、獨立試穿草稿、存讀檔、戰鬥數值与鎖定。視覺截圖使用 `godot --path . --rendering-method forward_plus --script tests/party_equipment_test.gd -- --equipment-capture`，以及 `gl_compatibility`；輸出 `/tmp/wanderlight-party-equipment-*.png`。

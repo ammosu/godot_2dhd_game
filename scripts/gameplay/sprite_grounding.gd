@@ -14,6 +14,13 @@ static func foot_baseline(texture: Texture2D, threshold: float = 0.25) -> float:
 	else:
 		image = texture.get_image()
 		region = Rect2i(Vector2i.ZERO, image.get_size())
+	# Existing imported character atlases can use VRAM compression. Decompress
+	# the CPU copy before alpha sampling without changing import settings.
+	if image.is_compressed():
+		var result := image.decompress()
+		if result != OK:
+			push_error("Unable to decompress sprite for grounding: " + str(result))
+			return float(texture.get_height())
 	for y: int in range(region.end.y - 1, region.position.y - 1, -1):
 		for x: int in range(region.position.x, region.end.x):
 			if image.get_pixel(x, y).a >= threshold:
