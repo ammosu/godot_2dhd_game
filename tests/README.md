@@ -509,3 +509,7 @@ godot --path . --rendering-method gl_compatibility --script tests/occluded_chara
 ### 村莊散步村民
 
 `godot --headless --path . --script tests/wandering_villager_test.gd` 驗證三位村民移動、對話暫停、玩家接近停步、路線折返與地圖切換清理。預期 `WANDERING_VILLAGER_TEST_PASS movement pause proximity patrol maps`。
+
+## 主要 NPC 碰撞
+
+`godot --headless --path . --script tests/npc_collision_test.gd` 驗證長老、露米、守門人與遺跡守護者會阻擋玩家，四面接近仍可取得互動目標，持續前進不能穿透、後退不會卡住，切圖返回後碰撞仍有效。成功標記為 `NPC_COLLISION_TEST_PASS blocking interaction retreat map_reload`。

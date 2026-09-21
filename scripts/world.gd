@@ -556,6 +556,7 @@ func _handle_interaction(interaction_id: String) -> void:
 	if interaction_id in ["elder", "rumi", "noah"] and dialogue_ui.is_open():
 		var speaker := _map_root.get_node_or_null(NodePath(interaction_id.capitalize() + "/CharacterArt"))
 		if speaker != null:
+			player.make_conversation_space(speaker.get_parent() as Node3D)
 			speaker.call("turn_to", player)
 			($CameraRig as Hd2dCameraRig).begin_dialogue_shot(speaker as Node3D)
 
@@ -773,6 +774,21 @@ func _add_actor_interactable(interaction_id: String, prompt: String, world_posit
 	shape.radius = 0.75
 	shape_node.shape = shape
 	actor.add_child(shape_node)
+
+	# Keep the interaction area generous while blocking movement at the feet.
+	if interaction_id in ["elder", "rumi", "noah", "guardian"]:
+		var body := StaticBody3D.new()
+		body.name = "ActorBody"
+		body.collision_layer = 1
+		body.collision_mask = 0
+		var collider := CollisionShape3D.new()
+		var capsule := CapsuleShape3D.new()
+		capsule.radius = 0.5 if interaction_id == "guardian" else 0.32
+		capsule.height = 1.4
+		collider.shape = capsule
+		collider.position.y = capsule.height * 0.5
+		body.add_child(collider)
+		actor.add_child(body)
 
 	var sprite := Sprite3D.new()
 	sprite.name = "CharacterArt"

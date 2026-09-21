@@ -9,6 +9,7 @@ const FACING_ANIMATIONS: Array[StringName] = EightWayFacing.ANIMATIONS
 const SpriteGrounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 const Footsteps = preload("res://scripts/gameplay/footsteps.gd")
 const EquipmentAppearance = preload("res://scripts/gameplay/equipment_appearance.gd")
+const CONVERSATION_DISTANCE: float = 1.35
 var _appearance_key: String = ""
 
 @onready var sprite: AnimatedSprite3D = $Sprite3D
@@ -148,6 +149,38 @@ func _update_facing_column(input_vector: Vector2) -> void:
 	if input_vector.is_zero_approx():
 		return
 	_facing_column = EightWayFacing.direction_index(input_vector)
+
+
+func make_conversation_space(partner: Node3D) -> void:
+	# Stop approach momentum before framing the shot. Keep the NPC at its post.
+	velocity.x = 0.0
+	velocity.z = 0.0
+	var away: Vector3 = global_position - partner.global_position
+	away.y = 0.0
+	if away.length() >= CONVERSATION_DISTANCE:
+		return
+	if away.is_zero_approx():
+		away = _camera_relative_direction(Vector2.RIGHT)
+	away = away.normalized()
+	# Saves or scripted placement can start inside the speaker. Let the retreat
+	# leave that body, while still sweeping against walls and other characters.
+	var ignored_bodies: Array[PhysicsBody3D] = []
+	for node: Node in partner.find_children("*", "PhysicsBody3D", true, false):
+		var body := node as PhysicsBody3D
+		if not get_collision_exceptions().has(body):
+			add_collision_exception_with(body)
+			ignored_bodies.append(body)
+	# Try the shortest retreat first, then nearby sides when scenery blocks it.
+	# Sweep the whole body rather than teleporting through a wall to a clear point.
+	for degrees: float in [0.0, 30.0, -30.0, 60.0, -60.0, 90.0, -90.0, 120.0, -120.0, 150.0, -150.0, 180.0]:
+		var destination: Vector3 = partner.global_position + away.rotated(Vector3.UP, deg_to_rad(degrees)) * CONVERSATION_DISTANCE
+		destination.y = global_position.y
+		var motion: Vector3 = destination - global_position
+		if not test_move(global_transform, motion):
+			move_and_collide(motion)
+			break
+	for body: PhysicsBody3D in ignored_bodies:
+		remove_collision_exception_with(body)
 
 
 func face_world_position(target: Vector3) -> void:

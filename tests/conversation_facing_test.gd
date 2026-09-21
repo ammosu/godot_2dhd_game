@@ -88,6 +88,43 @@ func _run() -> void:
 					while dialogue.call("is_open"):
 						dialogue.call("advance")
 					check(sprite.texture == original and is_equal_approx(sprite.pixel_size, original_scale), "Dialogue end did not restore NPC immediately")
+	# Close and exactly coincident approaches must separate before framing.
+	var rumi := world.get("_map_root").get_node("Rumi") as Node3D
+	for distance: float in [0.0, 0.1, 0.65, 1.8]:
+		player.global_position = rumi.global_position + Vector3(distance, 0.03, 0.0)
+		var before: Vector3 = player.global_position
+		player.velocity = Vector3(-4.2, 0.0, 0.0)
+		world.call("_handle_interaction", "rumi")
+		check(not player.get_collision_exceptions().has(rumi.get_node("ActorBody")), "Conversation did not restore NPC collision")
+		var gap: Vector3 = player.global_position - rumi.global_position
+		gap.y = 0.0
+		check(gap.length() >= 1.34, "Close conversation overlaps the NPC")
+		check(is_zero_approx(player.velocity.x) and is_zero_approx(player.velocity.z), "Conversation retains approach momentum")
+		check(is_equal_approx(player.global_position.y, before.y), "Spacing changed floor height")
+		if distance == 1.8:
+			check(player.global_position.is_equal_approx(before), "Already spaced player was moved")
+		while dialogue.call("is_open"):
+			dialogue.call("advance")
+	# A wall behind the player requires another clear retreat direction.
+	var obstacle := StaticBody3D.new()
+	var collision := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(0.2, 3.0, 6.0)
+	collision.shape = box
+	obstacle.add_child(collision)
+	root.add_child(obstacle)
+	obstacle.global_position = Vector3(101.0, 1.0, 100.0)
+	var partner := Node3D.new()
+	root.add_child(partner)
+	partner.global_position = Vector3(100.0, 0.0, 100.0)
+	player.global_position = Vector3(100.4, 0.03, 100.0)
+	await physics_frame
+	await physics_frame
+	player.call("make_conversation_space", partner)
+	check(player.global_position.x < 100.65, "Conversation retreat crossed a wall")
+	check(Vector2(player.global_position.x - 100.0, player.global_position.z - 100.0).length() >= 1.34, "Blocked retreat did not find a clear side")
+	obstacle.queue_free()
+	partner.queue_free()
 	# An actor being freed during a conversation must not retain a dangling target.
 	world.call("_handle_interaction", "rumi")
 	world.call("_load_map", "ruins", "from_village")
