@@ -523,3 +523,8 @@ godot --headless --path . --rendering-method gl_compatibility --script tests/out
 
 Expect `OUTSKIRTS_TEST_PASS routes events early_pickup rewards save trails main_quest`.
 Checks village ↔ road ↔ forest transitions, map labels, map-local events, early parcel pickup, one-time rewards, rest recovery, save/load, unobstructed marked forest trails, and unchanged main quest. Uses only `user://outskirts_test.json`, removed after success. Add `-- --capture` in a graphical run to capture both maps to `/tmp/firefly_forest.png` and `/tmp/east_road.png`.
+
+
+居民八方向與行走：`godot --headless --path . --script tests/resident_motion_test.gd`。檢查八個身分、256 個姿勢畫格、alpha 腳底、鏡頭八方位、實際住宅交談轉向、踏步／停止／對話鎖定，以及三位不重複的巡遊角色。成功標記 `RESIDENT_MOTION_TEST_PASS`。既有 `wandering_villager_test.gd` 繼續驗證實際路線移動、禮讓、停留與地圖重建；`house_interior_test.gd` 驗證八棟住宅互動。
+
+居民美術對照：建立輸出目錄後，執行 `godot --path . --rendering-method gl_compatibility --script tests/resident_motion_capture.gd -- --capture-dir=/absolute/existing/directory`，再改為 `forward_plus`。透過 960 × 1600 SubViewport 捕捉實際共用角色腳本的八位 × 八方向 × 四姿勢。這是隔離美術診斷圖，成功標記 `RESIDENT_MOTION_CAPTURE_PASS` 只表示捕捉成功，不代表正常遊玩畫面或連續動畫驗收。兩者不寫玩家存檔。

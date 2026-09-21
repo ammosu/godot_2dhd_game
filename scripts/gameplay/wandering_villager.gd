@@ -1,17 +1,17 @@
 extends CharacterBody3D
 ## Ambient street patrols; routes are transient and rebuilt with the village.
-const Facing = preload("res://scripts/gameplay/eight_way_facing.gd")
+const ResidentArt = preload("res://scripts/gameplay/resident_art.gd")
 const Grounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 
 var route: PackedVector3Array = PackedVector3Array()
 var player: Node3D
-var tint: Color = Color.WHITE
+var resident_id: String = "mira"
 var speed: float = 0.85
 var wait_time: float = 0.5
 var _target: int = 1
 var _blocked_time: float = 0.0
 var _heading: Vector3 = Vector3.BACK
-var _sprite: AnimatedSprite3D
+var _sprite: ResidentArt
 
 
 func _ready() -> void:
@@ -25,17 +25,15 @@ func _ready() -> void:
 	collider.shape = capsule
 	collider.position.y = 0.5
 	add_child(collider)
-	_sprite = AnimatedSprite3D.new()
+	_sprite = ResidentArt.new()
 	_sprite.name = "CharacterArt"
-	_sprite.sprite_frames = preload("res://assets/generated/wanderer_frames.tres")
-	_sprite.pixel_size = 0.0045
+	_sprite.resident_id = resident_id
+	_sprite.visible_height = 1.3
 	_sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	_sprite.alpha_scissor_threshold = 0.25
-	_sprite.modulate = tint
 	add_child(_sprite)
-	Grounding.anchor(_sprite, _sprite.sprite_frames.get_frame_texture(&"down", 0), 300.0)
 	Grounding.add_shadow(self, 0.28, 0.025)
 
 
@@ -68,13 +66,8 @@ func _physics_process(delta: float) -> void:
 				_next_stop()
 		else:
 			_blocked_time = 0.0
-	var direction: int = Facing.direction_index(Facing.screen_direction(_heading, get_viewport().get_camera_3d()))
-	_sprite.animation = Facing.ANIMATIONS[direction]
-	if walking:
-		_sprite.play()
-	else:
-		_sprite.stop()
-		_sprite.frame = 0
+	_sprite.world_heading = _heading
+	_sprite.walking = walking
 
 
 func _next_stop() -> void:

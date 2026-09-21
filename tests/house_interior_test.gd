@@ -56,6 +56,16 @@ func _run() -> void:
 		_check(room != null, "Interior not built")
 		if room == null:
 			continue
+		var camera := root.get_camera_3d()
+		var near_point := camera.global_basis.z * 2.0
+		var far_point := -near_point
+		var near_height := camera.unproject_position(near_point).distance_to(camera.unproject_position(near_point + Vector3.UP * 1.5))
+		var far_height := camera.unproject_position(far_point).distance_to(camera.unproject_position(far_point + Vector3.UP * 1.5))
+		_check(is_equal_approx(near_height, far_height), "Indoor character size changes with depth")
+		var resident_art := map_root.get_node("HouseResident/CharacterArt") as Sprite3D
+		_check(resident_art.billboard == BaseMaterial3D.BILLBOARD_FIXED_Y, "Resident must stay upright beside furniture")
+		var baseline := preload("res://scripts/gameplay/sprite_grounding.gd").foot_baseline(resident_art.texture, resident_art.alpha_scissor_threshold)
+		_check(is_equal_approx(resident_art.offset.y, baseline - float(resident_art.texture.get_height()) * 0.5), "Resident inherited another atlas's foot baseline")
 		var chest := room.get_node("StorageChest") as Node3D
 		_check(room.get_node("inspect_house_shelf").get("prompt_text") == "查看" + str(Houses.FURNITURE[home.id].name), "Furniture inspection prompt does not match art")
 		var new_themes: Dictionary = {"house_03": "MoonRecordStand", "house_05": "LinenCupboard", "house_06": "TravelGearStand", "house_07": "HerbDryingStand"}
@@ -165,6 +175,7 @@ func _run() -> void:
 		_check((world.get_node("Moonlight") as DirectionalLight3D).visible, "Outdoor lighting not restored")
 		_check(world.get("_environment").background_mode == Environment.BG_COLOR and not world.get("_interior_backdrop").visible, "Interior backdrop leaked outside")
 		_check(not bool(world.get_node("CameraRig").get("_indoors")), "Outdoor camera not restored")
+		_check(camera.projection == Camera3D.PROJECTION_PERSPECTIVE, "Outdoor perspective not restored")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
 	world.queue_free()
 	await process_frame

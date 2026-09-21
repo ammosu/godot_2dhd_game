@@ -204,6 +204,7 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 	GameState.current_map = map_id
 	GameState.spawn_id = spawn_id
 	var indoors := HouseCatalog.is_interior(map_id)
+	player.set_presentation_scale(HouseCatalog.INTERIOR_CHARACTER_SCALE if indoors else 1.0)
 	# Canvas background follows the scene color pipeline in both renderers.
 	# Compatibility's BG_COLOR + glow path lifts this dark clear color to purple.
 	_interior_backdrop.visible = indoors
@@ -223,6 +224,7 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 		room.house_id = map_id
 		room.interaction_requested.connect(_handle_interaction)
 		_map_root.add_child(room)
+		_add_house_resident(map_id)
 		room.configure_furniture_cutaway(player, get_viewport().get_camera_3d())
 		_environment.background_color = Color("141119")
 	elif Outskirts.NAMES.has(map_id):
@@ -419,14 +421,15 @@ func _add_wandering_villagers() -> void:
 		PackedVector3Array([Vector3(-3.0, 0.15, 5.5), Vector3(-9.0, 0.15, 5.5)]),
 		PackedVector3Array([Vector3(0.0, 0.15, -6.0), Vector3(0.0, 0.15, -12.0)]),
 	]
-	var tints: Array[Color] = [Color("b5dcc4"), Color("e5bba0"), Color("b9c8ef")]
+	var roster: Array[String] = preload("res://scripts/gameplay/resident_art.gd").IDENTITIES.duplicate()
+	roster.shuffle()
 	for index: int in range(routes.size()):
 		var villager := preload("res://scripts/gameplay/wandering_villager.gd").new()
 		villager.name = "WalkingVillager%d" % (index + 1)
 		villager.route = routes[index]
 		villager.position = routes[index][0]
 		villager.player = player
-		villager.tint = tints[index]
+		villager.resident_id = roster[index]
 		villager.speed = 0.7 + float(index) * 0.12
 		villager.wait_time = float(index) * 0.8
 		_map_root.add_child(villager)
@@ -509,8 +512,38 @@ func _build_ruins() -> void:
 		_add_crystal(Vector3(0.0, 0.0, -8.2), 0.65)
 
 
+func _add_house_resident(house_id: String) -> void:
+	var resident: Dictionary = HouseCatalog.RESIDENTS[house_id]
+	# Keep the resident in the central aisle, clear of the table and bed divider.
+	_add_actor_interactable("house_resident", "與" + str(resident.name) + "交談",
+		Vector3(-0.75, 0.024, 0.0), "res://assets/generated/" + str(resident.art) + ".tres",
+		1.6 / 512.0 * HouseCatalog.INTERIOR_CHARACTER_SCALE, resident.tint)
+	var actor := _map_root.get_node("HouseResident") as Node3D
+	(actor.get_node("CharacterArt") as Sprite3D).billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	actor.get_node("ContactShadow").scale = Vector3(HouseCatalog.INTERIOR_CHARACTER_SCALE, 1.0, HouseCatalog.INTERIOR_CHARACTER_SCALE)
+	(actor.get_node("InteractionMarker") as Node3D).position.y = 2.05
+	var body := StaticBody3D.new()
+	body.name = "ResidentBody"
+	var collider := CollisionShape3D.new()
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = 0.26
+	capsule.height = 1.4
+	collider.shape = capsule
+	collider.position.y = 0.7
+	body.add_child(collider)
+	actor.add_child(body)
+
+
 func _handle_interaction(interaction_id: String) -> void:
 	if GameState.is_input_locked() or _portal_transition_pending:
+		return
+	if interaction_id == "house_resident" and HouseCatalog.is_interior(GameState.current_map):
+		var resident: Dictionary = HouseCatalog.RESIDENTS[GameState.current_map]
+		var actor := _map_root.get_node("HouseResident") as Node3D
+		player.make_conversation_space(actor)
+		player.face_world_position(actor.global_position)
+		dialogue_ui.show_dialogue([{"speaker": resident.name, "text": resident.text}])
+		actor.get_node("CharacterArt").call("turn_to", player)
 		return
 	if interaction_id.begins_with("enter_house_"):
 		var destination := interaction_id.trim_prefix("enter_")
@@ -768,7 +801,7 @@ func _on_battle_finished(victory: bool) -> void:
 
 func _add_actor_interactable(interaction_id: String, prompt: String, world_position: Vector3, texture_path: String, pixel_size: float, tint: Color, atlas_character: bool = false, quest_marker_kind: StringName = &"") -> void:
 	var actor := Interactable3D.new()
-	actor.name = interaction_id.capitalize()
+	actor.name = "HouseResident" if interaction_id == "house_resident" else interaction_id.capitalize()
 	actor.interaction_id = interaction_id
 	actor.prompt_text = prompt
 	actor.position = world_position
@@ -804,6 +837,10 @@ func _add_actor_interactable(interaction_id: String, prompt: String, world_posit
 	if interaction_id in ["noah", "elder", "rumi"]:
 		sprite.set_script(preload("res://scripts/gameplay/equipment_actor.gd"))
 		sprite.set("actor_id", interaction_id)
+	if interaction_id == "house_resident":
+		sprite.set_script(preload("res://scripts/gameplay/resident_art.gd"))
+		sprite.set("resident_id", texture_path.get_file().get_basename())
+		sprite.set("visible_height", 1.4 * HouseCatalog.INTERIOR_CHARACTER_SCALE)
 	sprite.texture = _art_texture(texture_path)
 	sprite.pixel_size = pixel_size
 	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -814,9 +851,9 @@ func _add_actor_interactable(interaction_id: String, prompt: String, world_posit
 		sprite.hframes = 4
 		sprite.vframes = 7
 	actor.add_child(sprite)
-	# These file-backed textures are immutable and retained by _art_textures.
-	# Keep the alpha threshold in the key so different cutouts cannot alias.
-	var baseline_key := "%s@%s" % [texture_path, str(sprite.alpha_scissor_threshold)]
+	# Equipment actors can replace the requested texture in _ready(). Cache by
+	# the actual displayed texture, or residents inherit a different atlas's feet.
+	var baseline_key := "%s@%s" % [str(sprite.texture.get_instance_id()), str(sprite.alpha_scissor_threshold)]
 	if not _art_baselines.has(baseline_key):
 		_art_baselines[baseline_key] = SpriteGrounding.foot_baseline(sprite.texture, sprite.alpha_scissor_threshold)
 	SpriteGrounding.anchor(sprite, sprite.texture, _art_baselines[baseline_key])

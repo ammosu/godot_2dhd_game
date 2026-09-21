@@ -53,6 +53,7 @@ func set_interior(enabled: bool) -> void:
 		_distance = _outdoor_distance
 		_target_yaw = _outdoor_yaw
 	_indoors = enabled
+	camera.projection = Camera3D.PROJECTION_ORTHOGONAL if enabled else Camera3D.PROJECTION_PERSPECTIVE
 	if enabled:
 		camera.attributes = null
 	else:
@@ -124,5 +125,8 @@ func _process(delta: float) -> void:
 func _update_camera_local_position() -> void:
 	var shot_weight: float = smoothstep(0.0, 1.0, _dialogue_blend)
 	var shot_distance: float = lerpf(_distance, _dialogue_distance, shot_weight)
+	if _indoors:
+		# Preserve zoom without shrinking distant residents.
+		camera.size = shot_distance * 0.64
 	var elevation: float = lerpf(0.56, 0.40, shot_weight)
 	camera.position = Vector3(0.0, shot_distance * elevation, shot_distance * 0.83)

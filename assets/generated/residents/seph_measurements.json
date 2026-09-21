@@ -1,0 +1,361 @@
+{
+  "source": "seph_walk.png",
+  "size": [
+    887,
+    1774
+  ],
+  "frames": [
+    {
+      "direction": "down",
+      "frame": 0,
+      "region": [
+        80,
+        10,
+        105,
+        202
+      ],
+      "reference_height": 198.0
+    },
+    {
+      "direction": "down",
+      "frame": 1,
+      "region": [
+        282,
+        10,
+        103,
+        202
+      ],
+      "reference_height": 198.0
+    },
+    {
+      "direction": "down",
+      "frame": 2,
+      "region": [
+        504,
+        10,
+        101,
+        202
+      ],
+      "reference_height": 198.0
+    },
+    {
+      "direction": "down",
+      "frame": 3,
+      "region": [
+        715,
+        11,
+        101,
+        201
+      ],
+      "reference_height": 198.0
+    },
+    {
+      "direction": "down_left",
+      "frame": 0,
+      "region": [
+        78,
+        225,
+        108,
+        203
+      ],
+      "reference_height": 198.5
+    },
+    {
+      "direction": "down_left",
+      "frame": 1,
+      "region": [
+        278,
+        225,
+        110,
+        203
+      ],
+      "reference_height": 198.5
+    },
+    {
+      "direction": "down_left",
+      "frame": 2,
+      "region": [
+        498,
+        226,
+        109,
+        202
+      ],
+      "reference_height": 198.5
+    },
+    {
+      "direction": "down_left",
+      "frame": 3,
+      "region": [
+        712,
+        226,
+        108,
+        202
+      ],
+      "reference_height": 198.5
+    },
+    {
+      "direction": "left",
+      "frame": 0,
+      "region": [
+        81,
+        441,
+        108,
+        200
+      ],
+      "reference_height": 197.0
+    },
+    {
+      "direction": "left",
+      "frame": 1,
+      "region": [
+        281,
+        440,
+        109,
+        201
+      ],
+      "reference_height": 197.0
+    },
+    {
+      "direction": "left",
+      "frame": 2,
+      "region": [
+        500,
+        441,
+        108,
+        201
+      ],
+      "reference_height": 197.0
+    },
+    {
+      "direction": "left",
+      "frame": 3,
+      "region": [
+        716,
+        441,
+        106,
+        201
+      ],
+      "reference_height": 197.0
+    },
+    {
+      "direction": "up_left",
+      "frame": 0,
+      "region": [
+        75,
+        651,
+        105,
+        208
+      ],
+      "reference_height": 203.0
+    },
+    {
+      "direction": "up_left",
+      "frame": 1,
+      "region": [
+        279,
+        654,
+        103,
+        207
+      ],
+      "reference_height": 203.0
+    },
+    {
+      "direction": "up_left",
+      "frame": 2,
+      "region": [
+        497,
+        654,
+        106,
+        205
+      ],
+      "reference_height": 203.0
+    },
+    {
+      "direction": "up_left",
+      "frame": 3,
+      "region": [
+        715,
+        654,
+        103,
+        207
+      ],
+      "reference_height": 203.0
+    },
+    {
+      "direction": "up",
+      "frame": 0,
+      "region": [
+        78,
+        869,
+        97,
+        204
+      ],
+      "reference_height": 200.0
+    },
+    {
+      "direction": "up",
+      "frame": 1,
+      "region": [
+        281,
+        869,
+        100,
+        205
+      ],
+      "reference_height": 200.0
+    },
+    {
+      "direction": "up",
+      "frame": 2,
+      "region": [
+        502,
+        870,
+        97,
+        204
+      ],
+      "reference_height": 200.0
+    },
+    {
+      "direction": "up",
+      "frame": 3,
+      "region": [
+        715,
+        870,
+        96,
+        204
+      ],
+      "reference_height": 200.0
+    },
+    {
+      "direction": "up_right",
+      "frame": 0,
+      "region": [
+        76,
+        1084,
+        102,
+        208
+      ],
+      "reference_height": 203.5
+    },
+    {
+      "direction": "up_right",
+      "frame": 1,
+      "region": [
+        277,
+        1085,
+        102,
+        208
+      ],
+      "reference_height": 203.5
+    },
+    {
+      "direction": "up_right",
+      "frame": 2,
+      "region": [
+        501,
+        1086,
+        102,
+        207
+      ],
+      "reference_height": 203.5
+    },
+    {
+      "direction": "up_right",
+      "frame": 3,
+      "region": [
+        712,
+        1086,
+        102,
+        207
+      ],
+      "reference_height": 203.5
+    },
+    {
+      "direction": "right",
+      "frame": 0,
+      "region": [
+        68,
+        1305,
+        106,
+        208
+      ],
+      "reference_height": 205.0
+    },
+    {
+      "direction": "right",
+      "frame": 1,
+      "region": [
+        269,
+        1305,
+        109,
+        209
+      ],
+      "reference_height": 205.0
+    },
+    {
+      "direction": "right",
+      "frame": 2,
+      "region": [
+        492,
+        1305,
+        108,
+        209
+      ],
+      "reference_height": 205.0
+    },
+    {
+      "direction": "right",
+      "frame": 3,
+      "region": [
+        704,
+        1305,
+        109,
+        209
+      ],
+      "reference_height": 205.0
+    },
+    {
+      "direction": "down_right",
+      "frame": 0,
+      "region": [
+        65,
+        1529,
+        109,
+        209
+      ],
+      "reference_height": 209.0
+    },
+    {
+      "direction": "down_right",
+      "frame": 1,
+      "region": [
+        272,
+        1529,
+        107,
+        213
+      ],
+      "reference_height": 209.0
+    },
+    {
+      "direction": "down_right",
+      "frame": 2,
+      "region": [
+        493,
+        1529,
+        107,
+        218
+      ],
+      "reference_height": 209.0
+    },
+    {
+      "direction": "down_right",
+      "frame": 3,
+      "region": [
+        701,
+        1530,
+        110,
+        213
+      ],
+      "reference_height": 209.0
+    }
+  ]
+}

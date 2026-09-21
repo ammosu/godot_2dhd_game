@@ -13,6 +13,7 @@ const CONVERSATION_DISTANCE: float = 1.35
 var _appearance_key: String = ""
 
 @onready var sprite: AnimatedSprite3D = $Sprite3D
+@onready var _base_pixel_size: float = sprite.pixel_size
 
 var _gravity: float = float(ProjectSettings.get_setting("physics/3d/default_gravity", 18.0))
 var _walk_time: float = 0.0
@@ -32,6 +33,12 @@ func _ready() -> void:
 	_create_interaction_detector()
 	GameState.state_changed.connect(_refresh_equipment)
 	_refresh_equipment()
+
+
+func set_presentation_scale(factor: float) -> void:
+	sprite.pixel_size = _base_pixel_size * factor
+	# The sprite pivots around its feet; scale the ground shadow in X/Z only.
+	$ContactShadow.scale = Vector3(factor, 1.0, factor)
 
 
 func _refresh_equipment() -> void:

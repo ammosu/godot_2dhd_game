@@ -1,0 +1,303 @@
+[gd_resource type="SpriteFrames" load_steps=34 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/generated/residents/mira_walk.png" id="1"]
+
+[sub_resource type="AtlasTexture" id="Frame_0_0"]
+atlas = ExtResource("1")
+region = Rect2(58, 10, 118, 198)
+margin = Rect2(103.5, 104, 202, 122)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 194.0
+metadata/visible_height = 194.0
+
+[sub_resource type="AtlasTexture" id="Frame_0_1"]
+atlas = ExtResource("1")
+region = Rect2(275, 10, 118, 198)
+margin = Rect2(101.5, 104, 202, 122)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 194.0
+metadata/visible_height = 194.0
+
+[sub_resource type="AtlasTexture" id="Frame_0_2"]
+atlas = ExtResource("1")
+region = Rect2(494, 10, 119, 198)
+margin = Rect2(104.0, 104, 201, 122)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 194.0
+metadata/visible_height = 194.0
+
+[sub_resource type="AtlasTexture" id="Frame_0_3"]
+atlas = ExtResource("1")
+region = Rect2(713, 10, 117, 198)
+margin = Rect2(102.0, 104, 203, 122)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 194.0
+metadata/visible_height = 194.0
+
+[sub_resource type="AtlasTexture" id="Frame_1_0"]
+atlas = ExtResource("1")
+region = Rect2(53, 217, 114, 202)
+margin = Rect2(104.75, 100, 206, 118)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 200.0
+metadata/visible_height = 198.0
+
+[sub_resource type="AtlasTexture" id="Frame_1_1"]
+atlas = ExtResource("1")
+region = Rect2(274, 218, 118, 204)
+margin = Rect2(106.75, 98, 202, 116)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 200.0
+metadata/visible_height = 200.0
+
+[sub_resource type="AtlasTexture" id="Frame_1_2"]
+atlas = ExtResource("1")
+region = Rect2(491, 218, 117, 204)
+margin = Rect2(107.25, 98, 203, 116)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 200.0
+metadata/visible_height = 200.0
+
+[sub_resource type="AtlasTexture" id="Frame_1_3"]
+atlas = ExtResource("1")
+region = Rect2(710, 217, 115, 205)
+margin = Rect2(105.25, 97, 205, 115)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 200.0
+metadata/visible_height = 201.0
+
+[sub_resource type="AtlasTexture" id="Frame_2_0"]
+atlas = ExtResource("1")
+region = Rect2(62, 431, 102, 204)
+margin = Rect2(107.5, 98, 218, 116)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 200.0
+metadata/visible_height = 200.0
+
+[sub_resource type="AtlasTexture" id="Frame_2_1"]
+atlas = ExtResource("1")
+region = Rect2(282, 431, 106, 204)
+margin = Rect2(108.5, 98, 214, 116)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 200.0
+metadata/visible_height = 200.0
+
+[sub_resource type="AtlasTexture" id="Frame_2_2"]
+atlas = ExtResource("1")
+region = Rect2(499, 431, 104, 204)
+margin = Rect2(109.0, 98, 216, 116)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 200.0
+metadata/visible_height = 200.0
+
+[sub_resource type="AtlasTexture" id="Frame_2_3"]
+atlas = ExtResource("1")
+region = Rect2(719, 431, 104, 204)
+margin = Rect2(108.0, 98, 216, 116)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 200.0
+metadata/visible_height = 200.0
+
+[sub_resource type="AtlasTexture" id="Frame_3_0"]
+atlas = ExtResource("1")
+region = Rect2(58, 644, 120, 201)
+margin = Rect2(102.75, 101, 200, 119)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 199.0
+metadata/visible_height = 197.0
+
+[sub_resource type="AtlasTexture" id="Frame_3_1"]
+atlas = ExtResource("1")
+region = Rect2(273, 644, 122, 203)
+margin = Rect2(98.75, 99, 198, 117)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 199.0
+metadata/visible_height = 199.0
+
+[sub_resource type="AtlasTexture" id="Frame_3_2"]
+atlas = ExtResource("1")
+region = Rect2(490, 644, 124, 203)
+margin = Rect2(99.25, 99, 196, 117)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 199.0
+metadata/visible_height = 199.0
+
+[sub_resource type="AtlasTexture" id="Frame_3_3"]
+atlas = ExtResource("1")
+region = Rect2(709, 644, 126, 203)
+margin = Rect2(97.25, 99, 194, 117)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 199.0
+metadata/visible_height = 199.0
+
+[sub_resource type="AtlasTexture" id="Frame_4_0"]
+atlas = ExtResource("1")
+region = Rect2(51, 853, 132, 199)
+margin = Rect2(94.25, 103, 188, 121)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 195.5
+metadata/visible_height = 195.0
+
+[sub_resource type="AtlasTexture" id="Frame_4_1"]
+atlas = ExtResource("1")
+region = Rect2(271, 855, 127, 200)
+margin = Rect2(95.25, 102, 193, 120)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 195.5
+metadata/visible_height = 196.0
+
+[sub_resource type="AtlasTexture" id="Frame_4_2"]
+atlas = ExtResource("1")
+region = Rect2(488, 855, 130, 194)
+margin = Rect2(95.75, 108, 190, 126)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 195.5
+metadata/visible_height = 190.0
+
+[sub_resource type="AtlasTexture" id="Frame_4_3"]
+atlas = ExtResource("1")
+region = Rect2(707, 854, 133, 201)
+margin = Rect2(93.75, 101, 187, 119)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 195.5
+metadata/visible_height = 197.0
+
+[sub_resource type="AtlasTexture" id="Frame_5_0"]
+atlas = ExtResource("1")
+region = Rect2(58, 1064, 121, 207)
+margin = Rect2(105.0, 95, 199, 113)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 203.0
+metadata/visible_height = 203.0
+
+[sub_resource type="AtlasTexture" id="Frame_5_1"]
+atlas = ExtResource("1")
+region = Rect2(278, 1064, 122, 206)
+margin = Rect2(106.0, 96, 198, 114)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 203.0
+metadata/visible_height = 202.0
+
+[sub_resource type="AtlasTexture" id="Frame_5_2"]
+atlas = ExtResource("1")
+region = Rect2(497, 1064, 120, 207)
+margin = Rect2(108.5, 95, 200, 113)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 203.0
+metadata/visible_height = 203.0
+
+[sub_resource type="AtlasTexture" id="Frame_5_3"]
+atlas = ExtResource("1")
+region = Rect2(715, 1064, 120, 207)
+margin = Rect2(105.5, 95, 200, 113)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 203.0
+metadata/visible_height = 203.0
+
+[sub_resource type="AtlasTexture" id="Frame_6_0"]
+atlas = ExtResource("1")
+region = Rect2(59, 1278, 109, 218)
+margin = Rect2(104.0, 84, 211, 102)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 214.0
+metadata/visible_height = 214.0
+
+[sub_resource type="AtlasTexture" id="Frame_6_1"]
+atlas = ExtResource("1")
+region = Rect2(277, 1278, 111, 218)
+margin = Rect2(103.0, 84, 209, 102)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 214.0
+metadata/visible_height = 214.0
+
+[sub_resource type="AtlasTexture" id="Frame_6_2"]
+atlas = ExtResource("1")
+region = Rect2(494, 1278, 111, 218)
+margin = Rect2(103.5, 84, 209, 102)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 214.0
+metadata/visible_height = 214.0
+
+[sub_resource type="AtlasTexture" id="Frame_6_3"]
+atlas = ExtResource("1")
+region = Rect2(712, 1278, 111, 218)
+margin = Rect2(100.5, 84, 209, 102)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 214.0
+metadata/visible_height = 214.0
+
+[sub_resource type="AtlasTexture" id="Frame_7_0"]
+atlas = ExtResource("1")
+region = Rect2(58, 1506, 128, 238)
+margin = Rect2(99.75, 64, 192, 82)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 234.0
+metadata/visible_height = 234.0
+
+[sub_resource type="AtlasTexture" id="Frame_7_1"]
+atlas = ExtResource("1")
+region = Rect2(275, 1506, 129, 238)
+margin = Rect2(97.75, 64, 191, 82)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 234.0
+metadata/visible_height = 234.0
+
+[sub_resource type="AtlasTexture" id="Frame_7_2"]
+atlas = ExtResource("1")
+region = Rect2(492, 1506, 128, 238)
+margin = Rect2(98.25, 64, 192, 82)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 234.0
+metadata/visible_height = 234.0
+
+[sub_resource type="AtlasTexture" id="Frame_7_3"]
+atlas = ExtResource("1")
+region = Rect2(712, 1506, 130, 238)
+margin = Rect2(97.25, 64, 190, 82)
+filter_clip = true
+metadata/ground_y = 300.0
+metadata/reference_height = 234.0
+metadata/visible_height = 234.0
+
+[resource]
+animations = [
+{"frames": [{"duration": 1.0, "texture": SubResource("Frame_0_0")}, {"duration": 1.0, "texture": SubResource("Frame_0_1")}, {"duration": 1.0, "texture": SubResource("Frame_0_2")}, {"duration": 1.0, "texture": SubResource("Frame_0_3")}], "loop": true, "name": &"down", "speed": 6.0},
+{"frames": [{"duration": 1.0, "texture": SubResource("Frame_1_0")}, {"duration": 1.0, "texture": SubResource("Frame_1_1")}, {"duration": 1.0, "texture": SubResource("Frame_1_2")}, {"duration": 1.0, "texture": SubResource("Frame_1_3")}], "loop": true, "name": &"down_left", "speed": 6.0},
+{"frames": [{"duration": 1.0, "texture": SubResource("Frame_2_0")}, {"duration": 1.0, "texture": SubResource("Frame_2_1")}, {"duration": 1.0, "texture": SubResource("Frame_2_2")}, {"duration": 1.0, "texture": SubResource("Frame_2_3")}], "loop": true, "name": &"left", "speed": 6.0},
+{"frames": [{"duration": 1.0, "texture": SubResource("Frame_3_0")}, {"duration": 1.0, "texture": SubResource("Frame_3_1")}, {"duration": 1.0, "texture": SubResource("Frame_3_2")}, {"duration": 1.0, "texture": SubResource("Frame_3_3")}], "loop": true, "name": &"up_left", "speed": 6.0},
+{"frames": [{"duration": 1.0, "texture": SubResource("Frame_4_0")}, {"duration": 1.0, "texture": SubResource("Frame_4_1")}, {"duration": 1.0, "texture": SubResource("Frame_4_2")}, {"duration": 1.0, "texture": SubResource("Frame_4_3")}], "loop": true, "name": &"up", "speed": 6.0},
+{"frames": [{"duration": 1.0, "texture": SubResource("Frame_5_0")}, {"duration": 1.0, "texture": SubResource("Frame_5_1")}, {"duration": 1.0, "texture": SubResource("Frame_5_2")}, {"duration": 1.0, "texture": SubResource("Frame_5_3")}], "loop": true, "name": &"up_right", "speed": 6.0},
+{"frames": [{"duration": 1.0, "texture": SubResource("Frame_6_0")}, {"duration": 1.0, "texture": SubResource("Frame_6_1")}, {"duration": 1.0, "texture": SubResource("Frame_6_2")}, {"duration": 1.0, "texture": SubResource("Frame_6_3")}], "loop": true, "name": &"right", "speed": 6.0},
+{"frames": [{"duration": 1.0, "texture": SubResource("Frame_7_0")}, {"duration": 1.0, "texture": SubResource("Frame_7_1")}, {"duration": 1.0, "texture": SubResource("Frame_7_2")}, {"duration": 1.0, "texture": SubResource("Frame_7_3")}], "loop": true, "name": &"down_right", "speed": 6.0}
+]

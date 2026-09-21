@@ -2,6 +2,7 @@ extends RefCounted
 ## Stable house identities shared by entrances, interiors and return spawns.
 
 const EXTERIOR_SCALE := Vector3(1.15, 1.08, 1.15)
+const INTERIOR_CHARACTER_SCALE: float = 1.35
 const EXTERIOR_COLLISION := Vector3(4.0, 2.3, 3.2) * EXTERIOR_SCALE
 
 const HOMES: Array[Dictionary] = [
@@ -14,6 +15,19 @@ const HOMES: Array[Dictionary] = [
 	{"id": "house_07", "name": "東南小屋", "position": Vector3(12, 0, 12.3), "yaw": 0.0, "wall": Color("706a80"), "roof": Color("514b6e")},
 	{"id": "house_08", "name": "北街書屋", "position": Vector3(-6, 0, -11), "yaw": PI, "wall": Color("7f725d"), "roof": Color("624b51")},
 ]
+
+
+# Each resident has original profession-specific art; preserve its authored colors.
+const RESIDENTS: Dictionary = {
+	"house_01": {"name": "織工・米菈", "art": "residents/mira", "tint": Color.WHITE, "text": "進來歇歇腳吧。這幅布上的菱形，是祖母教我的舊路紋樣；她說，記住路的人就不怕夜長。"},
+	"house_02": {"name": "園丁・芙蘿", "art": "residents/flo", "tint": Color.WHITE, "text": "小心門邊的花。這些幼苗最近總朝著北方伸展，等月光回來，也許就能看見它們開花了。"},
+	"house_03": {"name": "觀月人・席恩", "art": "residents/sien", "tint": Color.WHITE, "text": "我每晚都在記錄月相。月亮並沒有消失，只是照進村子的光偏了方向。架上的舊紀錄也有相同的痕跡。"},
+	"house_04": {"name": "陶匠・洛克", "art": "residents/locke", "tint": Color.WHITE, "text": "陶器還沒乾，可別碰倒了。老一輩會在碗底印上缺口圓環，我只記得那是給遠行者的祝福。"},
+	"house_05": {"name": "裁縫・艾妲", "art": "residents/ada", "tint": Color.WHITE, "text": "外頭冷吧？我正把舊被子的破口補好。燈再暗，也得讓回家的人有個暖和的地方。"},
+	"house_06": {"name": "旅人・雷恩", "art": "residents/rain", "tint": Color.WHITE, "text": "我原本只想借宿一晚，沒想到北門封了這麼久。等道路重開，我想再看看山那頭的月色。"},
+	"house_07": {"name": "藥師・賽芙", "art": "residents/seph", "tint": Color.WHITE, "text": "這些草藥正在陰乾，聞起來有點苦。筆記裡有幾種藥草只長在舊道附近，如今已很難採到了。"},
+	"house_08": {"name": "藏書人・歐文", "art": "residents/owen", "tint": Color.WHITE, "text": "書可以翻，請輕一點。建村紀錄少了幾頁，撕痕卻很整齊……我一直想知道，被帶走的是誰的故事。"},
+}
 
 
 const FURNITURE: Dictionary = {
