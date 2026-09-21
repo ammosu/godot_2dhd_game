@@ -6,7 +6,7 @@ Assets: `elder_facings.png`, `noah_facings.png`, `rumi_facings.png` and matching
 
 Each AtlasTexture uses independently measured alpha bounds with a two-pixel gutter and ground metadata. Elder/Noah use 256 px canvases; Rumi uses 512 px. Sprite pixel size preserves the original NPC silhouette height. These are standing direction poses, not in-between turning animations.
 
-`equipment_actor.gd` selects a screen-relative direction during real village conversations. The player turns toward the speaker too. Camera settling and state-change events preserve facing and gear. Leaving dialogue restores the original equipment texture synchronously, before quest callbacks start the keeper-seal cutscene. Map teardown frees the local partner reference. Direction is temporary presentation state, not save data.
+`equipment_actor.gd` selects a screen-relative direction during real village conversations. The player turns toward the speaker too. Camera settling and state-change events preserve facing and gear. Map idle and dialogue both use this same turnaround sheet; idle selects its down-facing pose. Leaving dialogue restores that pose synchronously, before quest callbacks start the keeper-seal cutscene. The cutscene preserves visible world size using the current pose metadata instead of assuming the old atlas resolution. Map teardown frees the local partner reference. Direction is temporary presentation state, not save data.
 
 ## Generation prompts
 

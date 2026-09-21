@@ -9,6 +9,8 @@ var _actor: Sprite3D
 var _original: Texture2D
 var _pixel_size: float
 var _offset: Vector2
+var _visible_height: float
+var _visible_center_x: float
 var _elapsed: float = 0.0
 var _frames: Array[AtlasTexture] = []
 
@@ -18,6 +20,9 @@ func bind_actor(actor: Sprite3D) -> void:
 	_original = actor.texture
 	_pixel_size = actor.pixel_size
 	_offset = actor.offset
+	var bounds := _original.get_image().get_used_rect()
+	_visible_height = float(_original.get_meta("visible_height", bounds.size.y))
+	_visible_center_x = bounds.get_center().x - _original.get_width() * 0.5
 	for region: Rect2 in REGIONS:
 		var frame := AtlasTexture.new()
 		frame.atlas = SHEET
@@ -54,10 +59,9 @@ func _set_pose(index: int) -> void:
 		return
 	pose_index = index
 	_actor.texture = _frames[index]
-	_actor.pixel_size = _pixel_size * 620.0 / 739.0
-	# Original elder alpha bounds are x=236..586 inside a 724px atlas cell.
-	# Preserve that visible center, not the center of the original empty padding.
-	_actor.offset = Vector2((_offset.x + 49.0) * _pixel_size / _actor.pixel_size, 739.0 * 0.5)
+	_actor.pixel_size = _pixel_size * _visible_height / 739.0
+	# Preserve visible world size/center across atlases with different resolutions.
+	_actor.offset = Vector2((_offset.x + _visible_center_x) * _pixel_size / _actor.pixel_size, 739.0 * 0.5)
 
 
 func _restore() -> void:

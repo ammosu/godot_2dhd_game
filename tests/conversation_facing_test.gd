@@ -48,12 +48,19 @@ func _run() -> void:
 				check(state.call("equip_loadout", gear, actor), "Cannot equip conversation outfit")
 			var original := sprite.texture
 			var original_scale := sprite.pixel_size
+			check(original.get_meta("facing", &"") == &"down", "Map idle must use the conversation design")
+			check((original as AtlasTexture).atlas.resource_path.ends_with(actor + "_facings.png"), "Map idle uses an unrelated character sheet")
 			for yaw: float in [0.0, 135.0]:
 				camera.global_position = npc.global_position + Basis(Vector3.UP, deg_to_rad(yaw)) * Vector3(0, 5, 8)
 				camera.look_at(npc.global_position + Vector3.UP * 0.7)
 				for index: int in range(INPUTS.size()):
 					var offset: Vector3 = player.call("_camera_relative_direction", INPUTS[index])
 					player.global_position = npc.global_position + offset * 1.35 + Vector3.UP * 0.03
+					if "--facing-capture" in OS.get_cmdline_user_args() and DisplayServer.get_name() != "headless" and row == rows - 1 and yaw == 0.0 and index == 4:
+						await process_frame
+						await RenderingServer.frame_post_draw
+						var idle_path := "/tmp/map-idle-%s-%s.png" % [actor, RenderingServer.get_current_rendering_method()]
+						check(root.get_texture().get_image().save_png(idle_path) == OK, "Idle capture failed")
 					world.call("_handle_interaction", actor)
 					check(dialogue.call("is_open"), "Interaction did not open dialogue")
 					check(sprite.texture.get_meta("facing", &"") == Facing.ANIMATIONS[index], "NPC is not facing player: %s/%s" % [actor, index])
@@ -64,7 +71,7 @@ func _run() -> void:
 					var region := Rect2i(art.region)
 					check(image.get_pixel(region.position.x, region.position.y).a < 0.5, "Opaque atlas margin")
 					check(is_equal_approx(Grounding.foot_baseline(art, 0.5), float(art.get_meta("ground_y"))), "Conversation feet are not grounded")
-					check(is_equal_approx(sprite.pixel_size * float(art.get_meta("visible_height")), original_scale * float(sprite.get("_source_height"))), "Turn changed NPC height")
+					check(is_equal_approx(sprite.pixel_size * float(art.get_meta("visible_height")), original_scale * float(original.get_meta("visible_height"))), "Turn changed NPC height")
 					var texture_before := sprite.texture
 					world.call("_handle_interaction", "noah" if actor != "noah" else "rumi")
 					check(sprite.texture == texture_before, "Locked dialogue changed speaker")

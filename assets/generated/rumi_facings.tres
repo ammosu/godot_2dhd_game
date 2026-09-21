@@ -11,6 +11,7 @@ metadata/ground_y = 500.0
 metadata/visible_height = 429.0
 metadata/facing = &"down"
 metadata/loadout_row = 0
+metadata/variant = ""
 
 [sub_resource type="AtlasTexture" id="Facing_1_0"]
 atlas = ExtResource("1_atlas")
@@ -21,6 +22,7 @@ metadata/ground_y = 500.0
 metadata/visible_height = 430.0
 metadata/facing = &"down_left"
 metadata/loadout_row = 0
+metadata/variant = ""
 
 [sub_resource type="AtlasTexture" id="Facing_2_0"]
 atlas = ExtResource("1_atlas")
@@ -31,6 +33,7 @@ metadata/ground_y = 500.0
 metadata/visible_height = 430.0
 metadata/facing = &"left"
 metadata/loadout_row = 0
+metadata/variant = ""
 
 [sub_resource type="AtlasTexture" id="Facing_3_0"]
 atlas = ExtResource("1_atlas")
@@ -41,6 +44,7 @@ metadata/ground_y = 500.0
 metadata/visible_height = 430.0
 metadata/facing = &"up_left"
 metadata/loadout_row = 0
+metadata/variant = ""
 
 [sub_resource type="AtlasTexture" id="Facing_4_0"]
 atlas = ExtResource("1_atlas")
@@ -51,6 +55,7 @@ metadata/ground_y = 500.0
 metadata/visible_height = 430.0
 metadata/facing = &"up"
 metadata/loadout_row = 0
+metadata/variant = ""
 
 [sub_resource type="AtlasTexture" id="Facing_5_0"]
 atlas = ExtResource("1_atlas")
@@ -61,6 +66,7 @@ metadata/ground_y = 500.0
 metadata/visible_height = 430.0
 metadata/facing = &"up_right"
 metadata/loadout_row = 0
+metadata/variant = ""
 
 [sub_resource type="AtlasTexture" id="Facing_6_0"]
 atlas = ExtResource("1_atlas")
@@ -71,6 +77,7 @@ metadata/ground_y = 500.0
 metadata/visible_height = 433.0
 metadata/facing = &"right"
 metadata/loadout_row = 0
+metadata/variant = ""
 
 [sub_resource type="AtlasTexture" id="Facing_7_0"]
 atlas = ExtResource("1_atlas")
@@ -81,6 +88,7 @@ metadata/ground_y = 500.0
 metadata/visible_height = 433.0
 metadata/facing = &"down_right"
 metadata/loadout_row = 0
+metadata/variant = ""
 
 [resource]
 animations = [{

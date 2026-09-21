@@ -22,7 +22,7 @@ func _ready() -> void:
 	_source_pixel_size = pixel_size
 	_source_height = float(source_texture.get_image().get_used_rect().size.y)
 	GameState.state_changed.connect(_refresh_equipment)
-	call_deferred("_refresh_equipment")
+	_refresh_equipment()
 
 
 func _refresh_equipment() -> void:
@@ -37,10 +37,7 @@ func _refresh_equipment() -> void:
 	if selected == _variant:
 		return
 	_variant = selected
-	texture = Appearance.texture_for(source_texture, "npc", loadout, actor_id)
-	var baseline: float = float(texture.get_meta("ground_y")) if texture.has_meta("ground_y") else Grounding.foot_baseline(texture, alpha_scissor_threshold)
-	Grounding.anchor(self, texture, baseline)
-	position.y += 0.008
+	_show_facing(&"down", selected)
 
 
 func turn_to(partner: Node3D) -> void:
@@ -52,7 +49,6 @@ func end_conversation() -> void:
 	_conversation_partner = null
 	_facing_key = ""
 	_variant = "unset"
-	pixel_size = _source_pixel_size
 	_refresh_equipment()
 
 
@@ -75,8 +71,14 @@ func _update_conversation_facing() -> void:
 	var key := "%s:%s" % [animation, row]
 	if key != _facing_key:
 		_facing_key = key
-		texture = TURNAROUNDS[actor_id].get_frame_texture(animation, row)
-		pixel_size = _source_pixel_size * _source_height / float(texture.get_meta("visible_height"))
-		Grounding.anchor(self, texture, float(texture.get_meta("ground_y")))
-		position.y += 0.008
+		_show_facing(animation, variant)
 	_conversation_partner.call("face_world_position", get_parent_node_3d().global_position)
+
+
+func _show_facing(animation: StringName, variant: String) -> void:
+	# Idle and conversation share one character design and physical height.
+	var row := 3 if variant.ends_with("_both") else 2 if variant.ends_with("_armor") else 1 if variant.ends_with("_weapon") else 0
+	texture = TURNAROUNDS[actor_id].get_frame_texture(animation, row)
+	pixel_size = _source_pixel_size * _source_height / float(texture.get_meta("visible_height"))
+	Grounding.anchor(self, texture, float(texture.get_meta("ground_y")))
+	position.y += 0.008

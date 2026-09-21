@@ -15,6 +15,7 @@ func _run() -> void:
 	state.call("defeat_guardian")
 	var elder := world.find_child("Elder", true, false).get_node("CharacterArt") as Sprite3D
 	var original: Texture2D = elder.texture
+	var original_height: float = elder.pixel_size * float(original.get_meta("visible_height"))
 	world.call("_complete_main_quest")
 	var seals := get_nodes_in_group("moon_seal_presentations")
 	assert(seals.size() == 1)
@@ -29,6 +30,7 @@ func _run() -> void:
 	assert(seal.visible)
 	assert(seal.get("pose_index") == 0)
 	assert(elder.texture != original)
+	assert(is_equal_approx(elder.pixel_size * 739.0, original_height))
 	seal.call("_process", 0.25)
 	assert(seal.get("pose_index") == 1)
 	seal.call("_process", 0.25)
