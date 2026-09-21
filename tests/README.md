@@ -146,7 +146,7 @@ godot --path . --rendering-method gl_compatibility --script tests/water_render_t
 
 月紋門／村界材質回歸：`godot --headless --path . --script tests/gate_art_test.gd`，成功標記 `GATE_ART_TEST_PASS`。涵蓋雙面門扉裝飾、分段村界材質與碰撞一致、封印朝向及任務開門後隱藏，不覆寫存檔。
 
-角色姿勢測試檢查八個 AtlasTexture 的裁切、畫布與透明輪廓腳底基準。節奏測試是固定初始數值的確定性模擬，不代表完整難度評估：目前普通攻擊與全員零 MP 都在第 4 回合勝利（18 次角色行動），使用職業技能的策略在第 3 回合勝利（11 次行動）；仍需後續多場遭遇與玩家試玩。
+角色姿勢測試檢查八個 AtlasTexture 的裁切、畫布與透明輪廓腳底基準。節奏測試是固定初始數值的確定性模擬，不代表完整難度評估：目前普通攻擊與全員零 MP 都在第 4 回合勝利（20 次角色行動），使用職業技能的策略在第 3 回合勝利（12 次行動）；仍需後續多場遭遇與玩家試玩。
 
 ```bash
 godot --headless --path . --script tests/party_battle_test.gd
@@ -467,3 +467,26 @@ Checks mesh sharing, ground contact, outward pane normals and preserved lighting
 實際畫面驗收：移除 `--headless` 並加 `-- --gate-capture`，以 `forward_plus` 和 `gl_compatibility` 各輸出關門、開門與抵達門後三張 `/tmp/wanderlight-gate-<renderer>-<view>.png`；門框／門扉僅在擋住角色時局部隱藏，碰撞仍保留。
 
 `gate_art_test.gd` 另驗證移至村界後的關隘往返與東側獨立道路：角色能穿出東側缺口，並被可見的路尾木柵阻擋；`--gate-capture` 增加 `east_road` 畫面。
+
+### 戰鬥站位與角色資訊
+
+```bash
+godot --headless --path . --script tests/party_formation_test.gd
+godot --path . --rendering-method gl_compatibility --script tests/party_formation_test.gd -- --formation-capture
+```
+
+驗證前排阻擋、長槍／月影斬射程、遠程法術、換排次數與交換位置、倒地後屏障解除、敵方射程與角色 HP／MP 資訊卡不重疊、不超出舞台。視覺模式將實際換排畫面輸出至 `/tmp/party-formation.png`。
+
+### 全隊規劃、速度順序與拖曳
+
+```bash
+godot --headless --path . --script tests/party_round_test.gd
+godot --headless --path . --script tests/party_drag_test.gd
+godot --path . --rendering-method gl_compatibility --script tests/party_battle_ui_test.gd -- --party-art-capture
+```
+
+涵蓋安排／修改不扣資源、開始回合鎖定、雙方依速度交錯行動、同速排序、倒地跳過／失效目標處理、藥水預訂與全隊每回合一次換排。拖曳測試透過原生滑鼠按下、移動與放開驗證完整交換。速度條是固定速度數值比例，並非即時蓄力條。GPU 截圖輸出 `/tmp/party-round-planning.png`。舊版逐人即時出手的 UI 測試已改為全隊規劃流程；獨立姿勢／裝備測試直接執行單次動作，完整回合由 UI 與音效測試驗證。
+
+### 自動戰鬥
+
+`godot --headless --path . --script tests/party_auto_battle_test.gd` 驗證自動規劃、治療／守護、範圍目標、零 MP 普攻、立即取消、回合中停止、恢復、勝利停止與新遭遇重置，並確認不使用藥水。實際渲染加 `-- --auto-capture` 可輸出 `/tmp/party-auto-battle.png`。

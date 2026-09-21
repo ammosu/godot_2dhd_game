@@ -14,7 +14,13 @@ const SKILLS: Dictionary = {
 var actors: Array[Dictionary] = []
 var current: int = 0
 var round_number: int = 1
+const ROW_NAMES: Array[String] = ["前排", "中排", "後排"]
+var formation_changed: bool = false
 var winner: int = -1
+var executing: bool = false
+var plans: Dictionary = {}
+var turn_queue: Array[Dictionary] = []
+const SPEEDS: Array[int] = [18, 14, 10, 8, 22, 12]
 
 
 func setup(hp: int, mp: int, attack: int, defense: int, enemy: Dictionary) -> void:
@@ -26,6 +32,13 @@ func setup(hp: int, mp: int, attack: int, defense: int, enemy: Dictionary) -> vo
 		_actor("苔背狼", 1, 42, 0, 12, 2, Vector2(1.6, 0.8), "moss_wolf"),
 		_actor("月蝕術士", 1, 46, 32, 13, 2, Vector2(3.2, 0), "eclipse_mage"),
 	]
+	for index: int in range(actors.size()):
+		actors[index].row = index % 3
+		actors[index].speed = SPEEDS[index]
+	executing = false
+	plans.clear()
+	turn_queue.clear()
+	formation_changed = false
 	actors[0].hp = maxi(0, hp)
 	current = 0
 	round_number = 1
@@ -36,6 +49,163 @@ func setup(hp: int, mp: int, attack: int, defense: int, enemy: Dictionary) -> vo
 
 func _actor(label: String, team: int, hp: int, mp: int, attack: int, defense: int, point: Vector2, art: String) -> Dictionary:
 	return {"name": label, "team": team, "hp": hp, "max_hp": hp, "mp": mp, "max_mp": mp, "attack": attack, "defense": defense, "position": point, "art": art, "guard": false, "protected_by": -1}
+
+
+func change_row(row: int) -> String:
+	if executing or winner != -1 or actors.is_empty() or int(actors[current].team) != 0 or int(actors[current].hp) <= 0:
+		return "目前無法調整站位。"
+	if row < 0 or row >= ROW_NAMES.size():
+		return "無效的站位。"
+	if int(actors[current].row) == row:
+		return "已在此排。"
+	if formation_changed:
+		return "本回合已交換站位，全隊每回合限一次。"
+	var previous: int = actors[current].row
+	for index: int in range(actors.size()):
+		if index != current and int(actors[index].team) == 0 and int(actors[index].row) == row:
+			_set_row(index, previous)
+			break
+	_set_row(current, row)
+	formation_changed = true
+	return ""
+
+
+func swap_allies(source: int, target: int) -> String:
+	if source < 0 or target < 0 or source >= actors.size() or target >= actors.size() or int(actors[source].team) != 0 or int(actors[target].team) != 0:
+		return "請拖曳友方角色至另一位同伴。"
+	var previous: int = current
+	current = source
+	var error := change_row(int(actors[target].row))
+	current = previous
+	return error
+
+
+func plan_action(action: String, target: int, potions: int) -> String:
+	if executing or actors.is_empty() or int(actors[current].team) != 0:
+		return "目前無法安排指令。"
+	var error := validate(action, target)
+	if not error.is_empty():
+		return error
+	var reserved: int = 0
+	for index: int in plans:
+		if index != current and str(plans[index].action) == "potion":
+			reserved += 1
+	if action == "potion" and reserved >= potions:
+		return "藥水不足，其他同伴已預定使用。"
+	plans[current] = {"caster": current, "action": action, "target": current if action in ["guard", "potion"] else target}
+	return ""
+
+
+func ready_to_resolve() -> bool:
+	if executing or winner != -1:
+		return false
+	for index: int in living(0):
+		if not plans.has(index):
+			return false
+	return not living(0).is_empty()
+
+
+func initiative_order() -> Array[int]:
+	var order: Array[int] = living(0)
+	order.append_array(living(1))
+	order.sort_custom(func(a: int, b: int) -> bool:
+		return int(actors[a].speed) > int(actors[b].speed) if actors[a].speed != actors[b].speed else a < b)
+	return order
+
+
+func begin_round(potions: int) -> String:
+	if not ready_to_resolve():
+		return "請先安排所有存活同伴的動作。"
+	var previous: int = current
+	var reserved: int = 0
+	for index: int in living(0):
+		current = index
+		var command: Dictionary = plans[index]
+		var error := validate(str(command.action), int(command.target))
+		if str(command.action) == "potion":
+			reserved += 1
+		if not error.is_empty() or reserved > potions:
+			current = previous
+			return "%s 的指令需要重新安排。" % actors[index].name
+	for index: int in living(1):
+		current = index
+		var action := "magic" if actors[index].art == "eclipse_mage" and int(actors[index].mp) >= 8 else "attack"
+		var targets := valid_targets(action)
+		plans[index] = {"caster": index, "action": action, "target": targets[(round_number - 1) % targets.size()]}
+	turn_queue.clear()
+	for index: int in initiative_order():
+		turn_queue.append(plans[index].duplicate())
+	for actor: Dictionary in actors:
+		actor.guard = false
+		actor.protected_by = -1
+	current = previous
+	executing = true
+	return ""
+
+
+func next_command(potions: int) -> Dictionary:
+	if not executing or winner != -1:
+		return {}
+	while not turn_queue.is_empty():
+		var command: Dictionary = turn_queue.pop_front()
+		current = int(command.caster)
+		if int(actors[current].hp) <= 0:
+			continue
+		var action: String = command.action
+		var target: int = command.target
+		if action == "potion" and potions <= 0:
+			return {"caster": current, "action": "guard", "target": current}
+		if not validate(action, target).is_empty():
+			# Offensive actions follow a surviving reachable enemy. Support never
+			# silently changes recipient; an invalid support action becomes guard.
+			var targets: Array[int] = []
+			if action in ["attack", "slash", "skill", "magic"]:
+				targets = valid_targets(action)
+			if not targets.is_empty():
+				command.target = targets[0]
+			else:
+				command.action = "guard"
+				command.target = current
+		return command
+	return {}
+
+
+func finish_round() -> void:
+	if not executing or winner != -1 or not turn_queue.is_empty():
+		return
+	executing = false
+	round_number += 1
+	formation_changed = false
+	plans.clear()
+	current = living(0)[0]
+
+
+func _set_row(index: int, row: int) -> void:
+	actors[index].row = row
+	actors[index].position = Vector2(row * 1.6, 0.8 if row == 1 else 0.0)
+
+
+func attack_reach(action: String) -> int:
+	if action not in ["attack", "slash"]:
+		return 3
+	return 2 if action == "slash" or str(actors[current].art) == "noah" else 1
+
+
+func in_reach(action: String, target: int) -> bool:
+	if action not in ["attack", "slash"]:
+		return true
+	var front: int = 2
+	for index: int in living(int(actors[target].team)):
+		front = mini(front, int(actors[index].row))
+	return int(actors[target].row) - front < attack_reach(action)
+
+
+func valid_targets(action: String) -> Array[int]:
+	var result: Array[int] = []
+	for index: int in range(actors.size()):
+		if validate(action, index).is_empty():
+			result.append(index)
+	return result
 
 
 func available_actions() -> Array[String]:
@@ -76,6 +246,8 @@ func preview(action: String, target: int) -> Array[int]:
 		return [target]
 	if actors[target].team == actors[current].team:
 		return empty
+	if not in_reach(action, target):
+		return empty
 	if action != "magic":
 		return [target]
 	return AreaSkill.enemy_indices(actors, int(actors[current].team), actors[target].position, float(SKILLS[action].radius))
@@ -92,6 +264,8 @@ func validate(action: String, target: int) -> String:
 		return "MP 不足，請改用攻擊或防禦。"
 	if action == "potion" and int(actors[current].hp) >= int(actors[current].max_hp):
 		return "HP 已滿，不需要藥水。"
+	if target >= 0 and target < actors.size() and int(actors[target].hp) > 0 and actors[target].team != actors[current].team and not in_reach(action, target):
+		return "超出攻擊距離：前方仍有敵人阻擋，請選前排或使用遠程法術。"
 	if preview(action, target).is_empty():
 		return "請選擇存活的同伴。" if action in ["heal", "protect"] else "請選擇仍在場上的敵人。"
 	if action == "heal" and int(actors[target].hp) >= int(actors[target].max_hp):
@@ -139,6 +313,7 @@ func advance() -> void:
 		current = (current + 1) % actors.size()
 		if current == 0:
 			round_number += 1
+			formation_changed = false
 		if int(actors[current].hp) > 0:
 			actors[current].guard = false
 			for actor: Dictionary in actors:

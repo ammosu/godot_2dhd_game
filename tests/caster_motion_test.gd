@@ -61,10 +61,10 @@ func _run() -> void:
 		_check(int(model.actors[sample.caster].mp) == sample.mp, "Caster MP did not resolve once")
 		_check(int(model.actors[sample.target].hp) == sample.hp, "Caster damage/healing did not resolve once")
 		_check(not bool(battle.call("can_accept_action")), "Caster recovery unlocked input")
-		var deadline := Time.get_ticks_msec() + 10000
-		while not bool(battle.call("can_accept_action")) and Time.get_ticks_msec() < deadline:
+		var deadline := Time.get_ticks_msec() + 3000
+		while bool(battle.get("_busy")) and Time.get_ticks_msec() < deadline:
 			await process_frame
-		_check(bool(battle.call("can_accept_action")) and int(model.current) == 0, "Caster turn did not finish")
+		_check(not bool(battle.get("_busy")), "Caster animation did not finish")
 		_check(portrait.texture.resource_path.ends_with("_idle.tres"), "Caster did not return idle")
 		battle.free()
 		state.set("battle_session", null)

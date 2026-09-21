@@ -36,7 +36,8 @@ func _run() -> void:
 	for index: int in range(3):
 		_check(int(model.current) == index, "Weapon test turn order changed")
 		battle.call("choose_action", "attack")
-		await _wait(battle)
+	battle.call("_run_round")
+	await _wait(battle)
 	_check(int(model.current) == 0 and int(model.round_number) == 2, "Weapon round did not complete")
 	var expected := {&"slash": 2, &"spear_thrust": 1, &"claw_swipe": 1, &"staff_strike": 2, &"impact": 6}
 	for cue: StringName in expected:

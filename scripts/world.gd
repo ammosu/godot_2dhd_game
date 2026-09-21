@@ -644,7 +644,7 @@ func _rest_at_moon_spring() -> void:
 	else:
 		lines.append({"speaker": "旅人", "text": "HP 與 MP 都很充足。但這段被截斷歸途的記憶，為什麼要讓我看見？"})
 	if GameState.quest_state == GameState.QuestState.ACTIVE:
-		lines.append({"speaker": "系統", "text": "先點技能，再點目標卡片，最後確認出手。旅人 → 諾亞 → 艾爾依序行動；敵方三人全倒下才算通過試煉。"})
+		lines.append({"speaker": "系統", "text": "先點技能，再點目標卡片，確認每位同伴的指令，再按開始回合。雙方依速度由快到慢出手；敵方三人全倒下才算通過試煉。"})
 		lines.append({"speaker": "系統", "text": "諾亞的守護、艾爾的療癒要選存活同伴；療癒不能復活。霜星爆選中央敵人可波及三人，普通攻擊不耗 MP。"})
 		lines.append({"speaker": "系統", "text": "挑戰前可開啟裝備調整三人的武器與防具，並在探索時存檔。全隊倒下會回村恢復，任務仍可重試。"})
 	dialogue_ui.show_dialogue(lines)
@@ -661,7 +661,7 @@ func _talk_to_guardian() -> void:
 	lines.append({"speaker": "遺跡守衛", "text": "每當引路之光被鎖在一地，霧中的道路便更加黯淡。證明你帶回村莊的是希望，而不是另一道只保護少數人的牆。"})
 	lines.append({"speaker": "遺跡守衛", "text": "苔背狼是只求存活的恐懼，月蝕術士是占有月光的執念。這兩段失敗的記憶，將與我一同試問你們的決心。"})
 	lines.append({"speaker": "旅人", "text": "我要讓村民活過今晚，也不會忘記仍在霧中尋路的人。那就開始吧。"})
-	lines.append({"speaker": "諾亞", "text": "我和長老會助你完成試煉。先選技能與目標，再確認出手。"})
+	lines.append({"speaker": "諾亞", "text": "我和長老會助你完成試煉。先替全隊確認技能與目標，再開始回合。"})
 	lines.append({"speaker": "長老", "text": "霜星爆能波及附近的敵人。注意範圍圈和命中標記，不必只盯著守衛。"})
 	dialogue_ui.show_dialogue(lines, _start_guardian_battle)
 
@@ -1953,6 +1953,7 @@ func _run_playthrough_test() -> void:
 		if not await _test_wait_for_battle(false):
 			return
 		battle_ui.choose_action("guard")
+	battle_ui._run_round()
 	if not await _test_wait_for_battle(true):
 		return
 	if not _test_require(battle_ui.is_resolved() and not battle_ui.did_player_win(), "battle defeat state"):
@@ -1998,6 +1999,8 @@ func _run_playthrough_test() -> void:
 		if battle_ui.is_resolved():
 			break
 		battle_ui.choose_action("attack")
+		if GameState.battle_session.ready_to_resolve():
+			battle_ui._run_round()
 	if not await _test_wait_for_battle(true):
 		return
 	if not _test_require(bool(GameState.flags.get("guardian_defeated", false)), "battle victory flag"):

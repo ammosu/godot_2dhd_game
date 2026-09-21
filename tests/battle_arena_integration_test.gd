@@ -39,7 +39,7 @@ func _run() -> void:
 	root.add_child(battle)
 	battle.call("start_battle", {"arena_theme": "forest", "visual_seed": 42})
 	_check((battle.get("_arena_viewport") as SubViewport).render_target_update_mode != SubViewport.UPDATE_DISABLED, "Combat arena failed to render")
-	battle.call("choose_action", "attack")
+	battle.call("_execute", "attack", 3)
 	await create_timer(0.18).timeout
 	var hit := (battle.get("_stage") as Control).get_node_or_null("PhysicalHit") as TextureRect
 	_check(hit != null, "Physical impact missing")

@@ -91,7 +91,7 @@ func _run() -> void:
 		check(portrait.texture == Appearance.texture_for(base, pose, state.get("equipped")), "Battle pose replacement mismatch: " + pose)
 	await screenshot("battle")
 	battle.call("_pose", 0, "idle")
-	battle.call("choose_action", "attack")
+	battle.call("_execute", "attack", int(battle.get("_target")))
 	for phase: String in ["windup", "attack", "recover", "idle"]:
 		var deadline := Time.get_ticks_msec() + 4000
 		var live_portrait: TextureRect = battle.get("_portraits")[0]

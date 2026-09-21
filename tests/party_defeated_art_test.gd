@@ -43,7 +43,7 @@ func _run() -> void:
 	model.actors[4].hp = 0
 	model.current = 2
 	battle.set("_target", 5)
-	battle.call("choose_action", "attack")
+	battle.call("_execute", "attack", int(battle.get("_target")))
 	var deadline := Time.get_ticks_msec() + 5000
 	while not bool(battle.call("is_resolved")) and Time.get_ticks_msec() < deadline:
 		await process_frame

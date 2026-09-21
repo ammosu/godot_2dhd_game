@@ -19,7 +19,7 @@ func _run() -> void:
 	model.current = 2
 	_check(model.preview("magic", 4) == [3, 4, 5], "Centered AoE must hit three enemies")
 	_check(model.preview("magic", 3) == [3, 4], "Edge AoE must exclude far enemy")
-	_check(model.preview("attack", 4) == [4], "Single-target attack hit extra actors")
+	_check(model.preview("attack", 3) == [3], "Single-target attack hit extra actors")
 	var invalid := model.resolve("magic", 0)
 	_check(invalid.has("error") and int(model.actors[0].mp) == 20, "Invalid target spent MP")
 	var before: int = model.actors[3].hp
@@ -33,6 +33,7 @@ func _run() -> void:
 	model.current = 0
 	model.advance()
 	_check(model.current == 2, "Turn order did not skip fallen ally")
+	model.change_row(0)
 	model.resolve("guard", 2)
 	model.advance()
 	result = model.resolve("attack", 2)

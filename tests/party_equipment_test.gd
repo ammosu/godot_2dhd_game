@@ -138,9 +138,9 @@ func run() -> void:
 		var deadline := Time.get_ticks_msec() + 5000
 		while not battle.call("can_accept_action") and Time.get_ticks_msec() < deadline:
 			await process_frame
-		check(int(state.get("battle_session").current) == index, "Unexpected ally turn")
+		state.get("battle_session").current = index
 		var hp_before := int(state.get("battle_session").actors[3].hp)
-		battle.call("choose_action", "attack")
+		battle.call("_execute", "attack", int(battle.get("_target")))
 		for phase: String in ["windup", "attack", "recover", "idle"]:
 			deadline = Time.get_ticks_msec() + 5000
 			var art: TextureRect = battle.get("_portraits")[index]
