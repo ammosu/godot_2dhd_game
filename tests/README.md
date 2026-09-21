@@ -73,9 +73,9 @@ godot --headless --path . --rendering-method gl_compatibility -- --playthrough-t
 
 六角色姿勢對照：建立暫存目錄後執行 `godot --path . --rendering-method gl_compatibility --script tests/party_motion_capture.gd -- --capture-dir=/absolute/existing/directory`，再改用 `forward_plus`。輸出四張實際戰鬥 UI 截圖，六角色分別同時顯示待機／蓄力／攻擊／收招；不使用 headless、不寫正常存檔。`PARTY_MOTION_CAPTURE_PASS` 只表示截图成功，不是自動美術判定，也不代表實際同時攻擊或完整演出時序；時序沿用 traveler／caster motion 回歸。此工具不納入 54 項清單。
 
-石柱回歸另檢查 `ColumnFooting`：柱體遮擋切除時石座保持可見／投影，底部貼齊柱根且半徑不超出原 0.5 m 碰撞，避免看不見的障礙物。沿用 `foreground_cutaway_test.gd`，不新增清單項目。
+石柱回歸另檢查 `ColumnFooting`：柱體遮擋時柱身與石座都保持可見／投影，底部貼齊柱根且半徑不超出原 0.5 m 碰撞，避免看不見的障礙物。沿用 `foreground_cutaway_test.gd`，不新增清單項目。
 
-`foreground_cutaway_test.gd` 除原有房屋 192 視角外，亦逐一檢查遺跡石柱的遮擋、清晰角度恢復、碰撞維持有效，以及進屋後 `column_cutaways` 清空；房屋與家具仍使用原 `foreground_cutaways` 群組。共用模型是完整網格，因此切除整柱而非局部裁切。實景仍須人工檢視。
+`foreground_cutaway_test.gd` 除原有房屋 192 視角外，亦逐一檢查遺跡石柱的遮擋、清晰角度恢復、碰撞維持有效，以及進屋後 `column_cutaways` 清空；房屋與家具仍使用原 `foreground_cutaways` 群組。遮擋控制器現在只提供粗略判定，物件始終可見；角色剪影再以逐像素深度判斷，只顯示被遮住的部分。
 
 獨立音訊執行緒擷取：同一個 4187 本地伺服器，以 Playwright MCP 執行 `tests/web_audio_capture_test.js`（約 70 秒）。兩個隔離 Chrome context 比較正常 Sample 與診斷 Stream，26 秒後首次進屋再出屋；回傳每個 AudioContext 的樣本數、取樣率、峰值、連續近零輸出最長時間及發生時間，並保存屋內截圖。使用 AudioWorklet 逐樣本處理，觀察分支輸出零，不修改原音量或一般存檔。近零條件是所有輸入聲道絕對值均低於 0.00001，不能檢出被其他聲音蓋住的單一音軌間隙，也不能取代主觀聽感。不納入本地 54 項清單；出現錯誤、空擷取或樣本不足時不能作通過證據。
 
@@ -490,3 +490,15 @@ godot --path . --rendering-method gl_compatibility --script tests/party_battle_u
 ### 自動戰鬥
 
 `godot --headless --path . --script tests/party_auto_battle_test.gd` 驗證自動規劃、治療／守護、範圍目標、零 MP 普攻、立即取消、回合中停止、恢復、勝利停止與新遭遇重置，並確認不使用藥水。實際渲染加 `-- --auto-capture` 可輸出 `/tmp/party-auto-battle.png`。
+
+
+角色遮擋提示：`foreground_cutaway.gd` 保留原有包圍盒粗略判定與恢復延遲，但不再隱藏場景物件或更改陰影。每位玩家共用一個 `occluded_character.gd`，同步動畫、裝備貼圖及腳底位移；shader 只在角色像素比場景深度更遠時顯示 28% 淡藍色剪影。透明且不寫入深度的物件不會觸發像素遮擋提示。
+
+新增實際 GPU 回歸（不能加 `--headless`），分別執行：
+
+```bash
+godot --path . --rendering-method forward_plus --script tests/occluded_character_render_test.gd
+godot --path . --rendering-method gl_compatibility --script tests/occluded_character_render_test.gd
+```
+
+成功標記：`OCCLUDED_CHARACTER_RENDER_TEST_PASS behind front partial`。比較提示開關前後的畫面，確認後方可見剪影、前方即使粗判誤報也完全不變、局部遮擋只影響部分角色像素。可加 `-- --capture-dir=/absolute/existing/directory` 儲存圖片；此 GPU 測試單獨執行，未加入原有批次清單。原 `foreground_cutaway_test.gd`／`furniture_cutaway_test.gd` 改為驗證物件保持可見及陰影、碰撞、互動不變。

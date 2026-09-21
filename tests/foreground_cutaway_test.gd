@@ -45,7 +45,7 @@ func _run() -> void:
 						var house := controller.get_parent()
 						var tiles := house.get_node("ArchitecturalDetails/SlateRoofTiles") as MultiMeshInstance3D
 						assert(tiles.multimesh.custom_aabb.position.y > 1.9)
-						assert(tiles.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
+						assert(tiles.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON)
 						assert((house.get_node("HouseEntrance") as Area3D).monitoring)
 	assert(blocked_views > 0)
 	var outdoor_controllers: Array[WeakRef] = []
@@ -86,7 +86,7 @@ func _test_columns(world: Node) -> void:
 		assert(footing_mesh.bottom_radius <= 0.5 and footing_mesh.top_radius <= 0.5, "Footing extends beyond collider")
 		assert(is_equal_approx(footing.position.y - footing_mesh.height * 0.5, 0.0), "Footing floats above ground")
 		for part: Dictionary in controller.get("_parts"):
-			assert(part.visual.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY or not part.visual.visible)
+			assert(part.visual.visible and part.visual.cast_shadow == part.shadow)
 		var shapes := column.find_children("*", "CollisionShape3D", true, false)
 		assert(shapes.size() == 1 and not (shapes[0] as CollisionShape3D).disabled)
 		camera.global_position = column.global_position + Vector3(4, 3, -2)
@@ -116,9 +116,15 @@ func _unit_test() -> void:
 	controller.set_process(false)
 	controller._process(0.016)
 	assert(controller.active)
-	assert(wall.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
+	assert(wall.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON)
 	assert(base.visible and base.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON)
-	assert(not glass.visible and glass.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+	assert(glass.visible and glass.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+	# A blocker behind the player must not request a silhouette.
+	target.position = Vector3(0, 0, 3)
+	controller._process(0.23)
+	assert(not controller.active and wall.visible and glass.visible)
+	target.position = Vector3(0, 0, -3)
+	controller._process(0.016)
 	target.position = Vector3(8, 0, 5)
 	controller._process(0.1)
 	assert(controller.active)

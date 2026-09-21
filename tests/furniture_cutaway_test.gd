@@ -36,7 +36,7 @@ func _run() -> void:
 		_check(not parts.is_empty(), "Furniture cutaway has no parts")
 		for part: Dictionary in parts:
 			var visual := part.visual as GeometryInstance3D
-			_check(visual.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY or not visual.visible, "Occluding furniture still drawn")
+			_check(visual.visible and visual.cast_shadow == part.shadow, "Occluding furniture must remain drawn with original shadows")
 		_check(room.get_node("ShelfCollision").get_child(0) is CollisionShape3D, "Cutaway removed collision")
 		_check(room.has_node("inspect_house_shelf"), "Cutaway removed interaction")
 		camera.global_position = Vector3(3.0, 3.0, 1.6)

@@ -1,6 +1,6 @@
 extends Node
-## Renderer-independent foreground cutaway for static scenery.
-## Keeps low foundations, physics, interactions and shadow casting intact.
+## Broad-phase obstruction hint for the depth-masked character silhouette.
+## Scenery, materials, collisions and shadow casting always remain intact.
 
 const RESTORE_DELAY: float = 0.22
 var active: bool = false
@@ -20,6 +20,15 @@ func configure(house: Node3D, target: Node3D, camera: Camera3D, group: StringNam
 	process_priority = 20 # Evaluate after the camera rig finishes following/orbiting.
 	_collect(house)
 	add_to_group(group)
+	var sprite := target.get_node_or_null("Sprite3D") as AnimatedSprite3D
+	if sprite != null:
+		var hint := target.get_node_or_null("OccludedCharacter")
+		if hint == null:
+			hint = preload("res://scripts/gameplay/occluded_character.gd").new()
+			hint.name = "OccludedCharacter"
+			target.add_child(hint)
+			hint.configure(sprite)
+		hint.register(self)
 
 
 func _collect(node: Node) -> void:
@@ -86,13 +95,6 @@ func _set_active(value: bool) -> void:
 	if value == active:
 		return
 	active = value
-	for part: Dictionary in _parts:
-		var visual: GeometryInstance3D = part.visual
-		if is_instance_valid(visual):
-			if part.shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
-				visual.visible = not active
-			else:
-				visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY if active else part.shadow
 
 
 func _exit_tree() -> void:
