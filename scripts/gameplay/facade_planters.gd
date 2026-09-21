@@ -1,5 +1,5 @@
 extends RefCounted
-## Wall-mounted rear/side planting: no ground obstacle or doorway changes.
+## Wall-mounted planting; HouseExterior adds collision after visual scaling.
 ## Reuses original timber and flower art; each wooden box is one mesh batch.
 
 const FLOWERS: Array[Texture2D] = [

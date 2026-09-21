@@ -13,6 +13,8 @@ var _distance: float
 var _indoors: bool = false
 var _outdoor_distance: float
 var _outdoor_yaw: float
+var _dialogue_occlusion := preload("res://scripts/gameplay/dialogue_occlusion.gd").new()
+var _dialogue_partner: Node3D
 var _dialogue_active: bool = false
 var _dialogue_blend: float = 0.0
 var _dialogue_focus: Vector3
@@ -33,6 +35,7 @@ func begin_dialogue_shot(partner: Node3D) -> void:
 		side_yaw += PI
 	_dialogue_yaw = side_yaw if separation.length() > 0.1 else rotation.y
 	_dialogue_distance = clampf(separation.length() * 1.6 + 3.5, 6.2, 10.0)
+	_dialogue_partner = partner
 	_dialogue_active = true
 
 
@@ -61,6 +64,8 @@ func set_interior(enabled: bool) -> void:
 
 
 func snap_to_target() -> void:
+	_dialogue_occlusion.restore()
+	_dialogue_partner = null
 	_dialogue_active = false
 	_dialogue_blend = 0.0
 	if _target == null:
@@ -72,6 +77,7 @@ func snap_to_target() -> void:
 
 
 func _ready() -> void:
+	add_child(_dialogue_occlusion)
 	GameState.state_changed.connect(_on_state_changed)
 	_target = get_node_or_null(target_path) as Node3D
 	_distance = starting_distance
@@ -120,13 +126,21 @@ func _process(delta: float) -> void:
 	rotation.y = lerp_angle(rotation.y, desired_yaw, 1.0 - exp(-delta * 8.0))
 	_update_camera_local_position()
 	camera.look_at(global_position + Vector3.UP * 0.78, Vector3.UP)
+	var subjects: Array[Node3D] = []
+	if _dialogue_blend > 0.0 and is_instance_valid(_dialogue_partner):
+		subjects.assign([_target, _dialogue_partner])
+	_dialogue_occlusion.update(subjects, delta)
 
 
 func _update_camera_local_position() -> void:
 	var shot_weight: float = smoothstep(0.0, 1.0, _dialogue_blend)
 	var shot_distance: float = lerpf(_distance, _dialogue_distance, shot_weight)
 	if _indoors:
-		# Preserve zoom without shrinking distant residents.
+		# Preserve zoom and dialogue framing without shrinking distant people.
 		camera.size = shot_distance * 0.64
 	var elevation: float = lerpf(0.56, 0.40, shot_weight)
 	camera.position = Vector3(0.0, shot_distance * elevation, shot_distance * 0.83)
+
+
+func configure_dialogue_scenery(scenery: Node3D) -> void:
+	_dialogue_occlusion.configure(scenery, camera)

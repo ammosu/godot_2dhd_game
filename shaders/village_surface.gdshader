@@ -4,6 +4,8 @@ render_mode specular_disabled;
 uniform sampler2D meadow_texture : source_color, filter_nearest, repeat_enable;
 uniform sampler2D cobble_texture : source_color, filter_nearest, repeat_enable;
 uniform bool road_surface = false;
+uniform bool organic_village = false;
+uniform float road_brightness = 1.0;
 uniform bool planted_island = true;
 // Filled from the actual BoxMesh footprints, never a second map definition.
 uniform vec4 plaza_rect;
@@ -17,6 +19,28 @@ varying vec3 surface_world;
 float rectangle_distance(vec2 point, vec2 center, vec2 half_size) {
 	vec2 d = abs(point - center) - half_size;
 	return length(max(d, vec2(0.0))) + min(max(d.x, d.y), 0.0);
+}
+
+// Continuous world-space paths: the ground and shallow overlays share this mask.
+float village_distance(vec2 p) {
+	vec2 plaza = p - vec2(0.2, 0.1);
+	float edge = (length(plaza / vec2(4.25, 4.1)) - 1.0) * 4.1;
+	edge += sin(p.x * 1.3 + p.y * 0.8) * 0.12;
+	vec2 north = p;
+	north.x -= sin(p.y * 0.30) * 0.48;
+	edge = min(edge, rectangle_distance(north, north_rect.xy, north_rect.zw));
+	vec2 market = p;
+	market.y -= sin(p.x * 0.28) * 0.65;
+	edge = min(edge, rectangle_distance(market, market_rect.xy, market_rect.zw));
+	vec2 gate = p;
+	gate.y -= sin(p.x * 0.32 + 0.4) * 0.50;
+	edge = min(edge, rectangle_distance(gate, gate_rect.xy, gate_rect.zw));
+	// Share the east-road junction with the garden overlays to avoid grass seams.
+	edge = min(edge, rectangle_distance(p, vec2(20.75, 4.6), vec2(6.25, 1.8)));
+	// A softened, gently uneven perimeter instead of four ruler-straight sides.
+	vec2 garden = p + vec2(sin(p.y * 0.32) * 0.38, sin(p.x * 0.25) * 0.40);
+	float ring = rectangle_distance(garden, vec2(0.0), vec2(15.7, 13.5)) - 3.3;
+	return min(edge, abs(ring) - 0.90);
 }
 
 void vertex() {
@@ -34,11 +58,14 @@ void fragment() {
 	edge = min(edge, rectangle_distance(p, north_rect.xy, north_rect.zw));
 	edge = min(edge, rectangle_distance(p, market_rect.xy, market_rect.zw));
 	edge = min(edge, rectangle_distance(p, gate_rect.xy, gate_rect.zw));
+	if (organic_village) {
+		edge = village_distance(p);
+	}
 	float breakup = sin(p.x * 14.0 + sin(p.y * 9.0)) * sin(p.y * 17.0 + p.x * 3.0);
 	float wear = 1.0 - smoothstep(0.0, 0.40, max(edge, 0.0));
 	grass = mix(grass, soil_color.rgb, wear * 0.13);
-	if (road_surface) {
-		vec3 cobble = texture(cobble_texture, p / 3.2).rgb * vec3(0.96, 0.88, 0.78);
+	if (road_surface || organic_village) {
+		vec3 cobble = texture(cobble_texture, p / 3.2).rgb * vec3(0.96, 0.88, 0.78) * road_brightness;
 		float paving = smoothstep(0.04, 0.32, -edge + breakup * 0.10);
 		// The central planted island breaks up the uninterrupted stone square.
 		if (planted_island) {

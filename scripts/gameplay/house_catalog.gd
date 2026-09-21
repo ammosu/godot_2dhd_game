@@ -6,14 +6,14 @@ const INTERIOR_CHARACTER_SCALE: float = 1.35
 const EXTERIOR_COLLISION := Vector3(4.0, 2.3, 3.2) * EXTERIOR_SCALE
 
 const HOMES: Array[Dictionary] = [
-	{"id": "house_01", "name": "西街木屋", "position": Vector3(-12, 0, -8), "yaw": -PI * 0.5, "wall": Color("806967"), "roof": Color("59465f")},
-	{"id": "house_02", "name": "花園小屋", "position": Vector3(-12, 0, 1.2), "yaw": -PI * 0.5, "wall": Color("73736a"), "roof": Color("5a4965")},
-	{"id": "house_03", "name": "東街居所", "position": Vector3(12, 0, -3), "yaw": PI * 0.5, "wall": Color("667776"), "roof": Color("47566b")},
-	{"id": "house_04", "name": "陶匠小屋", "position": Vector3(12, 0, 6), "yaw": PI * 0.5, "wall": Color("826b61"), "roof": Color("654957")},
-	{"id": "house_05", "name": "南街暖屋", "position": Vector3(-11, 0, 10.7), "yaw": 0.0, "wall": Color("765f70"), "roof": Color("50445f")},
-	{"id": "house_06", "name": "旅人居所", "position": Vector3(-4.8, 0, 11), "yaw": 0.0, "wall": Color("6c747d"), "roof": Color("46536a")},
-	{"id": "house_07", "name": "東南小屋", "position": Vector3(12, 0, 12.3), "yaw": 0.0, "wall": Color("706a80"), "roof": Color("514b6e")},
-	{"id": "house_08", "name": "北街書屋", "position": Vector3(-6, 0, -11), "yaw": PI, "wall": Color("7f725d"), "roof": Color("624b51")},
+	{"id": "house_01", "name": "西街木屋", "position": Vector3(-12.7, 0, -8.5), "yaw": -PI * 0.5 + 0.13, "wall": Color("806967"), "roof": Color("59465f")},
+	{"id": "house_02", "name": "花園小屋", "position": Vector3(-11.5, 0, 0.6), "yaw": -PI * 0.5 - 0.16, "wall": Color("73736a"), "roof": Color("5a4965")},
+	{"id": "house_03", "name": "東街居所", "position": Vector3(12.6, 0, -3.4), "yaw": PI * 0.5 - 0.12, "wall": Color("667776"), "roof": Color("47566b")},
+	{"id": "house_04", "name": "陶匠小屋", "position": Vector3(12.2, 0, 5.9), "yaw": PI * 0.5 + 0.15, "wall": Color("826b61"), "roof": Color("654957")},
+	{"id": "house_05", "name": "南街暖屋", "position": Vector3(-11.8, 0, 10.4), "yaw": -0.14, "wall": Color("765f70"), "roof": Color("50445f")},
+	{"id": "house_06", "name": "旅人居所", "position": Vector3(-5.0, 0, 12.0), "yaw": 0.18, "wall": Color("6c747d"), "roof": Color("46536a")},
+	{"id": "house_07", "name": "東南小屋", "position": Vector3(12.5, 0, 13.6), "yaw": -0.12, "wall": Color("706a80"), "roof": Color("514b6e")},
+	{"id": "house_08", "name": "北街書屋", "position": Vector3(-6.4, 0, -11.6), "yaw": PI + 0.16, "wall": Color("7f725d"), "roof": Color("624b51")},
 ]
 
 
@@ -28,6 +28,14 @@ const RESIDENTS: Dictionary = {
 	"house_07": {"name": "藥師・賽芙", "art": "residents/seph", "tint": Color.WHITE, "text": "這些草藥正在陰乾，聞起來有點苦。筆記裡有幾種藥草只長在舊道附近，如今已很難採到了。"},
 	"house_08": {"name": "藏書人・歐文", "art": "residents/owen", "tint": Color.WHITE, "text": "書可以翻，請輕一點。建村紀錄少了幾頁，撕痕卻很整齊……我一直想知道，被帶走的是誰的故事。"},
 }
+
+
+# Fixed street identities share names/art with their homes, but have outdoor lines.
+const STREET_PATROLS: Array[Dictionary] = [
+	{"house_id": "house_02", "text": "我每天都會來廣場看看花。今天的風很輕，正適合帶幼苗出來曬一會兒。"},
+	{"house_id": "house_01", "text": "織布坐久了，就得出來走走。市集裡布料的顏色，常常能給我新的靈感。"},
+	{"house_id": "house_08", "text": "讀到難懂的段落，我就沿著北街散步。有時走到路口，答案便自己浮現了。"},
+]
 
 
 const FURNITURE: Dictionary = {

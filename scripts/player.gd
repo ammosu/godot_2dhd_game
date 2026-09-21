@@ -23,6 +23,8 @@ var _interaction_area: Area3D
 var _footsteps := Footsteps.new()
 var _last_step_position: Vector3
 var _footstep_map: String = ""
+var _door_facing_locked: bool = false
+var _door_facing_target: Vector3 = Vector3.ZERO
 
 
 func _ready() -> void:
@@ -134,6 +136,9 @@ func _camera_relative_direction(input_vector: Vector2) -> Vector3:
 
 
 func _update_sprite(input_vector: Vector2, move_direction: Vector3, delta: float) -> void:
+	if _door_facing_locked:
+		input_vector = EightWayFacing.screen_direction(_door_facing_target - global_position, get_viewport().get_camera_3d())
+		_update_facing_column(input_vector)
 	if not move_direction.is_zero_approx():
 		_walk_time += delta * 8.0
 		_update_facing_column(input_vector)
@@ -188,6 +193,43 @@ func make_conversation_space(partner: Node3D) -> void:
 			break
 	for body: PhysicsBody3D in ignored_bodies:
 		remove_collision_exception_with(body)
+
+
+func walk_to_door_point(target: Vector3, speed: float = 2.8) -> bool:
+	# Keep scripted steps collision-aware and animate them like ordinary walking.
+	var was_processing := is_physics_processing()
+	set_physics_process(false)
+	var reached: bool = false
+	for step: int in range(240):
+		await get_tree().physics_frame
+		var offset := Vector3(target.x - global_position.x, 0, target.z - global_position.z)
+		if offset.length() < 0.035:
+			reached = true
+			break
+		var delta := get_physics_process_delta_time()
+		var direction := offset.normalized()
+		velocity = direction * minf(speed, offset.length() / delta)
+		velocity.y = -2.0
+		var before := global_position
+		move_and_slide()
+		_update_sprite(EightWayFacing.screen_direction(direction, get_viewport().get_camera_3d()), direction, delta)
+		if Vector2(global_position.x - before.x, global_position.z - before.z).length() < 0.001:
+			break
+	velocity = Vector3.ZERO
+	_update_sprite(Vector2.ZERO, Vector3.ZERO, 0.0)
+	_last_step_position = global_position
+	set_physics_process(was_processing)
+	return reached
+
+
+func lock_door_facing(target: Vector3) -> void:
+	_door_facing_target = target
+	_door_facing_locked = true
+	face_world_position(target)
+
+
+func release_door_facing() -> void:
+	_door_facing_locked = false
 
 
 func face_world_position(target: Vector3) -> void:

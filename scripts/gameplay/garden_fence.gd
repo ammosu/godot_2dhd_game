@@ -1,5 +1,5 @@
 extends RefCounted
-## Visual-only split-rail fence. Wood grain follows each beam's long axis.
+## Solid split-rail fence. Wood grain follows each beam's long axis.
 
 
 static func build(parent: Node3D, origin: Vector3, width: float) -> Node3D:
@@ -8,6 +8,7 @@ static func build(parent: Node3D, origin: Vector3, width: float) -> Node3D:
 	root.name = "GardenFence"
 	root.position = origin
 	parent.add_child(root)
+	preload("res://scripts/gameplay/prop_collision.gd").box(root, Vector3(0, 0.48, 0), Vector3(width, 0.96, 0.18))
 	var wood := StandardMaterial3D.new()
 	wood.albedo_texture = load("res://assets/generated/timber_albedo.png") as Texture2D
 	wood.albedo_color = Color("b1a18c")

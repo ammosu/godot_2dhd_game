@@ -145,9 +145,22 @@ static func _build_door(root: Node3D, timber: Material) -> void:
 	wood.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	wood.roughness = 0.9
 	wood.uv1_scale = Vector3(0.14, 1.0, 1.0)
-	# Separate narrow boards leave dark joints against the existing door backing.
+	var doorway := StandardMaterial3D.new()
+	doorway.albedo_color = Color("100d12")
+	doorway.roughness = 1.0
+	_box(root, Vector3(0.0, 0.91, -0.80), Vector3(0.78, 1.42, 0.025), doorway)
+	var hinge := Node3D.new()
+	hinge.name = "DoorHinge"
+	hinge.position = Vector3(-0.39, 0.88, -1.66)
+	root.add_child(hinge)
+	var leaf := Node3D.new()
+	leaf.name = "DoorLeaf"
+	leaf.position = -hinge.position
+	hinge.add_child(leaf)
+	_box(leaf, Vector3(0.0, 0.88, -1.66), Vector3(0.78, 1.42, 0.14), timber)
+	# Boards, straps and handle all move with the door leaf.
 	for board_index: int in range(5):
-		_box(root, Vector3(float(board_index - 2) * 0.143, 0.91, -1.746), Vector3(0.135, 1.24, 0.035), wood)
+		_box(leaf, Vector3(float(board_index - 2) * 0.143, 0.91, -1.746), Vector3(0.135, 1.24, 0.035), wood)
 	for side: float in [-1.0, 1.0]:
 		_box(root, Vector3(side * 0.43, 0.91, -1.76), Vector3(0.12, 1.48, 0.15), timber)
 	_box(root, Vector3(0.0, 1.63, -1.76), Vector3(0.98, 0.14, 0.15), timber)
@@ -156,7 +169,7 @@ static func _build_door(root: Node3D, timber: Material) -> void:
 	iron.metallic = 0.65
 	iron.roughness = 0.6
 	for height: float in [0.53, 1.26]:
-		_box(root, Vector3(-0.10, height, -1.776), Vector3(0.49, 0.055, 0.025), iron)
+		_box(leaf, Vector3(-0.10, height, -1.776), Vector3(0.49, 0.055, 0.025), iron)
 	var handle := MeshInstance3D.new()
 	var ring := TorusMesh.new()
 	ring.inner_radius = 0.029
@@ -167,7 +180,7 @@ static func _build_door(root: Node3D, timber: Material) -> void:
 	handle.material_override = iron
 	handle.rotation.x = PI / 2.0
 	handle.position = Vector3(0.23, 0.92, -1.80)
-	root.add_child(handle)
+	leaf.add_child(handle)
 	var stone := StandardMaterial3D.new()
 	stone.albedo_texture = load("res://assets/generated/ruin_flagstone.png") as Texture2D
 	stone.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST

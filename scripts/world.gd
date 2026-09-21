@@ -254,10 +254,22 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 			target_position = HouseCatalog.safe_village_position(target_position)
 	player.global_position = target_position
 	player.velocity = Vector3.ZERO
+	player.release_door_facing()
 	($CameraRig as Hd2dCameraRig).snap_to_target()
+	($CameraRig as Hd2dCameraRig).configure_dialogue_scenery(_map_root)
+	if HouseCatalog.is_interior(map_id) and spawn_id == "entry":
+		player.face_world_position(player.global_position + Vector3.FORWARD)
+	elif map_id == "village" and spawn_id.begins_with("from_house_"):
+		for home: Dictionary in HouseCatalog.HOMES:
+			if str(home.id) == spawn_id.trim_prefix("from_"):
+				player.face_world_position(player.global_position + Vector3.FORWARD.rotated(Vector3.UP, float(home.yaw)))
+				break
 	GameMusic.sync_to_state()
 	GameAmbience.sync_to_state()
 	_refresh_hud()
+	if spawn_id in ["from_east_road", "from_village", "from_forest", "from_road", "from_ruins"]:
+		var destination: String = str(Outskirts.NAMES.get(GameState.current_map, "北境遺跡" if GameState.current_map == "ruins" else "暮光村"))
+		_show_notice("抵達・" + destination)
 	_profile_map_stamp("total_" + map_id, profile_started)
 
 
@@ -337,16 +349,16 @@ func _build_village() -> void:
 	_add_cobble_box("NorthRoad", Vector3(0.0, 0.025, -3.75), Vector3(2.35, 0.08, 32.5), false)
 	_add_cobble_box("MarketRoad", Vector3(0.0, 0.023, 4.6), Vector3(29.0, 0.075, 2.25), false)
 	_add_cobble_box("GateRoad", Vector3(0.0, 0.022, -4.8), Vector3(29.0, 0.07, 1.9), false)
-	_configure_village_surfaces()
 	_build_village_routes()
 	# Outer garden promenade expands exploration without stretching the village square.
 	for x_position: float in [-19.0, 19.0]:
 		_add_cobble_box("GardenWalk", Vector3(x_position, 0.022, 0), Vector3(1.8, 0.07, 34), false)
 	for z_position: float in [-16.8, 16.8]:
 		_add_cobble_box("GardenWalk", Vector3(0, 0.022, z_position), Vector3(38, 0.07, 1.8), false)
+	_configure_village_surfaces()
 	for x_position: float in [-20.7, 20.7]:
 		for z_position: float in [-15, -7, 2, 11, 17]:
-			_add_tree(Vector3(x_position, 0, z_position))
+			_add_tree(Vector3(x_position + sin(z_position * 1.7) * 0.55, 0, z_position + cos(z_position) * 0.75))
 	for position: Vector3 in [Vector3(-19, 0, -12), Vector3(19, 0, -12), Vector3(-19, 0, 10), Vector3(19, 0, 10), Vector3(-6, 0, 16.8), Vector3(6, 0, 16.8)]:
 		_add_lamp(position)
 	stamp = _profile_map_stamp("village_surfaces", stamp)
@@ -421,18 +433,32 @@ func _add_wandering_villagers() -> void:
 		PackedVector3Array([Vector3(-3.0, 0.15, 5.5), Vector3(-9.0, 0.15, 5.5)]),
 		PackedVector3Array([Vector3(0.0, 0.15, -6.0), Vector3(0.0, 0.15, -12.0)]),
 	]
-	var roster: Array[String] = preload("res://scripts/gameplay/resident_art.gd").IDENTITIES.duplicate()
-	roster.shuffle()
 	for index: int in range(routes.size()):
+		var patrol: Dictionary = HouseCatalog.STREET_PATROLS[index]
+		var resident: Dictionary = HouseCatalog.RESIDENTS[patrol.house_id]
 		var villager := preload("res://scripts/gameplay/wandering_villager.gd").new()
 		villager.name = "WalkingVillager%d" % (index + 1)
 		villager.route = routes[index]
 		villager.position = routes[index][0]
 		villager.player = player
-		villager.resident_id = roster[index]
+		villager.resident_id = str(resident.art).get_file()
+		villager.display_name = str(resident.name)
+		villager.dialogue_text = str(patrol.text)
+		villager.conversation_requested.connect(_talk_to_wandering_villager)
 		villager.speed = 0.7 + float(index) * 0.12
 		villager.wait_time = float(index) * 0.8
 		_map_root.add_child(villager)
+
+
+func _talk_to_wandering_villager(villager: CharacterBody3D) -> void:
+	if GameState.is_input_locked() or _portal_transition_pending or GameState.current_map != "village":
+		return
+	player.make_conversation_space(villager)
+	player.face_world_position(villager.global_position)
+	dialogue_ui.show_dialogue([{"speaker": str(villager.get("display_name")), "text": str(villager.get("dialogue_text"))}])
+	var art := villager.get_node("CharacterArt") as Sprite3D
+	art.call("turn_to", player)
+	($CameraRig as Hd2dCameraRig).begin_dialogue_shot(art)
 
 
 func _build_village_routes() -> void:
@@ -441,24 +467,34 @@ func _build_village_routes() -> void:
 	_add_cobble_box("NorthApproachRoad", Vector3(0, 0.025, -22.0), Vector3(2.35, 0.08, 5.5), false)
 	for side: float in [-1.0, 1.0]:
 		_add_tree(Vector3(side * 4.0, 0, -22.0))
-	# North leads to the main quest; east leads to optional woodland routes.
-	_add_box("BoundaryWall", Vector3(-22.3, 0.75, 0.0), Vector3(0.7, 1.8, 39.0), PALETTE.stone_dark, true)
-	_add_box("BoundaryWall", Vector3(0.0, 0.75, 19.3), Vector3(45.3, 1.8, 0.7), PALETTE.stone_dark, true)
-	for side: float in [-1.0, 1.0]:
-		_add_box("BoundaryWall", Vector3(side * 12.2, 0.75, -19.3), Vector3(20.9, 1.8, 0.7), PALETTE.stone_dark, true)
-	# Leave a 3.4 m opening on the east perimeter, well clear of the homes.
-	_add_box("BoundaryWall", Vector3(22.3, 0.75, -8.2), Vector3(0.7, 1.8, 22.2), PALETTE.stone_dark, true)
-	_add_box("BoundaryWall", Vector3(22.3, 0.75, 12.8), Vector3(0.7, 1.8, 13.0), PALETTE.stone_dark, true)
+	# Clipped, uneven corners soften the enclosure; preserve both portal gaps.
+	var boundary: Array[Vector2] = [
+		Vector2(1.75, -19.3), Vector2(17.8, -19.3), Vector2(21.5, -16.7),
+		Vector2(22.3, -9.0), Vector2(22.3, 2.1),
+		Vector2(22.3, 7.1), Vector2(21.9, 15.7), Vector2(18.2, 19.0),
+		Vector2(6.0, 19.3), Vector2(-16.8, 19.0), Vector2(-22.0, 15.4),
+		Vector2(-22.3, 4.0), Vector2(-21.8, -15.8), Vector2(-17.8, -19.3), Vector2(-1.75, -19.3),
+	]
+	for index: int in range(boundary.size() - 1):
+		if index == 4:
+			continue # East road opening.
+		var start: Vector2 = boundary[index]
+		var finish: Vector2 = boundary[index + 1]
+		var middle: Vector2 = (start + finish) * 0.5
+		_add_box("BoundaryWall", Vector3(middle.x, 0.75, middle.y), Vector3(0.7, 1.8, start.distance_to(finish) + 0.2), PALETTE.stone_dark, true)
+		(_map_root.get_child(_map_root.get_child_count() - 1) as Node3D).rotation.y = atan2(finish.x - start.x, finish.y - start.y)
 	_add_box("OutskirtsGround", Vector3(29.0, -0.38, 4.6), Vector3(16.0, 0.7, 19.0), Color("304b48"), false)
-	_add_cobble_box("EastRoad", Vector3(30.5, 0.022, 4.6), Vector3(8.0, 0.075, 2.25), false)
+	_add_cobble_box("EastRoad", Vector3(30.5, 0.022, 4.6), Vector3(8.0, 0.075, 3.6), false)
 	for tree_position: Vector3 in [Vector3(29, 0, 0), Vector3(32, 0, 1), Vector3(29, 0, 10), Vector3(33, 0, 9)]:
 		_add_tree(tree_position)
 	_add_box("EastRoadGround", Vector3(24.5, -0.35, 4.6), Vector3(6.0, 0.7, 5.0), Color("304b48"), true)
-	_add_cobble_box("EastRoad", Vector3(20.75, 0.025, 4.6), Vector3(12.5, 0.08, 2.25), false)
-	# Keep the interaction-only map edge safe while the visible road continues beyond it.
+	_add_cobble_box("EastRoad", Vector3(20.75, 0.025, 4.6), Vector3(12.5, 0.08, 3.6), false)
+	# A safety backstop sits beyond the automatic walking threshold.
 	_add_box("EastTrailEdge", Vector3(27.25, 0.5, 4.6), Vector3(0.35, 1.0, 5), Color("405b49"), true)
 	for z: float in [2.25, 6.95]:
 		_add_box("EastTrailEdge", Vector3(25, 0.5, z), Vector3(4.5, 1.0, 0.3), Color("405b49"), true)
+	for at: Vector3 in [Vector3(18.2, 0, 2.35), Vector3(18.2, 0, 6.85), Vector3(22.3, 0, 1.95), Vector3(22.3, 0, 7.25)]:
+		_add_lamp(at)
 	Outskirts.add_interaction(self, "travel_east", "東行・前往東行舊道", Vector3(26, 0, 4.6), true)
 
 
@@ -534,6 +570,63 @@ func _add_house_resident(house_id: String) -> void:
 	actor.add_child(body)
 
 
+func _open_house_door(destination: String) -> void:
+	var source_map: Node3D = _map_root
+	var doorway: Node3D
+	var hinge: Node3D
+	for house: Node in source_map.get_children():
+		if house.get_meta("house_id", "") == destination:
+			doorway = house as Node3D
+			hinge = house.get_node("ArchitecturalDetails/DoorHinge") as Node3D
+			break
+	if hinge == null:
+		_portal_transition_pending = false
+		return
+	GameState.set_mode(GameState.Mode.TRANSITION)
+	player.velocity = Vector3.ZERO
+	player.lock_door_facing(doorway.global_position)
+	var retreat := doorway.to_global(Vector3(0, 0, -3.15) * HouseCatalog.EXTERIOR_SCALE)
+	if not await player.walk_to_door_point(retreat, 1.6):
+		player.release_door_facing()
+		_portal_transition_pending = false
+		GameState.set_mode(GameState.Mode.EXPLORE)
+		return
+	player.face_world_position(doorway.global_position)
+	var opening := create_tween()
+	opening.tween_property(hinge, "rotation:y", PI * 0.48, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	opening.tween_interval(0.15)
+	await opening.finished
+	if not is_instance_valid(doorway):
+		return
+	var threshold := doorway.to_global(Vector3(0, 0, -1.92) * HouseCatalog.EXTERIOR_SCALE)
+	if not await player.walk_to_door_point(threshold):
+		var closing := create_tween()
+		closing.tween_property(hinge, "rotation:y", 0.0, 0.35)
+		await closing.finished
+		player.release_door_facing()
+		_portal_transition_pending = false
+		GameState.set_mode(GameState.Mode.EXPLORE)
+		return
+	if is_instance_valid(source_map) and source_map == _map_root and GameState.current_map == "village":
+		GameState.request_map(destination, "entry")
+	if GameState.mode == GameState.Mode.TRANSITION:
+		GameState.set_mode(GameState.Mode.EXPLORE)
+
+
+func _leave_house() -> void:
+	var source_map: Node3D = _map_root
+	var source_id: String = GameState.current_map
+	var room := source_map.get_node("HouseInterior") as HouseInterior
+	GameState.set_mode(GameState.Mode.TRANSITION)
+	player.velocity = Vector3.ZERO
+	player.lock_door_facing(room.to_global(Vector3(0, 0, 3.37)))
+	await room.open_exit_door()
+	if is_instance_valid(source_map) and source_map == _map_root and GameState.current_map == source_id:
+		GameState.request_map("village", "from_" + source_id)
+	if GameState.mode == GameState.Mode.TRANSITION:
+		GameState.set_mode(GameState.Mode.EXPLORE)
+
+
 func _handle_interaction(interaction_id: String) -> void:
 	if GameState.is_input_locked() or _portal_transition_pending:
 		return
@@ -549,7 +642,7 @@ func _handle_interaction(interaction_id: String) -> void:
 		var destination := interaction_id.trim_prefix("enter_")
 		if GameState.current_map == "village" and HouseCatalog.is_interior(destination):
 			_portal_transition_pending = true
-			GameState.request_map(destination, "entry")
+			_open_house_door(destination)
 		return
 	if Outskirts.EXITS.has(interaction_id):
 		var route: Array = Outskirts.EXITS[interaction_id]
@@ -565,7 +658,7 @@ func _handle_interaction(interaction_id: String) -> void:
 	if interaction_id == "leave_house":
 		if HouseCatalog.is_interior(GameState.current_map):
 			_portal_transition_pending = true
-			GameState.request_map("village", "from_" + GameState.current_map)
+			_leave_house()
 		return
 	if interaction_id == "inspect_house_shelf":
 		if not HouseCatalog.is_interior(GameState.current_map):
@@ -1339,10 +1432,14 @@ func _configure_village_surfaces() -> void:
 		"CentralPlaza": "plaza_rect", "NorthRoad": "north_rect",
 		"MarketRoad": "market_rect", "GateRoad": "gate_rect",
 	}
-	var surfaces: Array[String] = ["Ground", "CentralPlaza", "NorthRoad", "MarketRoad", "GateRoad"]
-	for surface_name: String in surfaces:
-		var surface := _map_root.get_node(surface_name).get_child(0) as MeshInstance3D
+	var surfaces: Array[Node] = []
+	for child: Node in _map_root.get_children():
+		if str(child.name) in ["Ground", "CentralPlaza", "NorthRoad", "MarketRoad", "GateRoad"] or child.is_in_group("village_garden_walks"):
+			surfaces.append(child)
+	for surface_root: Node in surfaces:
+		var surface := surface_root.get_child(0) as MeshInstance3D
 		var material := surface.material_override as ShaderMaterial
+		material.set_shader_parameter("organic_village", true)
 		for road_name: String in roads:
 			var road := _map_root.get_node(road_name) as Node3D
 			var mesh := (road.get_child(0) as MeshInstance3D).mesh as BoxMesh
@@ -1361,6 +1458,8 @@ func _make_village_surface(road_surface: bool) -> ShaderMaterial:
 func _add_cobble_box(node_name: String, world_position: Vector3, size: Vector3, collision: bool) -> void:
 	var root: Node3D = StaticBody3D.new() if collision else Node3D.new()
 	root.name = node_name
+	if node_name == "GardenWalk":
+		root.add_to_group("village_garden_walks")
 	root.position = world_position
 	_map_root.add_child(root)
 	Footsteps.register_surface(root, size, &"stone", 10)
@@ -1371,6 +1470,8 @@ func _add_cobble_box(node_name: String, world_position: Vector3, size: Vector3, 
 	mesh_instance.material_override = _make_village_surface(true)
 	if node_name in ["GardenWalk", "EastRoad", "NorthApproachRoad", "SouthApproachRoad"]:
 		(mesh_instance.material_override as ShaderMaterial).set_shader_parameter("plaza_rect", Vector4(world_position.x, world_position.z, size.x * 0.5, size.z * 0.5))
+	if node_name == "EastRoad":
+		(mesh_instance.material_override as ShaderMaterial).set_shader_parameter("road_brightness", 1.12)
 	# Visual paving and collision share the same top, avoiding invisible steps.
 	mesh_instance.position.y = 0.006 - world_position.y - size.y * 0.5
 	# These shallow paving overlays blend into the ground; their straight box
@@ -1389,6 +1490,7 @@ func _add_cobble_box(node_name: String, world_position: Vector3, size: Vector3, 
 func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, rotation_y: float, house_id: String) -> void:
 	var house := StaticBody3D.new()
 	house.name = "VillageHouse"
+	house.set_meta("house_id", house_id)
 	house.position = world_position
 	house.rotation.y = rotation_y
 	_map_root.add_child(house)
@@ -1410,13 +1512,16 @@ func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, r
 	foundation_material.albedo_texture = _art_texture("res://assets/generated/ruin_flagstone.png")
 	foundation_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_add_portal_box(house, Vector3(0.0, 0.18, 0.0), Vector3(4.16, 0.35, 3.36), foundation_material)
-	_add_portal_box(house, Vector3(0.0, 1.15, 0.0), Vector3(4.0, 1.9, 3.2), wall_material)
+	# Leave an actual doorway recess so the inward swing does not enter plaster.
+	for side: float in [-1.0, 1.0]:
+		_add_portal_box(house, Vector3(side * 1.205, 1.15, 0.0), Vector3(1.59, 1.9, 3.2), wall_material)
+	_add_portal_box(house, Vector3(0.0, 1.86, 0.0), Vector3(0.82, 0.48, 3.2), wall_material)
+	_add_portal_box(house, Vector3(0.0, 0.91, 0.41), Vector3(0.82, 1.42, 2.38), wall_material)
 	for post_x: float in [-1.98, 1.98]:
 		for post_z: float in [-1.60, 0.0, 1.60]:
 			_add_portal_box(house, Vector3(post_x, 1.18, post_z), Vector3(0.16, 1.75, 0.16), timber_material)
 	_add_portal_box(house, Vector3(0.0, 1.7, -1.64), Vector3(3.85, 0.13, 0.12), timber_material)
 
-	_add_portal_box(house, Vector3(0.0, 0.88, -1.66), Vector3(0.78, 1.42, 0.14), timber_material)
 	_add_portal_box(house, Vector3(-1.25, 1.18, -1.67), Vector3(0.62, 0.62, 0.11), window_material)
 	_add_portal_box(house, Vector3(1.25, 1.18, -1.67), Vector3(0.62, 0.62, 0.11), window_material)
 	_add_portal_box(house, Vector3(0.0, 0.12, -2.0), Vector3(1.35, 0.24, 0.72), timber_material)
@@ -1442,6 +1547,7 @@ func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, r
 		if child is Node3D:
 			(child as Node3D).transform = exterior_transform * (child as Node3D).transform
 
+	HouseExterior.build_collision(house, house_id)
 	var collision_shape := CollisionShape3D.new()
 	collision_shape.position.y = 1.15 * HouseCatalog.EXTERIOR_SCALE.y
 	var shape := BoxShape3D.new()
@@ -1533,19 +1639,12 @@ func _add_column(world_position: Vector3) -> void:
 func _add_tree(world_position: Vector3) -> void:
 	var root := Node3D.new()
 	root.name = "VillageOak"
+	root.add_to_group("village_trees")
 	root.position = world_position
 	_map_root.add_child(root)
-	var tree := Sprite3D.new()
-	tree.texture = _art_texture("res://assets/generated/village_oak.png")
-	var height := 3.4
-	tree.pixel_size = height / float(tree.texture.get_height())
-	tree.position.y = height * 0.47
-	tree.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	tree.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	tree.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
-	tree.shaded = true
-	tree.double_sided = true
-	root.add_child(tree)
+	preload("res://scripts/gameplay/tree_variants.gd").decorate(root, world_position)
+	# Trunk-sized obstacle; the broad billboard canopy stays walkable beneath.
+	preload("res://scripts/gameplay/prop_collision.gd").cylinder(root, Vector3(0, 0.8, 0), 0.36, 1.6)
 
 
 func _add_lamp(world_position: Vector3) -> void:
@@ -1626,6 +1725,7 @@ func _add_supply_crate(world_position: Vector3, yaw: float) -> void:
 	crate.rotation.y = yaw
 	crate.add_to_group("supply_crate_art")
 	_map_root.add_child(crate)
+	preload("res://scripts/gameplay/prop_collision.gd").from_meshes(crate)
 	for node: Node in crate.find_children("*", "MeshInstance3D", true, false):
 		var instance := node as MeshInstance3D
 		for surface: int in range(instance.mesh.get_surface_count()):
@@ -1643,6 +1743,7 @@ func _add_crystal(world_position: Vector3, scale_factor: float) -> void:
 	crystal.scale = Vector3.ONE * scale_factor
 	crystal.rotation.y = world_position.x * 0.37 + world_position.z * 0.19
 	_map_root.add_child(crystal)
+	preload("res://scripts/gameplay/prop_collision.gd").from_meshes(crystal, true)
 
 
 func _add_village_pig(world_position: Vector3) -> void:
@@ -1671,6 +1772,7 @@ func _add_earthenware_jar(world_position: Vector3) -> void:
 	jar.rotation.y = 0.3
 	jar.add_to_group("earthenware_jar_art")
 	_map_root.add_child(jar)
+	preload("res://scripts/gameplay/prop_collision.gd").from_meshes(jar, true)
 	for node: Node in jar.find_children("*", "MeshInstance3D", true, false):
 		var instance := node as MeshInstance3D
 		for surface: int in range(instance.mesh.get_surface_count()):

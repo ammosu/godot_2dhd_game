@@ -23,44 +23,66 @@ static func spawn(map_id: String, spawn_id: String) -> Vector3:
 
 
 static func add_interaction(world: Node3D, id: String, prompt: String, at: Vector3, exit: bool = false) -> void:
-	var area := Interactable3D.new()
+	var area: Interactable3D = preload("res://scripts/gameplay/road_exit.gd").new() if exit else Interactable3D.new()
 	area.name = id
 	area.interaction_id = id
-	area.prompt_text = prompt
+	area.prompt_text = "" if exit else prompt
 	area.position = at
 	area.collision_layer = 8
-	area.collision_mask = 0
+	area.collision_mask = 1 if exit else 0
+	if exit:
+		area.set("traveler", world.get_node("Player"))
+		area.set("game_state", world.get_node("/root/GameState"))
+		area.add_to_group("walking_exits")
 	var collider := CollisionShape3D.new()
-	var shape := SphereShape3D.new()
-	shape.radius = 0.8
-	collider.shape = shape
+	if exit:
+		var threshold := BoxShape3D.new()
+		threshold.size = Vector3(0.8, 2.0, 3.6) if id in ["travel_east", "travel_home"] else Vector3(3.6, 2.0, 0.8)
+		collider.shape = threshold
+	else:
+		var shape := SphereShape3D.new()
+		shape.radius = 0.8
+		collider.shape = shape
 	collider.position.y = 0.6
 	area.add_child(collider)
 	area.activated.connect(world._handle_interaction)
 	world.get("_map_root").add_child(area)
+	if exit:
+		# Route mouths use scenery, not floating destination labels.
+		var side := Vector3(0, 0, 2.15) if id in ["travel_east", "travel_home"] else Vector3(2.15, 0, 0)
+		world._add_lamp(at + side)
+		world._add_lamp(at - side)
+		return
 	var label := Label3D.new()
-	label.text = prompt if exit else "!"
+	label.text = "!"
 	label.font_size = 32
 	label.pixel_size = 0.012
-	label.position.y = 2.3 if exit else 1.8
+	label.position.y = 1.8
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.modulate = Color("ffe29a") if exit else Color("64e6ff")
+	label.modulate = Color("64e6ff")
 	area.add_child(label)
-	if not exit:
-		world.get("_quest_markers")[id] = label
+	world.get("_quest_markers")[id] = label
 
 
 static func build(world: Node3D, map_id: String) -> void:
 	var forest := map_id == "firefly_forest"
 	world._add_box("Ground", Vector3(0, -0.35, 0), Vector3(34, 0.7, 30), Color("304b48"), true)
-	# Low banks seal the playable area; trees give the banks a natural silhouette.
-	for x: float in [-16.5, 16.5]:
-		world._add_box("WoodlandBank", Vector3(x, 0.4, 0), Vector3(1, 1.5, 30), Color("354840"), true)
+	# Banks leave real road mouths; the walking thresholds sit safely inside them.
+	world._add_box("WoodlandBank", Vector3(16.5, 0.4, 0), Vector3(1, 1.5, 30), Color("354840"), true)
+	if forest:
+		world._add_box("WoodlandBank", Vector3(-16.5, 0.4, 0), Vector3(1, 1.5, 30), Color("354840"), true)
+	else:
+		for segment: Vector2 in [Vector2(-5.9, 18.2), Vector2(10.9, 8.2)]:
+			world._add_box("WoodlandBank", Vector3(-16.5, 0.4, segment.x), Vector3(1, 1.5, segment.y), Color("354840"), true)
 	for z: float in [-14.5, 14.5]:
-		world._add_box("WoodlandBank", Vector3(0, 0.4, z), Vector3(34, 1.5, 1), Color("354840"), true)
-	world._add_cobble_box("WoodlandTrail", Vector3(0, 0.025, 0), Vector3(2.5, 0.07, 26), false)
+		if (forest and z > 0) or (not forest and z < 0):
+			for side: float in [-1, 1]:
+				world._add_box("WoodlandBank", Vector3(side * 9.4, 0.4, z), Vector3(15.2, 1.5, 1), Color("354840"), true)
+		else:
+			world._add_box("WoodlandBank", Vector3(0, 0.4, z), Vector3(34, 1.5, 1), Color("354840"), true)
+	world._add_cobble_box("WoodlandTrail", Vector3(0, 0.025, 0), Vector3(3.6, 0.07, 30), false)
 	if not forest:
-		world._add_cobble_box("CaravanRoad", Vector3(-4, 0.026, 5), Vector3(22, 0.07, 3), false)
+		world._add_cobble_box("CaravanRoad", Vector3(-5, 0.026, 5), Vector3(24, 0.07, 3.6), false)
 		world._add_cobble_box("RestStop", Vector3(4, 0.025, 2), Vector3(7, 0.07, 7), false)
 	else:
 		world._add_cobble_box("ForagerTrail", Vector3(0, 0.026, -3), Vector3(18, 0.07, 1.6), false)

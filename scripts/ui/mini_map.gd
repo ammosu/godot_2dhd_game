@@ -138,22 +138,47 @@ func _draw_panel() -> void:
 	draw_line(tip, tip - north.rotated(-0.6) * 4.0, EXIT_COLOR, 1.5, true)
 
 
+func _draw_path(points: PackedVector2Array, width: float) -> void:
+	var pixels: float = _world_to_map(Vector3(width, 0, 0)).distance_to(_world_to_map(Vector3.ZERO))
+	draw_polyline(points, MAP_PATH_COLOR, maxf(1.0, pixels), true)
+
+
 func _draw_map_geometry() -> void:
 	var map_rect := _get_map_rect()
 	draw_rect(map_rect, MAP_BACKGROUND_COLOR, true)
 	if _map_id == "village":
 		_draw_world_rect(Rect2(-23, -20, 46, 40), MAP_GROUND_COLOR.darkened(0.12))
 		_draw_world_rect(Rect2(21.5, 2.1, 6, 5), MAP_GROUND_COLOR.darkened(0.12))
-		_draw_world_rect(Rect2(14.5, 3.475, 12.5, 2.25), MAP_PATH_COLOR)
+		_draw_world_rect(Rect2(14.5, 2.8, 12.5, 3.6), MAP_PATH_COLOR)
 		draw_circle(_world_to_map(Vector3(26, 0, 4.6)), 4, EXIT_COLOR)
-		_draw_world_rect(Rect2(-3.9, -4.0, 7.8, 8.0), Color("686176"))
-		_draw_world_rect(Rect2(-1.175, -20, 2.35, 32.5), MAP_PATH_COLOR)
-		_draw_world_rect(Rect2(-14.5, 3.475, 29.0, 2.25), MAP_PATH_COLOR)
-		_draw_world_rect(Rect2(-14.5, -5.75, 29.0, 1.9), MAP_PATH_COLOR.darkened(0.08))
-		for x: float in [-19.0, 19.0]:
-			_draw_world_rect(Rect2(x - 0.9, -17, 1.8, 34), MAP_PATH_COLOR)
-		for z: float in [-16.8, 16.8]:
-			_draw_world_rect(Rect2(-19, z - 0.9, 38, 1.8), MAP_PATH_COLOR)
+		var plaza := PackedVector2Array()
+		for index: int in range(40):
+			var angle: float = float(index) * TAU / 40.0
+			plaza.append(_world_to_map(Vector3(0.2 + cos(angle) * 4.25, 0, 0.1 + sin(angle) * 4.1)))
+		draw_colored_polygon(plaza, Color("686176"))
+		for route: int in range(3):
+			var points := PackedVector2Array()
+			for index: int in range(65):
+				var t: float = float(index) / 64.0
+				var z: float = lerpf(-20.0, 12.5, t)
+				var x: float = lerpf(-14.5, 14.5, t)
+				var at := Vector3(sin(z * 0.30) * 0.48, 0, z)
+				if route == 1:
+					at = Vector3(x, 0, 4.6 + sin(x * 0.28) * 0.65)
+				elif route == 2:
+					at = Vector3(x, 0, -4.8 + sin(x * 0.32 + 0.4) * 0.50)
+				points.append(_world_to_map(at))
+			_draw_path(points, 2.35 if route == 0 else 2.0)
+		var garden := PackedVector2Array()
+		for corner: int in range(4):
+			var center := Vector2(15.7 if corner in [0, 3] else -15.7, 13.5 if corner < 2 else -13.5)
+			for step: int in range(13):
+				var angle: float = float(corner) * PI * 0.5 + float(step) * PI / 24.0
+				var point: Vector2 = center + Vector2(cos(angle), sin(angle)) * 3.3
+				point -= Vector2(sin(point.y * 0.32) * 0.38, sin(point.x * 0.25) * 0.40)
+				garden.append(_world_to_map(Vector3(point.x, 0, point.y)))
+		garden.append(garden[0])
+		_draw_path(garden, 1.8)
 		_draw_world_rect(Rect2(7.0, -12.5, 9.0, 5.0), MAP_WATER_COLOR)
 		for home: Dictionary in HouseCatalog.HOMES:
 			var basis := Basis(Vector3.UP, float(home.yaw))
@@ -163,9 +188,9 @@ func _draw_map_geometry() -> void:
 			_draw_world_rect(Rect2(center - size * 0.5, size), Color("594e5e"))
 	elif Outskirts.NAMES.has(_map_id):
 		_draw_world_rect(Rect2(-17, -15, 34, 30), Color("304b48"))
-		_draw_world_rect(Rect2(-1.25, -13, 2.5, 26), MAP_PATH_COLOR)
+		_draw_world_rect(Rect2(-1.8, -15, 3.6, 30), MAP_PATH_COLOR)
 		if _map_id == "east_road":
-			_draw_world_rect(Rect2(-15, 3.5, 22, 3), MAP_PATH_COLOR)
+			_draw_world_rect(Rect2(-17, 3.2, 24, 3.6), MAP_PATH_COLOR)
 			_draw_world_rect(Rect2(0.5, -1.5, 7, 7), MAP_PATH_COLOR)
 			draw_circle(_world_to_map(Vector3(0, 0, -12)), 4, EXIT_COLOR)
 		else:

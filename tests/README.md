@@ -243,7 +243,7 @@ godot --headless --path . --script tests/interior_textiles_test.gd
 godot --headless --path . --script tests/house_interior_test.gd
 ```
 
-成功標記：`HOUSE_INTERIOR_TEST_PASS eight_entrances furniture collision return_spawns save_load camera minimap`。逐棟由實際互動偵測進入、檢查基本家具與碰撞／出口通道、近牆隱藏但保留碰撞、室內存讀檔位置、小地圖及返回原屋門口；存檔使用獨立測試路徑並於結束刪除。視覺預覽：`godot --path . -- --interior-preview`。
+成功標記：`HOUSE_INTERIOR_TEST_PASS eight_entrances furniture collision return_spawns save_load camera minimap`。逐棟由實際互動偵測進入、檢查基本家具與碰撞／出口通道、近牆隱藏但保留碰撞、室內存讀檔位置、前後景人物投影大小一致、住戶直立及跨圖片腳底快取隔離、出屋恢復透視、小地圖及返回原屋門口；存檔使用獨立測試路徑並於結束刪除。視覺預覽：`godot --path . -- --interior-preview`。
 
 音量偏好與快捷鍵測試：
 
@@ -461,6 +461,8 @@ Checks mesh sharing, ground contact, outward pane normals and preserved lighting
 
 `godot --headless --path . --script tests/conversation_facing_test.gd` 驗證長老、露米、諾亞的八方向交談、兩個鏡頭角度、九組角色／裝備搭配、地圖待機與對話共用角色圖集、雙方互相面向、接地與高度、對話鎖定、立即還原及換圖清理。成功標記為 `CONVERSATION_FACING_TEST_PASS`。不寫入正常存檔。
 
+對話開始時會先停止玩家水平慣性；與 NPC 的水平距離不足 1.35 時，優先向後退開，遇到障礙則搜尋側邊可通行位置。路徑皆受阻時保留原位，避免穿牆。`conversation_facing_test.gd` 另驗證近距離、完全同點、足夠距離不移動及牆邊退讓。
+
 實機以 `godot --path . --rendering-method forward_plus --script tests/conversation_facing_test.gd -- --facing-capture --mute-audio` 輸出三張待機 `/tmp/map-idle-*.png` 與六張對話 `/tmp/conversation-*.png`；另以 `gl_compatibility` 重跑。來源及提示詞見 `assets/generated/CONVERSATION_FACING.md`。轉身使用八個站姿切換，並非逐幀旋轉動畫。
 
 月紋門通行：`gate_art_test.gd` 另驗證雙側石牆、木門接合細節、門後觸發區，以及往返後角色位於門檻後方且不會立即跳回原地圖。
@@ -506,9 +508,15 @@ godot --path . --rendering-method gl_compatibility --script tests/occluded_chara
 
 柱前上半身遮擋修正：玩家圖面使用 `BILLBOARD_FIXED_Y`，保持直立並只繞 Y 軸朝向鏡頭，透視剪影使用相同基底。避免完全 billboard 隨俯視角後傾，讓角色頭部穿入腳後方的石柱／牆面。`occluded_character_render_test.gd` 另載入實際柱模型，驗證八個鏡頭方向、0.8／1.1 公尺兩種柱前距離：與無柱參考圖比較，角色像素應完全不被覆蓋或染色。成功標記追加 `pillar_front_16_views`；`foreground_cutaway_test.gd` 同時確認陶匠住宅返回點不再因頭部後傾誤報鄰屋遮擋。
 
+房門開啟流程回歸：`godot --headless --path . --rendering-method gl_compatibility --script tests/house_door_test.gd`（亦以 `forward_plus` 執行）。成功標記 `HOUSE_DOOR_TEST_PASS`；涵蓋八棟住宅的玩家退讓、門軸動畫、走向入口、延後入屋、連按保護、住戶對話、室內門逐步開啟、延後出屋、退讓與開門時朝向房門、進出屋後朝向行進方向與操作解鎖。
+
+場景物件碰撞：`godot --headless --path . --script tests/prop_collision_test.gd`。成功標記 `PROP_COLLISION_TEST_PASS`；以玩家膠囊從四側測試村莊及遺跡的木箱、陶罐、水晶、圍欄、路燈與樹幹，逐個排除鄰近物件干擾；另確認樹冠下可從樹幹旁通行。另執行 `house_door_test.gd` 確認八棟住宅入口仍可通行。
+
+房屋外側花台碰撞：`godot --headless --path . --script tests/house_facade_collision_test.gd`。成功標記 `HOUSE_FACADE_COLLISION_TEST_PASS`；以玩家膠囊驗證八棟住宅共 64 處花台／展示架，碰撞先於牆面，且物理形狀不繼承不等比縮放。搭配 `house_door_test.gd` 檢查入口退讓與進屋。
+
 ### 村莊散步村民
 
-`godot --headless --path . --script tests/wandering_villager_test.gd` 驗證三位村民移動、對話暫停、玩家接近停步、路線折返與地圖切換清理。預期 `WANDERING_VILLAGER_TEST_PASS movement pause proximity patrol maps`。
+`godot --headless --path . --script tests/wandering_villager_test.gd` 驗證三位村民移動、對話暫停、玩家接近停步、路線折返與地圖切換清理。預期 `WANDERING_VILLAGER_TEST_PASS movement pause proximity patrol maps fixed_roster dialogue repeat`。另驗證固定順序芙蘿／米菈／歐文、玩家互動偵測、姓名與獨立短對話、重複交談、交談時全員停步、連按不切換說話者，以及換圖後保留名單與文本；不改動任務旗標或背包。
 
 ## 主要 NPC 碰撞
 
@@ -525,6 +533,17 @@ Expect `OUTSKIRTS_TEST_PASS routes events early_pickup rewards save trails main_
 Checks village ↔ road ↔ forest transitions, map labels, map-local events, early parcel pickup, one-time rewards, rest recovery, save/load, unobstructed marked forest trails, and unchanged main quest. Uses only `user://outskirts_test.json`, removed after success. Add `-- --capture` in a graphical run to capture both maps to `/tmp/firefly_forest.png` and `/tmp/east_road.png`.
 
 
+對話遮擋淡出回歸測試（玩家／NPC 視線、透視／正交、共享材質保護、延遲恢復與換圖清理）：
+
+```bash
+godot --headless --path . --script tests/dialogue_occlusion_test.gd
+```
+
+
 居民八方向與行走：`godot --headless --path . --script tests/resident_motion_test.gd`。檢查八個身分、256 個姿勢畫格、alpha 腳底、鏡頭八方位、實際住宅交談轉向、踏步／停止／對話鎖定，以及三位不重複的巡遊角色。成功標記 `RESIDENT_MOTION_TEST_PASS`。既有 `wandering_villager_test.gd` 繼續驗證實際路線移動、禮讓、停留與地圖重建；`house_interior_test.gd` 驗證八棟住宅互動。
 
 居民美術對照：建立輸出目錄後，執行 `godot --path . --rendering-method gl_compatibility --script tests/resident_motion_capture.gd -- --capture-dir=/absolute/existing/directory`，再改為 `forward_plus`。透過 960 × 1600 SubViewport 捕捉實際共用角色腳本的八位 × 八方向 × 四姿勢。這是隔離美術診斷圖，成功標記 `RESIDENT_MOTION_CAPTURE_PASS` 只表示捕捉成功，不代表正常遊玩畫面或連續動畫驗收。兩者不寫玩家存檔。
+
+對外道路自動通行：`godot --headless --path . --script tests/road_exit_test.gd`。以真正玩家碰撞體從四個出口各三條路線行走，不呼叫互動，檢查目的地、每次只切圖一次、抵達不彈回，以及對話鎖定後恢復；成功標記 `ROAD_EXIT_TEST_PASS`。
+
+同種樹形變化：`godot --headless --path . --script tests/tree_variants_test.gd`，成功標記 `TREE_VARIANTS_TEST_PASS`。驗證 15 個素材、透明裁切邊界、鄰近垂柳使用不同樹形、重新建立地圖配置不變及樹根接地。完整遊戲碰撞另跑 `prop_collision_test.gd`。

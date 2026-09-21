@@ -49,6 +49,7 @@ func _run() -> void:
 		if target == null:
 			continue
 		target.call("interact")
+		await create_timer(2.2).timeout
 		await _settle()
 		_check(state.get("current_map") == home.id, "Wrong interior entered")
 		var map_root := world.get("_map_root") as Node3D
@@ -169,6 +170,7 @@ func _run() -> void:
 		_check(target != null and target.get("interaction_id") == "leave_house", "Exit not reachable")
 		if target != null:
 			target.call("interact")
+		await create_timer(0.8).timeout
 		await _settle()
 		_check(state.get("current_map") == "village", "Did not return to village")
 		_check(player.position.is_equal_approx(Houses.return_position(home.id)), "Returned at wrong house")

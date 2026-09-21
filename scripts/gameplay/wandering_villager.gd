@@ -3,9 +3,13 @@ extends CharacterBody3D
 const ResidentArt = preload("res://scripts/gameplay/resident_art.gd")
 const Grounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 
+signal conversation_requested(villager: CharacterBody3D)
+
 var route: PackedVector3Array = PackedVector3Array()
 var player: Node3D
 var resident_id: String = "mira"
+var display_name: String = "村民"
+var dialogue_text: String = "今天也出來走走嗎？"
 var speed: float = 0.85
 var wait_time: float = 0.5
 var _target: int = 1
@@ -35,6 +39,38 @@ func _ready() -> void:
 	_sprite.alpha_scissor_threshold = 0.25
 	add_child(_sprite)
 	Grounding.add_shadow(self, 0.28, 0.025)
+	var talk_area := Interactable3D.new()
+	talk_area.name = "TalkArea"
+	talk_area.interaction_id = "walking_" + resident_id
+	talk_area.prompt_text = "與" + display_name + "交談"
+	talk_area.collision_layer = 8
+	talk_area.collision_mask = 0
+	talk_area.monitoring = false
+	talk_area.activated.connect(_request_conversation)
+	var talk_shape := CollisionShape3D.new()
+	var sphere := SphereShape3D.new()
+	sphere.radius = 0.65
+	talk_shape.shape = sphere
+	talk_shape.position.y = 0.75
+	talk_area.add_child(talk_shape)
+	add_child(talk_area)
+	var marker := Label3D.new()
+	marker.name = "InteractionMarker"
+	marker.text = "◆"
+	marker.position.y = 1.55
+	marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	marker.font_size = 32
+	marker.outline_size = 8
+	marker.modulate = Color("ffe08a")
+	add_child(marker)
+
+
+func _request_conversation(_interaction_id: String) -> void:
+	if GameState.is_input_locked():
+		return
+	velocity = Vector3.ZERO
+	_sprite.walking = false
+	conversation_requested.emit(self)
 
 
 func _physics_process(delta: float) -> void:

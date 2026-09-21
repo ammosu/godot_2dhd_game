@@ -66,7 +66,7 @@ func _check_map_crates(expected: int) -> void:
 	for node: Node in crates:
 		var crate := node as Node3D
 		_check(is_equal_approx(crate.position.y, 0.01), "Crate placement must be grounded")
-		_check(crate.find_children("*", "CollisionObject3D", true, false).is_empty(), "Crate unexpectedly blocks gameplay")
+		_check(crate.has_node("PropBody/Shape"), "Placed crate needs solid collision")
 		for child: Node in crate.find_children("*", "MeshInstance3D", true, false):
 			var instance := child as MeshInstance3D
 			for surface: int in range(instance.mesh.get_surface_count()):

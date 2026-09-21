@@ -82,7 +82,10 @@ func obstructs_view() -> bool:
 		offsets.append(up * 0.8 + right * 0.25)
 		offsets.append(up * 0.8 - right * 0.25)
 	for offset: Vector3 in offsets:
-		var endpoint := _house.to_local(_target.global_position + offset)
+		var world_endpoint := _target.global_position + offset
+		var endpoint := _house.to_local(world_endpoint)
+		if _camera.projection == Camera3D.PROJECTION_ORTHOGONAL:
+			origin = _house.to_local(_camera.project_ray_origin(_camera.unproject_position(world_endpoint)))
 		if _bounds.intersects_segment(origin, endpoint) == null:
 			continue
 		for part: Dictionary in _parts:

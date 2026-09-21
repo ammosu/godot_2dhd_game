@@ -9,6 +9,7 @@ const Dressing = preload("res://scripts/gameplay/house_dressing.gd")
 var house_id: String = "house_01"
 var _walls: Array[Node3D] = []
 var _normals: Array[Vector3] = []
+var _door_hinge: Node3D
 
 
 func _ready() -> void:
@@ -50,11 +51,18 @@ func _ready() -> void:
 		var center := normal * (3.5 if along_x else 4.0)
 		# Full collision is separate from the disappearing wall visuals.
 		_box(self, "Boundary%d" % index, center + Vector3.UP * 1.35, size, plaster, true, false)
-		_box(wall, "Plaster", center + Vector3.UP * 1.35, size, plaster, false)
+		if index == 2:
+			for side: float in [-1.0, 1.0]:
+				_box(wall, "Plaster", Vector3(side * 2.39, 1.35, 3.5), Vector3(3.42, 2.7, 0.16), plaster, false)
+			_box(wall, "PlasterAboveDoor", Vector3(0, 2.425, 3.5), Vector3(1.36, 0.55, 0.16), plaster, false)
+		else:
+			_box(wall, "Plaster", center + Vector3.UP * 1.35, size, plaster, false)
 		var beam_size := Vector3(8.25, 0.12, 0.22) if along_x else Vector3(0.22, 0.12, 7.1)
 		for height: float in [0.15, 2.63]:
 			_box(wall, "Rail", center + Vector3.UP * height, beam_size, wood, false)
 		for step: int in range(-1, 2):
+			if index == 2 and step == 0:
+				continue
 			var offset := Vector3(float(step) * 3.75, 1.35, 0) if along_x else Vector3(0, 1.35, float(step) * 3.25)
 			_box(wall, "Post", center + offset - normal * 0.10, Vector3(0.13, 2.6, 0.13), wood, false)
 	var glass := StandardMaterial3D.new()
@@ -108,22 +116,56 @@ func _ready() -> void:
 	# The visible doorway is on the far side of the south wall when cut away.
 	var threshold := _box(self, "DoorThreshold", Vector3(0, 0.034, 3.02), Vector3(1.5, 0.02, 0.7), stone, false)
 	Footsteps.register_surface(threshold, Vector3(1.5, 0.02, 0.7), &"stone", 10)
+	_build_exit_glow()
 	for x: float in [-0.75, 0.75]:
 		_box(_walls[2], "DoorJamb", Vector3(x, 1.05, 3.35), Vector3(0.13, 2.1, 0.16), wood, false)
 	_box(_walls[2], "DoorLintel", Vector3(0, 2.10, 3.35), Vector3(1.65, 0.14, 0.16), wood, false)
+	_door_hinge = Node3D.new()
+	_door_hinge.name = "DoorHinge"
+	_door_hinge.position = Vector3(-0.63, 0, 3.37)
+	_walls[2].add_child(_door_hinge)
 	for board: int in range(6):
-		_box(_walls[2], "DoorBoard", Vector3(-0.525 + board * 0.21, 1.04, 3.37), Vector3(0.20, 1.98, 0.05), wood, false)
-	_box(_walls[2], "DoorHandle", Vector3(0.42, 0.97, 3.29), Vector3(0.07, 0.12, 0.08), stone, false)
+		_box(_door_hinge, "DoorBoard", Vector3(0.105 + board * 0.21, 1.04, 0), Vector3(0.20, 1.98, 0.05), wood, false)
+	_box(_door_hinge, "DoorHandle", Vector3(1.05, 0.97, -0.08), Vector3(0.07, 0.12, 0.08), stone, false)
 	_interaction("leave_house", "返回村莊", Vector3(0, 0.7, 2.95))
 	_interaction("inspect_house_shelf", "查看" + str(preload("res://scripts/gameplay/house_catalog.gd").FURNITURE[house_id].name), Vector3(-3.0, 0.7, 1.4))
-	var sign := Label3D.new()
-	sign.text = "出口"
-	sign.font = load("res://assets/fonts/Cubic_11.ttf") as Font
-	sign.font_size = 40
-	sign.pixel_size = 0.005
-	sign.position = Vector3(0, 0.35, 3.12)
-	sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	add_child(sign)
+
+
+func open_exit_door() -> void:
+	var opening := create_tween()
+	opening.tween_property(_door_hinge, "rotation:y", PI * 0.48, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	opening.tween_interval(0.15)
+	await opening.finished
+
+
+func _build_exit_glow() -> void:
+	# A soft floor cue stays visible when the near wall is cut away, including
+	# on Compatibility where post-process bloom is unavailable.
+	var gradient := Gradient.new()
+	gradient.offsets = PackedFloat32Array([0.0, 0.4, 1.0])
+	gradient.colors = PackedColorArray([Color(1.0, 0.88, 0.61, 0.32), Color(1.0, 0.88, 0.61, 0.18), Color(1.0, 0.88, 0.61, 0.0)])
+	var texture := GradientTexture2D.new()
+	texture.width = 64
+	texture.height = 64
+	texture.gradient = gradient
+	texture.fill = GradientTexture2D.FILL_RADIAL
+	texture.fill_from = Vector2(0.5, 0.5)
+	texture.fill_to = Vector2(1.0, 0.5)
+	var material := StandardMaterial3D.new()
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.albedo_texture = texture
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	var glow := MeshInstance3D.new()
+	glow.name = "ExitGlow"
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(1.85, 1.05)
+	glow.mesh = plane
+	glow.material_override = material
+	glow.position = Vector3(0, 0.048, 2.95)
+	glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(glow)
+	_light(Vector3(0, 0.35, 2.95), Color("ffe0a0"), 0.35, 1.5)
 
 
 func _build_bedding(cloth: StandardMaterial3D, linen: Material) -> void:

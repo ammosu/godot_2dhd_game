@@ -16,6 +16,7 @@ static func build(parent: Node3D, position: Vector3) -> Node3D:
 	root.position = position
 	root.add_to_group("street_lanterns")
 	parent.add_child(root)
+	preload("res://scripts/gameplay/prop_collision.gd").cylinder(root, Vector3(0, 0.62, 0), 0.17, 1.24)
 	for index: int in range(2):
 		var mesh := MeshInstance3D.new()
 		mesh.name = "Metalwork" if index == 0 else "FrostedGlass"

@@ -48,7 +48,7 @@ func _run() -> void:
 	var live_jar := get_first_node_in_group("earthenware_jar_art") as Node3D
 	_check(is_equal_approx(live_jar.position.y, 0.01), "Jar placement must be grounded")
 	_check(Vector2(live_jar.position.x, live_jar.position.z).distance_to(Vector2(6.4, 4.2)) > 0.85, "Jar crowds Rumi's standing position")
-	_check(live_jar.find_children("*", "CollisionObject3D", true, false).is_empty(), "Jar must remain decorative")
+	_check(live_jar.has_node("PropBody/Shape"), "Placed jar needs solid collision")
 	for node: Node in live_jar.find_children("*", "MeshInstance3D", true, false):
 		var instance := node as MeshInstance3D
 		for surface: int in range(instance.mesh.get_surface_count()):

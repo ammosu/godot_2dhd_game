@@ -32,6 +32,33 @@ static func build(house: Node3D, house_id: String, wood: Material) -> void:
 				root.add_child(jar)
 
 
+static func build_collision(house: StaticBody3D, house_id: String) -> void:
+	# Visual roots have already received the exterior's non-uniform scale.
+	# Bake that scale into box dimensions; keep physics on the unscaled house.
+	var root := house.get_node("ExteriorDressing") as Node3D
+	var planters := root.get_node("FacadePlanters") as Node3D
+	for node: Node in planters.get_children():
+		var planter := node as Node3D
+		_add_collision(house, planter, Vector3(0, 0.71, 0.207), Vector3(0.88, 0.42, 0.433), Vector3.BACK)
+	if house_id in ["house_02", "house_04"]:
+		for x: float in [-1.25, 1.25]:
+			var height: float = 0.44 if house_id == "house_02" else 0.27
+			_add_collision(house, root, Vector3(x, 0.49 + height * 0.5, -1.875), Vector3(0.85, height, 0.415), Vector3.FORWARD)
+
+
+static func _add_collision(house: StaticBody3D, mount: Node3D, center: Vector3, size: Vector3, outward: Vector3) -> void:
+	var local: Transform3D = house.global_transform.affine_inverse() * mount.global_transform
+	var shape := BoxShape3D.new()
+	shape.size = size * local.basis.get_scale().abs()
+	var collider := CollisionShape3D.new()
+	collider.name = "FacadeCollision"
+	collider.shape = shape
+	collider.transform = Transform3D(local.basis.orthonormalized(), local * center)
+	collider.set_meta("outward", outward)
+	collider.add_to_group("house_facade_collisions")
+	house.add_child(collider)
+
+
 static func _planter(root: Node3D, x: float, wood: Material) -> void:
 	_box(root, Vector3(x, 0.83, -2.06), Vector3(0.85, 0.20, 0.045), wood)
 	for side: float in [-1.0, 1.0]:

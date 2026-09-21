@@ -8,7 +8,8 @@ func _initialize() -> void:
 	root.add_child(parent)
 	var first: Node3D = Lantern.build(parent, Vector3.ZERO)
 	var second: Node3D = Lantern.build(parent, Vector3(2, 0, 0))
-	assert(first.get_child_count() == 3)
+	assert(first.has_node("PropBody/Shape"))
+	assert((first.get_node("PropBody/Shape") as CollisionShape3D).shape is CylinderShape3D)
 	var frame := first.get_node("Metalwork") as MeshInstance3D
 	var panes := first.get_node("FrostedGlass") as MeshInstance3D
 	assert(frame.mesh == (second.get_node("Metalwork") as MeshInstance3D).mesh)

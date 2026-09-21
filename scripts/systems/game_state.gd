@@ -4,7 +4,7 @@ signal state_changed
 signal map_change_requested(map_id: String, spawn_id: String)
 signal notification_requested(message: String)
 
-enum Mode { EXPLORE, DIALOGUE, BATTLE, EQUIPMENT }
+enum Mode { EXPLORE, DIALOGUE, BATTLE, EQUIPMENT, TRANSITION }
 enum QuestState { NOT_STARTED, ACTIVE, READY_TO_TURN_IN, COMPLETE }
 
 const SAVE_VERSION := 3
