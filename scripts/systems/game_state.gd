@@ -246,15 +246,21 @@ func complete_quest() -> void:
 
 
 func get_quest_text() -> String:
+	if current_map.begins_with("house_") and quest_state != QuestState.COMPLETE:
+		return "主線：從室內南側出口返回村莊，繼續旅程"
 	match quest_state:
 		QuestState.NOT_STARTED:
-			return "主線：與村莊長老交談"
+			return "主線：與月燈旁的艾爾交談，取得月印"
 		QuestState.ACTIVE:
-			return "主線：前往北境遺跡，通過守衛試煉"
+			if current_map == "village":
+				return "主線：穿過北方月紋門，前往遺跡"
+			return "主線：沿月紋石路向北，與守衛交談"
 		QuestState.READY_TO_TURN_IN:
-			return "主線：將月光碎片交給村莊長老"
+			if current_map == "ruins":
+				return "主線：帶著碎片穿過南門，返回暮光村"
+			return "主線：將月光碎片交給月燈旁的艾爾"
 		QuestState.COMPLETE:
-			return "主線完成：月燈復燃，古道甦醒"
+			return "序章完成：月燈復燃、古道甦醒，可自由探索"
 	return ""
 
 

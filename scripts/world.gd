@@ -448,14 +448,16 @@ func _build_ruins() -> void:
 
 
 func _handle_interaction(interaction_id: String) -> void:
+	if GameState.is_input_locked() or _portal_transition_pending:
+		return
 	if interaction_id.begins_with("enter_house_"):
 		var destination := interaction_id.trim_prefix("enter_")
-		if GameState.current_map == "village" and HouseCatalog.is_interior(destination) and not _portal_transition_pending and not GameState.is_input_locked():
+		if GameState.current_map == "village" and HouseCatalog.is_interior(destination):
 			_portal_transition_pending = true
 			GameState.request_map(destination, "entry")
 		return
 	if interaction_id == "leave_house":
-		if HouseCatalog.is_interior(GameState.current_map) and not _portal_transition_pending and not GameState.is_input_locked():
+		if HouseCatalog.is_interior(GameState.current_map):
 			_portal_transition_pending = true
 			GameState.request_map("village", "from_" + GameState.current_map)
 		return
@@ -463,7 +465,10 @@ func _handle_interaction(interaction_id: String) -> void:
 		if not HouseCatalog.is_interior(GameState.current_map):
 			return
 		var furniture: Dictionary = HouseCatalog.FURNITURE[GameState.current_map]
-		dialogue_ui.show_dialogue([{"speaker": furniture.name, "text": furniture.text}])
+		var text: String = str(furniture.text)
+		if GameState.current_map == "house_02" and GameState.quest_state != GameState.QuestState.COMPLETE:
+			text = "三盆幼苗在微光中垂著葉。盆沿的舊註記寫著：月光恢復時，新葉會朝村外的道路伸展。"
+		dialogue_ui.show_dialogue([{"speaker": furniture.name, "text": text}])
 		return
 	match interaction_id:
 		"elder":
@@ -581,28 +586,32 @@ func _read_ruin_tablet() -> void:
 func _rest_at_moon_spring() -> void:
 	var memory: Texture2D = _art_texture("res://assets/generated/moon_spring_memory.png")
 	var needs_rest := GameState.player_hp < GameState.player_max_hp or GameState.player_mp < GameState.player_max_mp
+	var lines: Array[Dictionary] = [
+		{"speaker": "月泉", "text": "泉面映出一段不屬於此刻的景象：許多人曾沿月光穿過夜霧，直到一道新建的村牆截斷道路。", "illustration": memory},
+	]
 	if needs_rest:
 		GameState.restore_player()
-		dialogue_ui.show_dialogue([
-			{"speaker": "月泉", "text": "泉面映出一段不屬於此刻的景象：許多人曾沿月光穿過夜霧，直到一道新建的村牆截斷道路。", "illustration": memory},
-			{"speaker": "月泉", "text": "景象散去，清澈的光流過全身。HP 與 MP 已完全恢復。"},
-			{"speaker": "系統", "text": "戰鬥中依角色按鈕的數字選指令，再確認。長老能施展範圍魔法與治療；治療和守護請選友方卡片。"},
-		])
+		lines.append({"speaker": "月泉", "text": "景象散去，清澈的光流過全身。HP 與 MP 已完全恢復。"})
 	else:
-		dialogue_ui.show_dialogue([
-			{"speaker": "月泉", "text": "泉面映出一段過去：許多人沿月光穿過夜霧，直到一道新建的村牆截斷道路。", "illustration": memory},
-			{"speaker": "旅人", "text": "泉水恢復平靜。我的身體不需要休息，但這段記憶為什麼要讓我看見？"},
-		])
+		lines.append({"speaker": "旅人", "text": "HP 與 MP 都很充足。但這段被截斷歸途的記憶，為什麼要讓我看見？"})
+	if GameState.quest_state == GameState.QuestState.ACTIVE:
+		lines.append({"speaker": "系統", "text": "先點技能，再點目標卡片，最後確認出手。旅人 → 諾亞 → 艾爾依序行動；敵方三人全倒下才算通過試煉。"})
+		lines.append({"speaker": "系統", "text": "諾亞的守護、艾爾的療癒要選存活同伴；療癒不能復活。霜星爆選中央敵人可波及三人，普通攻擊不耗 MP。"})
+		lines.append({"speaker": "系統", "text": "挑戰前可開啟裝備調整三人的武器與防具，並在探索時存檔。全隊倒下會回村恢復，任務仍可重試。"})
+	dialogue_ui.show_dialogue(lines)
 
 
 func _talk_to_guardian() -> void:
+	if GameState.quest_state != GameState.QuestState.ACTIVE or bool(GameState.flags.get("guardian_defeated", false)):
+		return
 	var lines: Array[Dictionary] = []
 	if bool(GameState.flags.get("ruin_tablet_read", false)):
 		lines.append({"speaker": "遺跡守衛", "text": "你讀過引路人的誓言，也看見了那枚被抹去名字的缺口環紋。"})
 	else:
 		lines.append({"speaker": "遺跡守衛", "text": "碎片能救你的村莊，也會喚醒一條被封閉的古道。力量與道路的責任不可分離。"})
 	lines.append({"speaker": "遺跡守衛", "text": "每當引路之光被鎖在一地，霧中的道路便更加黯淡。證明你帶回村莊的是希望，而不是另一道只保護少數人的牆。"})
-	lines.append({"speaker": "旅人", "text": "那就開始吧。"})
+	lines.append({"speaker": "遺跡守衛", "text": "苔背狼是只求存活的恐懼，月蝕術士是占有月光的執念。這兩段失敗的記憶，將與我一同試問你們的決心。"})
+	lines.append({"speaker": "旅人", "text": "我要讓村民活過今晚，也不會忘記仍在霧中尋路的人。那就開始吧。"})
 	lines.append({"speaker": "諾亞", "text": "我和長老會助你完成試煉。先選技能與目標，再確認出手。"})
 	lines.append({"speaker": "長老", "text": "霜星爆能波及附近的敵人。注意範圍圈和命中標記，不必只盯著守衛。"})
 	dialogue_ui.show_dialogue(lines, _start_guardian_battle)
@@ -625,7 +634,7 @@ func _complete_main_quest() -> void:
 	var awakening := load("res://assets/generated/fog_awakening.png") as Texture2D
 	ending_lines.append({"speaker": "旁白", "text": "遠方的夜霧中，某個沉睡已久的存在因古道復甦而睜開了眼睛。", "illustration": awakening, "motion": "awakening"})
 	ending_lines.append({"speaker": "霧中之聲", "text": "最後一盞路燈，終於又亮了。", "illustration": awakening, "motion": "awakening"})
-	ending_lines.append({"speaker": "系統", "text": "序章〈熄滅的月燈〉完成。你仍可自由探索，或按 F9 讀取存檔。"})
+	ending_lines.append({"speaker": "系統", "text": "序章〈熄滅的月燈〉完成。可繼續與村民交談、調查月燈，或探索八棟住宅；古道另一端的旅程尚未開放。"})
 	var seal: Node3D = preload("res://scripts/gameplay/keeper_seal_motion.gd").new()
 	seal.last_reveal_page = 4 if bool(GameState.flags.get("ruin_tablet_read", false)) else 3
 	seal.bind_actor(_map_root.get_node("Elder/CharacterArt") as Sprite3D)
@@ -674,6 +683,7 @@ func _on_battle_finished(victory: bool) -> void:
 		GameState.restore_after_defeat()
 		dialogue_ui.show_dialogue([
 			{"speaker": "旁白", "text": "村民在遺跡入口發現了你，並將你送回暮光村。"},
+			{"speaker": "系統", "text": "HP 與 MP 已恢復，北門仍然開啟。調整裝備後可再次挑戰；已使用的藥水不會補回，普通攻擊與防禦可免費使用。"},
 		], func() -> void: GameState.request_map("village", "default"))
 
 
@@ -1748,7 +1758,8 @@ func _show_notice(message: String) -> void:
 
 
 func _run_playthrough_test() -> void:
-	const TEST_SAVE_PATH := "user://wanderlight_playthrough_test.json"
+	var test_save_path := "user://wanderlight_playthrough_test_%d.json" % OS.get_process_id()
+	var read_tablet := "--skip-tablet" not in OS.get_cmdline_user_args()
 	GameState.reset_new_game(false)
 	_load_map("village", "default")
 	if not _test_require(GameState.quest_state == GameState.QuestState.NOT_STARTED, "new game quest state"):
@@ -1793,7 +1804,17 @@ func _run_playthrough_test() -> void:
 	if not _test_require(not _mini_map.has_optional_target(), "optional minimap target clears after dialogue"):
 		return
 
-	GameState.start_quest()
+	_handle_interaction("portal_to_ruins")
+	if not _test_require(GameState.current_map == "village" and dialogue_ui.is_open(), "north gate requires elder's moon seal"):
+		return
+	while dialogue_ui.is_open():
+		dialogue_ui.advance()
+	_handle_interaction("elder")
+	_handle_interaction("rumi")
+	if not _test_require(GameState.quest_state == GameState.QuestState.NOT_STARTED and str(dialogue_ui._lines[0].speaker) == "長老・艾爾", "dialogue cannot be replaced by another interaction"):
+		return
+	while dialogue_ui.is_open():
+		dialogue_ui.advance()
 	if not _test_require(GameState.quest_state == GameState.QuestState.ACTIVE, "quest acceptance"):
 		return
 	if not _test_require(not elder_quest_marker.visible, "main quest marker clears while objective is active"):
@@ -1817,13 +1838,18 @@ func _run_playthrough_test() -> void:
 	):
 		return
 
-	_handle_interaction("ruin_tablet")
-	var ruin_dialogue_safety := 0
-	while dialogue_ui.is_open() and ruin_dialogue_safety < 6:
-		dialogue_ui.advance()
-		ruin_dialogue_safety += 1
-	if not _test_require(bool(GameState.flags.get("ruin_tablet_read", false)), "optional ruin lore flag"):
+	if read_tablet:
+		_handle_interaction("ruin_tablet")
+		while dialogue_ui.is_open():
+			dialogue_ui.advance()
+	if not _test_require(bool(GameState.flags.get("ruin_tablet_read", false)) == read_tablet, "optional ruin lore flag"):
 		return
+	# Full-health visitors still need the same preparation and combat tutorial.
+	_handle_interaction("moon_spring")
+	if not _test_require(dialogue_ui._lines.size() == 5 and str(dialogue_ui._lines[2].text).contains("確認"), "full-health spring battle tutorial"):
+		return
+	while dialogue_ui.is_open():
+		dialogue_ui.advance()
 
 	GameState.player_hp = 22
 	GameState.player_mp = 0
@@ -1835,7 +1861,50 @@ func _run_playthrough_test() -> void:
 		dialogue_ui.advance()
 		spring_dialogue_safety += 1
 
+	GameState.player_hp = 1
 	_start_guardian_battle()
+	for ally: Dictionary in GameState.battle_session.actors:
+		if int(ally.team) == 0:
+			ally.hp = 1
+	for turn_index: int in range(3):
+		if not await _test_wait_for_battle(false):
+			return
+		battle_ui.choose_action("guard")
+	if not await _test_wait_for_battle(true):
+		return
+	if not _test_require(battle_ui.is_resolved() and not battle_ui.did_player_win(), "battle defeat state"):
+		return
+	battle_ui._finish_battle()
+	await get_tree().process_frame
+	while dialogue_ui.is_open():
+		dialogue_ui.advance()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not _test_require(GameState.player_hp == GameState.player_max_hp and GameState.current_map == "village", "battle defeat recovery"):
+		return
+
+	if not _test_require(GameState.quest_state == GameState.QuestState.ACTIVE and not GameState.flags.get("guardian_defeated", false) and not GameState.inventory.has("moon_shard"), "defeat preserves trial for retry"):
+		return
+	_on_portal_body_entered(player, "portal_to_ruins")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not _test_require(GameState.current_map == "ruins" and _map_root.has_node("Guardian"), "return to trial after defeat"):
+		return
+
+	# Checkpoint restoration must retain the optional route as well as the main quest.
+	GameState.remember_player_position(player.global_position)
+	if not _test_require(GameState.save_game(test_save_path, false), "pre-trial checkpoint write"):
+		return
+	GameState.flags.erase("ruin_tablet_read")
+	if not _test_require(GameState.load_game(test_save_path, false), "pre-trial checkpoint load"):
+		return
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_handle_interaction("guardian")
+	if not _test_require(dialogue_ui.is_open() and str(dialogue_ui._lines[0].text).contains("誓言") == read_tablet, "guardian acknowledges optional lore route"):
+		return
+	while dialogue_ui.is_open():
+		dialogue_ui.advance()
 	if not _test_require(battle_ui.is_active() and GameState.mode == GameState.Mode.BATTLE, "battle start"):
 		return
 	for turn_index in range(80):
@@ -1873,6 +1942,16 @@ func _run_playthrough_test() -> void:
 	if not _test_require(elder_quest_marker != null and elder_quest_marker.visible, "main quest turn-in marker"):
 		return
 	_talk_to_elder()
+	dialogue_ui.advance()
+	if not _test_require(GameState.quest_state == GameState.QuestState.READY_TO_TURN_IN, "turn-in waits for dialogue completion"):
+		return
+	dialogue_ui.advance()
+	var ending_acknowledges_tablet := false
+	for line: Dictionary in dialogue_ui._lines:
+		if str(line.text).contains("刻意抹去"):
+			ending_acknowledges_tablet = true
+	if not _test_require(ending_acknowledges_tablet == read_tablet, "ending acknowledges optional lore route"):
+		return
 	dialogue_safety = 0
 	while dialogue_ui.is_open() and dialogue_safety < 12:
 		dialogue_ui.advance()
@@ -1886,37 +1965,13 @@ func _run_playthrough_test() -> void:
 	if not _test_require(is_instance_valid(_moon_lamp_light) and _moon_lamp_light.light_energy > 3.0, "moon lamp restored"):
 		return
 
-	GameState.player_hp = 1
-	_start_guardian_battle()
-	for ally: Dictionary in GameState.battle_session.actors:
-		if int(ally.team) == 0:
-			ally.hp = 1
-	for turn_index: int in range(3):
-		if not await _test_wait_for_battle(false):
-			return
-		battle_ui.choose_action("guard")
-	if not await _test_wait_for_battle(true):
-		return
-	if not _test_require(battle_ui.is_resolved() and not battle_ui.did_player_win(), "battle defeat state"):
-		return
-	battle_ui._finish_battle()
-	await get_tree().process_frame
-	dialogue_safety = 0
-	while dialogue_ui.is_open() and dialogue_safety < 8:
-		dialogue_ui.advance()
-		dialogue_safety += 1
-	await get_tree().process_frame
-	await get_tree().process_frame
-	if not _test_require(GameState.player_hp == GameState.player_max_hp and GameState.current_map == "village", "battle defeat recovery"):
-		return
-
 	GameState.remember_player_position(Vector3(2.25, 0.1, 3.5))
-	if not _test_require(GameState.save_game(TEST_SAVE_PATH, false), "save write"):
+	if not _test_require(GameState.save_game(test_save_path, false), "save write"):
 		return
 	GameState.quest_state = GameState.QuestState.NOT_STARTED
 	GameState.player_hp = 1
 	GameState.current_map = "ruins"
-	if not _test_require(GameState.load_game(TEST_SAVE_PATH, false), "save load"):
+	if not _test_require(GameState.load_game(test_save_path, false), "save load"):
 		return
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -1925,11 +1980,11 @@ func _run_playthrough_test() -> void:
 		and GameState.player_hp == GameState.player_max_hp
 		and GameState.current_map == "village"
 		and GameState.saved_position.is_equal_approx(Vector3(2.25, 0.1, 3.5))
-		and bool(GameState.flags.get("ruin_tablet_read", false)),
+		and bool(GameState.flags.get("ruin_tablet_read", false)) == read_tablet,
 		"save data restoration"
 	):
 		return
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_SAVE_PATH))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(test_save_path))
 	print("PLAYTHROUGH_TEST_PASS dialogue quest maps save battle")
 	get_tree().quit(0)
 

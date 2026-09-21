@@ -1,5 +1,16 @@
 # Playthrough smoke test
 
+故事操作回歸需涵蓋讀過與未讀石碑兩種路徑；兩者都是同一結局的資訊差異，不新增任務分支：
+
+```bash
+godot --headless --path . --rendering-method forward_plus -- --playthrough-test
+godot --headless --path . --rendering-method gl_compatibility -- --playthrough-test
+godot --headless --path . --rendering-method forward_plus -- --playthrough-test --skip-tablet
+godot --headless --path . --rendering-method gl_compatibility -- --playthrough-test --skip-tablet
+```
+
+測試從封閉北門、長老實際接任務對話開始，驗證對話不能被另一互動覆蓋、滿血／受傷月泉教學、戰敗回村與重新進入試煉、戰前存讀檔、守衛對話分流、戰鬥勝利、交付碎片及結尾回收。每次使用含 process ID 的獨立 `user://wanderlight_playthrough_test_*.json` 並於成功後刪除，不覆寫一般存檔。成功標記仍是 `PLAYTHROUGH_TEST_PASS dialogue quest maps save battle`；亦須檢查沒有 `ERROR:` 或 `SCRIPT ERROR:`。這是場景與流程測試，不代表已人工驗收所有鍵盤、觸控或畫面尺寸。
+
 ## 故事物件專項
 
 在專案根目錄執行 `godot --headless --path . --script tests/spring_memory_test.gd`，
