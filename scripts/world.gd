@@ -489,6 +489,10 @@ func _handle_interaction(interaction_id: String) -> void:
 			_rest_at_moon_spring()
 		"guardian":
 			_talk_to_guardian()
+	if interaction_id in ["elder", "rumi", "noah"] and dialogue_ui.is_open():
+		var speaker := _map_root.get_node_or_null(NodePath(interaction_id.capitalize() + "/CharacterArt"))
+		if speaker != null:
+			speaker.call("turn_to", player)
 
 
 func _talk_to_elder() -> void:
@@ -707,7 +711,7 @@ func _add_actor_interactable(interaction_id: String, prompt: String, world_posit
 
 	var sprite := Sprite3D.new()
 	sprite.name = "CharacterArt"
-	if interaction_id in ["noah", "elder"]:
+	if interaction_id in ["noah", "elder", "rumi"]:
 		sprite.set_script(preload("res://scripts/gameplay/equipment_actor.gd"))
 		sprite.set("actor_id", interaction_id)
 	sprite.texture = _art_texture(texture_path)

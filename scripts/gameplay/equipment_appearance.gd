@@ -30,6 +30,12 @@ static func texture_for(base: Texture2D, pose: String, loadout: Dictionary, acto
 	var key := "%s:%s:%s:%s:%s" % [original.atlas.resource_path, original.region, original.margin, pose, id]
 	if _textures.has(key):
 		return _textures[key]
+	# Diagonal outfits have independently measured crops, rather than the
+	# cardinal atlas's fixed column/row layout.
+	if original.has_meta("diagonal_frame"):
+		var diagonals := load("res://assets/generated/equipment/%s_diagonal_frames.tres" % id) as SpriteFrames
+		_textures[key] = diagonals.get_frame_texture(StringName(pose.trim_prefix("walk_")), int(original.get_meta("diagonal_frame")))
+		return _textures[key]
 	var family := "npc" if pose == "npc" else "walk" if pose.begins_with("walk_") else "transitions" if pose in ["windup", "recover"] else "defeated" if pose == "defeated" else "combat"
 	var sheet_id := id
 	if actor != "wanderer" and family in ["npc", "defeated"]:

@@ -34,7 +34,7 @@ godot --headless --path . --rendering-method gl_compatibility -- --playthrough-t
 
 隊伍整合：`godot --headless --path . --script tests/party_equipment_test.gd`。驗證三人十二搭配、84 戰鬥姿勢選擇、NPC 外觀、角色相容性、原子穿戴、獨立試穿草稿、存讀檔、戰鬥數值与鎖定。視覺截圖使用 `godot --path . --rendering-method forward_plus --script tests/party_equipment_test.gd -- --equipment-capture`，以及 `gl_compatibility`；輸出 `/tmp/wanderlight-party-equipment-*.png`。
 
-完整替換素材：`godot --headless --path . --script tests/equipment_replacement_test.gd`。驗證四種搭配、64 個行走畫格、28 個戰鬥姿勢、原裝還原、透明背景、裁切邊界、比例與接地資訊；亦檢查行走畫格不會被紋理快取合併。
+完整替換素材：`godot --headless --path . --script tests/equipment_replacement_test.gd`。驗證四種搭配、128 個行走畫格、28 個戰鬥姿勢、原裝還原、透明背景、裁切邊界、比例與接地資訊；亦檢查行走畫格不會被紋理快取合併。
 
 執行 `godot --headless --path . --script tests/equipment_system_test.gd`。成功標記為 `EQUIPMENT_SYSTEM_TEST_PASS catalog slots stats validation save migration`，驗證分類、能力重算、非法物品拒絕、version 3 存讀檔與 version 1／2 遷移。
 
@@ -339,7 +339,7 @@ godot --headless --path . --script tests/guardian_art_test.gd
 godot --headless --path . --script tests/player_art_test.gd
 ```
 
-成功標記為 `PLAYER_ART_TEST_PASS atlas alpha directions walk idle`。檢查四方向各四幀、320 × 320 對齊畫布、可見輪廓未被裁切、共同腳底基準與實際玩家程式的幀選擇。它不取代行走動畫的實機視覺檢查；戰鬥圖集由獨立測試驗證。
+成功標記為 `PLAYER_ART_TEST_PASS atlas alpha directions walk idle`。檢查八方向各四幀、正向 320 × 320／斜向 352 × 352 對齊畫布、可見輪廓未被裁切、共同腳底基準與實際玩家程式的幀選擇。它不取代行走動畫的實機視覺檢查；戰鬥圖集由獨立測試驗證。
 
 戰鬥測試等待可接受指令與勝敗完成狀態，每次等待上限 10 秒；不依賴固定動畫秒數。若動畫卡住或狀態未轉移，會明確回報逾時失敗。
 
@@ -445,3 +445,11 @@ geometry only, not shader appearance. See `docs/HOUSE_WINDOWS.md`.
 Run `godot --headless --path . --script tests/street_lantern_test.gd`.
 Expected: `STREET_LANTERN_TEST_PASS shared_meshes grounded outward_panes unchanged_light`.
 Checks mesh sharing, ground contact, outward pane normals and preserved lighting.
+
+八方向斜走：`player_art_test.gd` 另驗證雙鍵輸入、等速斜走、停止保留斜向、八個鏡頭角度。`equipment_replacement_test.gd` 涵蓋四套裝備的 128 個畫格。`player_motion_capture.gd` 現輸出 32 個實際玩家姿勢；用 `--capture-dir=/existing/path` 指定輸出位置，需實際 renderer。素材與提示詞見 `assets/generated/DIAGONAL_WALK.md`。
+
+### 對話轉身
+
+`godot --headless --path . --script tests/conversation_facing_test.gd` 驗證長老、露米、諾亞的八方向交談、兩個鏡頭角度、九組角色／裝備搭配、雙方互相面向、接地與高度、對話鎖定、立即還原及換圖清理。成功標記為 `CONVERSATION_FACING_TEST_PASS`。不寫入正常存檔。
+
+實機以 `godot --path . --rendering-method forward_plus --script tests/conversation_facing_test.gd -- --facing-capture --mute-audio` 輸出六張 `/tmp/conversation-*.png`；另以 `gl_compatibility` 重跑。來源及提示詞見 `assets/generated/CONVERSATION_FACING.md`。轉身使用八個站姿切換，並非逐幀旋轉動畫。

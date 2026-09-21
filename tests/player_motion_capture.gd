@@ -1,9 +1,9 @@
 extends SceneTree
-## Render the actual player scene's sixteen walking poses for art inspection.
+## Render the actual player scene's thirty-two walking poses for art inspection.
 ## A diagnostic contact sheet, not a gameplay screenshot or animation approval.
 
-const DIRECTIONS: Array[StringName] = [&"down", &"up", &"left", &"right"]
-const INPUTS: Array[Vector2] = [Vector2.DOWN, Vector2.UP, Vector2.LEFT, Vector2.RIGHT]
+const DIRECTIONS: Array[StringName] = [&"down", &"up", &"left", &"right", &"down_left", &"down_right", &"up_left", &"up_right"]
+const INPUTS: Array[Vector2] = [Vector2.DOWN, Vector2.UP, Vector2.LEFT, Vector2.RIGHT, Vector2(-1, 1), Vector2(1, 1), Vector2(-1, -1), Vector2(1, -1)]
 
 
 func _initialize() -> void:
@@ -31,14 +31,14 @@ func _run() -> void:
 	stage.add_child(environment)
 	var camera := Camera3D.new()
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 9.5
+	camera.size = 12.5
 	stage.add_child(camera)
 	camera.position = Vector3(0, 12, 12)
 	camera.look_at(Vector3(0, 0.7, 0))
 	camera.current = true
 	var floor := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(18, 18)
+	plane.size = Vector2(24, 24)
 	floor.mesh = plane
 	var material := StandardMaterial3D.new()
 	material.albedo_color = Color("56616a")
@@ -49,10 +49,10 @@ func _run() -> void:
 	stage.add_child(canvas)
 	# Load after SceneTree autoload initialization, as the real game does.
 	var scene := load("res://scenes/player.tscn") as PackedScene
-	for direction: int in range(4):
+	for direction: int in range(DIRECTIONS.size()):
 		for frame: int in range(4):
 			var player := scene.instantiate() as CharacterBody3D
-			player.position = Vector3(-3.0 + frame * 2.0, 0.01, -4.5 + direction * 3.0)
+			player.position = Vector3(-7.0 + (direction / 4) * 8.0 + frame * 2.0, 0.01, -4.5 + (direction % 4) * 3.0)
 			stage.add_child(player)
 			player.set_physics_process(false)
 			player.set("_walk_time", float(frame))
@@ -75,5 +75,5 @@ func _run() -> void:
 		root.get_node(singleton).call("stop_all")
 	await create_timer(0.25).timeout
 	assert(error == OK)
-	print("PLAYER_MOTION_CAPTURE_PASS sixteen_actual_player_poses ", path)
+	print("PLAYER_MOTION_CAPTURE_PASS thirty_two_actual_player_poses ", path)
 	quit()

@@ -1,0 +1,126 @@
+[gd_resource type="SpriteFrames" load_steps=10 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/generated/rumi_facings.png" id="1_atlas"]
+
+[sub_resource type="AtlasTexture" id="Facing_0_0"]
+atlas = ExtResource("1_atlas")
+region = Rect2(127, 54, 212, 433)
+margin = Rect2(150.0, 69, 300, 79)
+filter_clip = true
+metadata/ground_y = 500.0
+metadata/visible_height = 429.0
+metadata/facing = &"down"
+metadata/loadout_row = 0
+
+[sub_resource type="AtlasTexture" id="Facing_1_0"]
+atlas = ExtResource("1_atlas")
+region = Rect2(490, 54, 216, 434)
+margin = Rect2(148.0, 68, 296, 78)
+filter_clip = true
+metadata/ground_y = 500.0
+metadata/visible_height = 430.0
+metadata/facing = &"down_left"
+metadata/loadout_row = 0
+
+[sub_resource type="AtlasTexture" id="Facing_2_0"]
+atlas = ExtResource("1_atlas")
+region = Rect2(866, 54, 183, 434)
+margin = Rect2(164.5, 68, 329, 78)
+filter_clip = true
+metadata/ground_y = 500.0
+metadata/visible_height = 430.0
+metadata/facing = &"left"
+metadata/loadout_row = 0
+
+[sub_resource type="AtlasTexture" id="Facing_3_0"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1247, 54, 180, 434)
+margin = Rect2(166.0, 68, 332, 78)
+filter_clip = true
+metadata/ground_y = 500.0
+metadata/visible_height = 430.0
+metadata/facing = &"up_left"
+metadata/loadout_row = 0
+
+[sub_resource type="AtlasTexture" id="Facing_4_0"]
+atlas = ExtResource("1_atlas")
+region = Rect2(114, 535, 200, 434)
+margin = Rect2(156.0, 68, 312, 78)
+filter_clip = true
+metadata/ground_y = 500.0
+metadata/visible_height = 430.0
+metadata/facing = &"up"
+metadata/loadout_row = 0
+
+[sub_resource type="AtlasTexture" id="Facing_5_0"]
+atlas = ExtResource("1_atlas")
+region = Rect2(477, 535, 192, 434)
+margin = Rect2(160.0, 68, 320, 78)
+filter_clip = true
+metadata/ground_y = 500.0
+metadata/visible_height = 430.0
+metadata/facing = &"up_right"
+metadata/loadout_row = 0
+
+[sub_resource type="AtlasTexture" id="Facing_6_0"]
+atlas = ExtResource("1_atlas")
+region = Rect2(845, 535, 182, 437)
+margin = Rect2(165.0, 65, 330, 75)
+filter_clip = true
+metadata/ground_y = 500.0
+metadata/visible_height = 433.0
+metadata/facing = &"right"
+metadata/loadout_row = 0
+
+[sub_resource type="AtlasTexture" id="Facing_7_0"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1214, 535, 196, 437)
+margin = Rect2(158.0, 65, 316, 75)
+filter_clip = true
+metadata/ground_y = 500.0
+metadata/visible_height = 433.0
+metadata/facing = &"down_right"
+metadata/loadout_row = 0
+
+[resource]
+animations = [{
+"frames": [{"duration": 1.0, "texture": SubResource("Facing_0_0")}],
+"loop": false,
+"name": &"down",
+"speed": 1.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("Facing_1_0")}],
+"loop": false,
+"name": &"down_left",
+"speed": 1.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("Facing_2_0")}],
+"loop": false,
+"name": &"left",
+"speed": 1.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("Facing_3_0")}],
+"loop": false,
+"name": &"up_left",
+"speed": 1.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("Facing_4_0")}],
+"loop": false,
+"name": &"up",
+"speed": 1.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("Facing_5_0")}],
+"loop": false,
+"name": &"up_right",
+"speed": 1.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("Facing_6_0")}],
+"loop": false,
+"name": &"right",
+"speed": 1.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("Facing_7_0")}],
+"loop": false,
+"name": &"down_right",
+"speed": 1.0
+}]

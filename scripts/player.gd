@@ -4,7 +4,8 @@ extends CharacterBody3D
 @export_range(0.5, 12.0, 0.1) var move_speed: float = 4.2
 @export_range(1.0, 40.0, 0.5) var acceleration: float = 18.0
 
-const FACING_ANIMATIONS: Array[StringName] = [&"down", &"up", &"left", &"right"]
+const EightWayFacing = preload("res://scripts/gameplay/eight_way_facing.gd")
+const FACING_ANIMATIONS: Array[StringName] = EightWayFacing.ANIMATIONS
 const SpriteGrounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 const Footsteps = preload("res://scripts/gameplay/footsteps.gd")
 const EquipmentAppearance = preload("res://scripts/gameplay/equipment_appearance.gd")
@@ -142,12 +143,17 @@ func _update_sprite(input_vector: Vector2, move_direction: Vector3, delta: float
 
 
 func _update_facing_column(input_vector: Vector2) -> void:
-	# Animation directions: down, up, left, right. Movement remains screen-relative
-	# even when the 3D camera orbits around the player.
-	if absf(input_vector.x) > absf(input_vector.y):
-		_facing_column = 3 if input_vector.x > 0.0 else 2
-	elif absf(input_vector.y) > 0.05:
-		_facing_column = 0 if input_vector.y > 0.0 else 1
+	# Eight equal 45-degree sectors support keyboard and analog input alike.
+	# Facing stays screen-relative while the camera orbits; idle keeps its sector.
+	if input_vector.is_zero_approx():
+		return
+	_facing_column = EightWayFacing.direction_index(input_vector)
+
+
+func face_world_position(target: Vector3) -> void:
+	var direction := EightWayFacing.screen_direction(target - global_position, get_viewport().get_camera_3d())
+	_update_facing_column(direction)
+	_update_sprite(Vector2.ZERO, Vector3.ZERO, 0.0)
 
 
 func _create_interaction_detector() -> void:

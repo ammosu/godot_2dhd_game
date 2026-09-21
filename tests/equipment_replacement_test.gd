@@ -33,7 +33,7 @@ func _run() -> void:
 				if index == 0:
 					check(art == base, "Original loadout not restored exactly")
 				else:
-					check(art.atlas.resource_path.ends_with(names[index] + "_walk.png"), "Wrong independent weapon/armor combination")
+					check(art.atlas.resource_path.ends_with(names[index] + ("_diagonal_walk.png" if base.has_meta("diagonal_frame") else "_walk.png")), "Wrong independent weapon/armor combination")
 					_check_bounds(art)
 		for pose: String in Appearance.POSES:
 			var base := load("res://assets/generated/wanderer_combat_%s.tres" % pose) as Texture2D
@@ -49,7 +49,7 @@ func _run() -> void:
 				check(is_equal_approx(ratio, 175.0 / base.get_height()), "Replacement changed body scale")
 				check(is_equal_approx(float(art.get_meta("ground_y")) - Appearance.PAD.y, old_ground), "Replacement changed grounding origin")
 	if failures == 0:
-		print("EQUIPMENT_REPLACEMENT_TEST_PASS four_loadouts 64_walk_frames 28_battle_poses original_restore alpha bounds scale")
+		print("EQUIPMENT_REPLACEMENT_TEST_PASS four_loadouts 128_walk_frames 28_battle_poses original_restore alpha bounds scale")
 	quit(0 if failures == 0 else 1)
 
 

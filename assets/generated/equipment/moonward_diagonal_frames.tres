@@ -1,0 +1,154 @@
+[gd_resource type="SpriteFrames" load_steps=18 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/generated/equipment/moonward_diagonal_walk.png" id="2_diagonal"]
+
+[sub_resource type="AtlasTexture" id="Diagonal_0_0"]
+atlas = ExtResource("2_diagonal")
+region = Rect2(80, 36, 175, 297)
+margin = Rect2(88.5, 21, 177, 55)
+filter_clip = true
+metadata/diagonal_frame = 0
+metadata/ground_y = 316.0
+
+[sub_resource type="AtlasTexture" id="Diagonal_0_1"]
+atlas = ExtResource("2_diagonal")
+region = Rect2(76, 340, 188, 300)
+margin = Rect2(82.0, 18, 164, 52)
+filter_clip = true
+metadata/diagonal_frame = 1
+metadata/ground_y = 316.0
+
+[sub_resource type="AtlasTexture" id="Diagonal_0_2"]
+atlas = ExtResource("2_diagonal")
+region = Rect2(78, 639, 175, 304)
+margin = Rect2(88.5, 14, 177, 48)
+filter_clip = true
+metadata/diagonal_frame = 2
+metadata/ground_y = 316.0
+
+[sub_resource type="AtlasTexture" id="Diagonal_0_3"]
+atlas = ExtResource("2_diagonal")
+region = Rect2(74, 950, 185, 293)
+margin = Rect2(83.5, 25, 167, 59)
+filter_clip = true
+metadata/diagonal_frame = 3
+metadata/ground_y = 316.0
+
+[sub_resource type="AtlasTexture" id="Diagonal_1_0"]
+atlas = ExtResource("2_diagonal")
+region = Rect2(377, 36, 176, 297)
+margin = Rect2(88.0, 21, 176, 55)
+filter_clip = true
+metadata/diagonal_frame = 0
+metadata/ground_y = 316.0
+
+[sub_resource type="AtlasTexture" id="Diagonal_1_1"]
+atlas = ExtResource("2_diagonal")
+region = Rect2(376, 341, 179, 299)
+margin = Rect2(86.5, 19, 173, 53)
+filter_clip = true
+metadata/diagonal_frame = 1
+metadata/ground_y = 316.0
+
+[sub_resource type="AtlasTexture" id="Diagonal_1_2"]
+atlas = ExtResource("2_diagonal")
+region = Rect2(382, 639, 170, 304)
+margin = Rect2(91.0, 14, 182, 48)
+filter_clip = true
+metadata/diagonal_frame = 2
+metadata/ground_y = 316.0
+
+[sub_resource type="AtlasTexture" id="Diagonal_1_3"]
+atlas = ExtResource("2_diagonal")
+region = Rect2(373, 947, 187, 293)
+margin = Rect2(82.5, 25, 165, 59)
+filter_clip = true
+metadata/diagonal_frame = 3
+metadata/ground_y = 316.0
+
+[sub_resource type="AtlasTexture" id="Diagonal_2_0"]
+atlas = ExtResource("2_diagonal")
+region = Rect2(703, 37, 170, 296)
+margin = Rect2(91.0, 22, 182, 56)
+filter_clip = true
+metadata/diagonal_frame = 0
+metadata/ground_y = 316.0
+
+[sub_resource type="AtlasTexture" id="Diagonal_2_1"]
+atlas = ExtResource("2_diagonal")
+region = Rect2(702, 341, 184, 300)
+margin = Rect2(84.0, 18, 168, 52)
+filter_clip = true
+metadata/diagonal_frame = 1
+metadata/ground_y = 316.0
+
+[sub_resource type="AtlasTexture" id="Diagonal_2_2"]
+atlas = ExtResource("2_diagonal")
+region = Rect2(701, 642, 183, 301)
+margin = Rect2(84.5, 17, 169, 51)
+filter_clip = true
+metadata/diagonal_frame = 2
+metadata/ground_y = 316.0
+
+[sub_resource type="AtlasTexture" id="Diagonal_2_3"]
+atlas = ExtResource("2_diagonal")
+region = Rect2(698, 948, 185, 294)
+margin = Rect2(83.5, 24, 167, 58)
+filter_clip = true
+metadata/diagonal_frame = 3
+metadata/ground_y = 316.0
+
+[sub_resource type="AtlasTexture" id="Diagonal_3_0"]
+atlas = ExtResource("2_diagonal")
+region = Rect2(1005, 36, 170, 297)
+margin = Rect2(91.0, 21, 182, 55)
+filter_clip = true
+metadata/diagonal_frame = 0
+metadata/ground_y = 316.0
+
+[sub_resource type="AtlasTexture" id="Diagonal_3_1"]
+atlas = ExtResource("2_diagonal")
+region = Rect2(996, 341, 183, 300)
+margin = Rect2(84.5, 18, 169, 52)
+filter_clip = true
+metadata/diagonal_frame = 1
+metadata/ground_y = 316.0
+
+[sub_resource type="AtlasTexture" id="Diagonal_3_2"]
+atlas = ExtResource("2_diagonal")
+region = Rect2(1005, 642, 172, 299)
+margin = Rect2(90.0, 19, 180, 53)
+filter_clip = true
+metadata/diagonal_frame = 2
+metadata/ground_y = 316.0
+
+[sub_resource type="AtlasTexture" id="Diagonal_3_3"]
+atlas = ExtResource("2_diagonal")
+region = Rect2(1000, 948, 184, 295)
+margin = Rect2(84.0, 23, 168, 57)
+filter_clip = true
+metadata/diagonal_frame = 3
+metadata/ground_y = 316.0
+
+[resource]
+animations = [{
+"frames": [{"duration": 1.0, "texture": SubResource("Diagonal_0_0")}, {"duration": 1.0, "texture": SubResource("Diagonal_0_1")}, {"duration": 1.0, "texture": SubResource("Diagonal_0_2")}, {"duration": 1.0, "texture": SubResource("Diagonal_0_3")}],
+"loop": true,
+"name": &"down_left",
+"speed": 8.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("Diagonal_1_0")}, {"duration": 1.0, "texture": SubResource("Diagonal_1_1")}, {"duration": 1.0, "texture": SubResource("Diagonal_1_2")}, {"duration": 1.0, "texture": SubResource("Diagonal_1_3")}],
+"loop": true,
+"name": &"down_right",
+"speed": 8.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("Diagonal_2_0")}, {"duration": 1.0, "texture": SubResource("Diagonal_2_1")}, {"duration": 1.0, "texture": SubResource("Diagonal_2_2")}, {"duration": 1.0, "texture": SubResource("Diagonal_2_3")}],
+"loop": true,
+"name": &"up_left",
+"speed": 8.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("Diagonal_3_0")}, {"duration": 1.0, "texture": SubResource("Diagonal_3_1")}, {"duration": 1.0, "texture": SubResource("Diagonal_3_2")}, {"duration": 1.0, "texture": SubResource("Diagonal_3_3")}],
+"loop": true,
+"name": &"up_right",
+"speed": 8.0
+}]
