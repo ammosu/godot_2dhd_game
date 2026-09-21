@@ -493,6 +493,7 @@ func _handle_interaction(interaction_id: String) -> void:
 		var speaker := _map_root.get_node_or_null(NodePath(interaction_id.capitalize() + "/CharacterArt"))
 		if speaker != null:
 			speaker.call("turn_to", player)
+			($CameraRig as Hd2dCameraRig).begin_dialogue_shot(speaker as Node3D)
 
 
 func _talk_to_elder() -> void:
@@ -1796,13 +1797,24 @@ func _run_playthrough_test() -> void:
 	):
 		return
 
+	var dialogue_camera := $CameraRig as Hd2dCameraRig
+	var original_camera_distance: float = dialogue_camera._distance
+	var original_camera_yaw: float = dialogue_camera._target_yaw
 	_handle_interaction("rumi")
+	dialogue_camera._process(0.4)
+	if not _test_require(dialogue_camera._dialogue_active and dialogue_camera._dialogue_blend > 0.0 and dialogue_camera._dialogue_blend < 1.0, "dialogue camera eases into two-person shot"):
+		return
 	if not _test_require(dialogue_ui.is_open() and GameState.mode == GameState.Mode.DIALOGUE, "village story dialogue"):
 		return
 	var village_dialogue_safety := 0
 	while dialogue_ui.is_open() and village_dialogue_safety < 6:
 		dialogue_ui.advance()
 		village_dialogue_safety += 1
+	if not _test_require(not dialogue_camera._dialogue_active, "dialogue completion releases cinematic camera"):
+		return
+	dialogue_camera._process(1.0)
+	if not _test_require(is_zero_approx(dialogue_camera._dialogue_blend) and is_equal_approx(dialogue_camera._distance, original_camera_distance) and is_equal_approx(dialogue_camera._target_yaw, original_camera_yaw), "dialogue restores exploration zoom and angle"):
+		return
 	if not _test_require(not rumi_quest_marker.visible, "optional marker clears after dialogue"):
 		return
 	if not _test_require(not _mini_map.has_optional_target(), "optional minimap target clears after dialogue"):
