@@ -48,11 +48,16 @@ func _run() -> void:
 				check(state.call("equip_loadout", gear, actor), "Cannot equip conversation outfit")
 			var original := sprite.texture
 			var original_scale := sprite.pixel_size
-			check(original.get_meta("facing", &"") == &"down", "Map idle must use the conversation design")
+			check(original.get_meta("facing", &"") == Facing.ANIMATIONS[Facing.direction_index(Facing.screen_direction(Vector3.BACK, camera))], "Idle must preserve world facing")
 			check((original as AtlasTexture).atlas.resource_path.ends_with(actor + "_facings.png"), "Map idle uses an unrelated character sheet")
-			for yaw: float in [0.0, 135.0]:
+			for yaw: float in [0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0]:
 				camera.global_position = npc.global_position + Basis(Vector3.UP, deg_to_rad(yaw)) * Vector3(0, 5, 8)
 				camera.look_at(npc.global_position + Vector3.UP * 0.7)
+				await process_frame
+				original = sprite.texture
+				original_scale = sprite.pixel_size
+				check(original.get_meta("facing", &"") == Facing.ANIMATIONS[Facing.direction_index(Facing.screen_direction(Vector3.BACK, camera))], "Camera orbit rotated the NPC world heading")
+				check(original.get_meta("loadout_row", -1) == row, "Idle orbit dropped equipment")
 				for index: int in range(INPUTS.size()):
 					var offset: Vector3 = player.call("_camera_relative_direction", INPUTS[index])
 					player.global_position = npc.global_position + offset * 1.35 + Vector3.UP * 0.03
@@ -93,5 +98,5 @@ func _run() -> void:
 		root.get_node(singleton).call("stop_all")
 	await create_timer(0.25).timeout
 	if failures == 0:
-		print("CONVERSATION_FACING_TEST_PASS three_npcs eight_directions two_orbits nine_loadouts mutual_facing grounding restore locks map_cleanup")
+		print("CONVERSATION_FACING_TEST_PASS three_npcs eight_directions eight_orbits nine_loadouts mutual_facing grounding restore locks map_cleanup")
 	quit(0 if failures == 0 else 1)

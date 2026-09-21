@@ -10,7 +10,7 @@ const TURNAROUNDS: Dictionary[String, SpriteFrames] = {
 }
 var actor_id: String = ""
 var source_texture: Texture2D
-var _variant: String = "unset"
+@export var idle_world_direction: Vector3 = Vector3.BACK
 var _conversation_partner: Node3D
 var _source_pixel_size: float
 var _source_height: float
@@ -18,6 +18,7 @@ var _facing_key: String = ""
 
 
 func _ready() -> void:
+	process_priority = 10 # Resolve directional art after the camera rig.
 	source_texture = texture
 	_source_pixel_size = pixel_size
 	_source_height = float(source_texture.get_image().get_used_rect().size.y)
@@ -32,12 +33,7 @@ func _refresh_equipment() -> void:
 		else:
 			end_conversation()
 		return
-	var loadout := GameState.get_loadout(actor_id) if actor_id != "rumi" else {}
-	var selected := Appearance.variant(loadout, actor_id) if actor_id != "rumi" else ""
-	if selected == _variant:
-		return
-	_variant = selected
-	_show_facing(&"down", selected)
+	_update_idle_facing()
 
 
 func turn_to(partner: Node3D) -> void:
@@ -48,21 +44,28 @@ func turn_to(partner: Node3D) -> void:
 func end_conversation() -> void:
 	_conversation_partner = null
 	_facing_key = ""
-	_variant = "unset"
 	_refresh_equipment()
 
 
 func _process(_delta: float) -> void:
-	if _facing_key.is_empty():
-		return
-	if not is_instance_valid(_conversation_partner) or GameState.mode != GameState.Mode.DIALOGUE:
-		end_conversation()
-		return
-	_update_conversation_facing()
+	if is_instance_valid(_conversation_partner) and GameState.mode == GameState.Mode.DIALOGUE:
+		_update_conversation_facing()
+	else:
+		_conversation_partner = null
+		_update_idle_facing()
+
+
+func _update_idle_facing() -> void:
+	_update_world_facing(idle_world_direction)
 
 
 func _update_conversation_facing() -> void:
-	var direction := Facing.screen_direction(_conversation_partner.global_position - get_parent_node_3d().global_position, get_viewport().get_camera_3d())
+	_update_world_facing(_conversation_partner.global_position - get_parent_node_3d().global_position)
+	_conversation_partner.call("face_world_position", get_parent_node_3d().global_position)
+
+
+func _update_world_facing(world_direction: Vector3) -> void:
+	var direction := Facing.screen_direction(world_direction, get_viewport().get_camera_3d())
 	if direction.is_zero_approx():
 		return
 	var animation := Facing.ANIMATIONS[Facing.direction_index(direction)]
@@ -72,7 +75,6 @@ func _update_conversation_facing() -> void:
 	if key != _facing_key:
 		_facing_key = key
 		_show_facing(animation, variant)
-	_conversation_partner.call("face_world_position", get_parent_node_3d().global_position)
 
 
 func _show_facing(animation: StringName, variant: String) -> void:
