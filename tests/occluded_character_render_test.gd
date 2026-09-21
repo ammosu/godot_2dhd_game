@@ -79,10 +79,49 @@ func _run() -> void:
 		for argument: String in OS.get_cmdline_user_args():
 			if argument.begins_with("--capture-dir="):
 				after.save_png(argument.trim_prefix("--capture-dir=").path_join(RenderingServer.get_current_rendering_method() + "-" + placement + ".png"))
+	blocker.hide()
+	await _test_pillar_front(stage, player, camera, hint, controller)
 	stage.free()
 	for singleton: String in ["GameAudio", "GameMusic", "GameAmbience"]:
 		root.get_node(singleton).call("stop_all")
 	await create_timer(0.25).timeout
 	if _failures == 0:
-		print("OCCLUDED_CHARACTER_RENDER_TEST_PASS behind front partial")
+		print("OCCLUDED_CHARACTER_RENDER_TEST_PASS behind front partial pillar_front_16_views")
 	quit(_failures)
+
+
+func _test_pillar_front(stage: Node3D, player: Node3D, camera: Camera3D, hint: Sprite3D, controller: Node) -> void:
+	var pillar := (load("res://assets/generated/weathered_pillar_v2.glb") as PackedScene).instantiate() as Node3D
+	stage.add_child(pillar)
+	var sprite := player.get_node("Sprite3D") as AnimatedSprite3D
+	for angle: int in range(8):
+		var direction := Vector3(sin(angle * PI / 4.0), 0, cos(angle * PI / 4.0))
+		camera.position = direction * 5.81 + Vector3.UP * 3.92
+		camera.look_at(Vector3.UP * 0.78)
+		for distance: float in [0.8, 1.1]:
+			pillar.position = -direction * distance
+			pillar.hide()
+			hint.hide()
+			sprite.hide()
+			var empty: Image = await _capture()
+			sprite.show()
+			var reference: Image = await _capture()
+			pillar.show()
+			controller.active = true
+			hint.call("_process", 0.016)
+			var actual: Image = await _capture()
+			var covered: int = 0
+			for y: int in range(reference.get_height()):
+				for x: int in range(reference.get_width()):
+					var mask: Color = reference.get_pixel(x, y) - empty.get_pixel(x, y)
+					if absf(mask.r) + absf(mask.g) + absf(mask.b) < 0.15:
+						continue
+					var delta: Color = reference.get_pixel(x, y) - actual.get_pixel(x, y)
+					if absf(delta.r) + absf(delta.g) + absf(delta.b) > 0.08:
+						covered += 1
+			if covered > 0:
+				push_error("Pillar behind player covered %d character pixels, angle %d distance %.2f" % [covered, angle, distance])
+				_failures += 1
+			if angle == 0 and is_equal_approx(distance, 0.8):
+				actual.save_png("/tmp/pillar-front-" + RenderingServer.get_current_rendering_method() + ".png")
+	pillar.free()

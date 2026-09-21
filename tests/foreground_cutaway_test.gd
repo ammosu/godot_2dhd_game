@@ -17,15 +17,15 @@ func _run() -> void:
 	player.set_physics_process(false)
 	var rig := world.get_node("CameraRig")
 	assert(get_nodes_in_group("foreground_cutaways").size() == 8)
-	# The tilted character card reaches behind its vertical body at head height.
-	# The neighboring pottery facade used to draw a triangle across its face.
+	# The upright character card must not reach into the neighboring facade.
+	# This return spawn previously put the tilted head through the building.
 	player.position = Houses.return_position("house_07")
 	rig.set("_target_yaw", PI / 4.0)
 	rig.call("snap_to_target")
 	var neighbor_checked: bool = false
 	for controller: Node in get_nodes_in_group("foreground_cutaways"):
 		if (controller.get_parent() as Node3D).position.is_equal_approx(Houses.find_home("house_04").position):
-			assert(controller.call("obstructs_view"), "Tilted billboard face intersects neighboring facade")
+			assert(not controller.call("obstructs_view"), "Upright player must not intersect neighboring facade")
 			neighbor_checked = true
 	assert(neighbor_checked)
 	var blocked_views: int = 0

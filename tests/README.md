@@ -502,3 +502,6 @@ godot --path . --rendering-method gl_compatibility --script tests/occluded_chara
 ```
 
 成功標記：`OCCLUDED_CHARACTER_RENDER_TEST_PASS behind front partial`。比較提示開關前後的畫面，確認後方可見剪影、前方即使粗判誤報也完全不變、局部遮擋只影響部分角色像素。可加 `-- --capture-dir=/absolute/existing/directory` 儲存圖片；此 GPU 測試單獨執行，未加入原有批次清單。原 `foreground_cutaway_test.gd`／`furniture_cutaway_test.gd` 改為驗證物件保持可見及陰影、碰撞、互動不變。
+
+
+柱前上半身遮擋修正：玩家圖面使用 `BILLBOARD_FIXED_Y`，保持直立並只繞 Y 軸朝向鏡頭，透視剪影使用相同基底。避免完全 billboard 隨俯視角後傾，讓角色頭部穿入腳後方的石柱／牆面。`occluded_character_render_test.gd` 另載入實際柱模型，驗證八個鏡頭方向、0.8／1.1 公尺兩種柱前距離：與無柱參考圖比較，角色像素應完全不被覆蓋或染色。成功標記追加 `pillar_front_16_views`；`foreground_cutaway_test.gd` 同時確認陶匠住宅返回點不再因頭部後傾誤報鄰屋遮擋。

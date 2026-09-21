@@ -7,8 +7,12 @@ uniform vec4 silhouette_color : source_color = vec4(0.65, 0.85, 0.95, 0.28);
 varying float character_depth;
 
 void vertex() {
-	// Match the fully billboarded player card, including its authored foot offset.
-	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(INV_VIEW_MATRIX[0], INV_VIEW_MATRIX[1], INV_VIEW_MATRIX[2], MODEL_MATRIX[3]);
+	// Match the upright, Y-locked player card. Tilting the card with the camera
+	// sends the head behind the feet and into scenery behind the player.
+	vec3 up = vec3(0.0, 1.0, 0.0);
+	vec3 right = normalize(cross(up, INV_VIEW_MATRIX[2].xyz));
+	vec3 facing = cross(right, up);
+	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(vec4(right, 0.0), vec4(up, 0.0), vec4(facing, 0.0), MODEL_MATRIX[3]);
 	character_depth = -(MODELVIEW_MATRIX * vec4(VERTEX, 1.0)).z;
 }
 
