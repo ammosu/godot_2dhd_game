@@ -4,6 +4,7 @@ extends Node
 
 const RESTORE_DELAY: float = 0.22
 var active: bool = false
+var minimum_height: float = 0.45
 var _clear_time: float = 0.0
 var _house: Node3D
 var _target: Node3D
@@ -33,7 +34,7 @@ func _collect(node: Node) -> void:
 			if batch != null and batch.custom_aabb.has_volume():
 				mesh_bounds = batch.custom_aabb
 		var bounds: AABB = local_transform * mesh_bounds
-		if visual.visible and visual.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY and bounds.end.y > 0.45:
+		if visual.visible and visual.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY and bounds.end.y > minimum_height:
 			_bounds = bounds if _parts.is_empty() else _bounds.merge(bounds)
 			_parts.append({"visual": visual, "bounds": bounds, "shadow": visual.cast_shadow})
 	for child: Node in node.get_children():

@@ -154,3 +154,7 @@ godot --headless --path . -- --playthrough-test
 後續 production 方向見 [docs/ROADMAP.md](docs/ROADMAP.md)。
 
 村莊視覺素材包含 Blender 製作的砌石殘柱、生成式像素石板材質及道路兩側草叢；素材來源與尺寸見 [assets/generated/README.md](assets/generated/README.md)。Dream Loop 目標與工作截圖保存在本機 `.dream-loop/`（不提交）。
+
+北方月紋門以同一座石砌木門銜接村莊與遺跡；跨過門檻才切換區域，抵達時位於另一側門後的道路中央，可轉身穿門返回。
+
+村北月紋門現在位於村界，是通往遺跡的低矮舊關隘，兩側接續圍牆。東側另有獨立舊道開口，可走出村界至修復告示與木柵前；新區域尚未開放，日後可從這段道路接續。

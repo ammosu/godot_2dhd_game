@@ -16,10 +16,10 @@ const EXIT_COLOR := Color("ffe29a")
 const MAIN_TARGET_COLOR := Color("ffd45c")
 const OPTIONAL_TARGET_COLOR := Color("64e6ff")
 
-const VILLAGE_BOUNDS := Rect2(-23.0, -20.0, 46.0, 40.0)
+const VILLAGE_BOUNDS := Rect2(-23.0, -20.0, 51.0, 40.0)
 const RUINS_BOUNDS := Rect2(-17.0, -16.0, 34.0, 32.0)
-const VILLAGE_EXIT := Vector3(0.0, 0.0, -13.1)
-const RUINS_EXIT := Vector3(0.0, 0.0, 12.5)
+const VILLAGE_EXIT := Vector3(0.0, 0.0, -19.3)
+const RUINS_EXIT := Vector3(0.0, 0.0, 15.1)
 
 var _map_id: String = "village"
 var _player_world_position: Vector3 = Vector3.ZERO
@@ -139,9 +139,12 @@ func _draw_map_geometry() -> void:
 	var map_rect := _get_map_rect()
 	draw_rect(map_rect, MAP_BACKGROUND_COLOR, true)
 	if _map_id == "village":
-		_draw_world_rect(VILLAGE_BOUNDS, MAP_GROUND_COLOR.darkened(0.12))
+		_draw_world_rect(Rect2(-23, -20, 46, 40), MAP_GROUND_COLOR.darkened(0.12))
+		_draw_world_rect(Rect2(21.5, 2.1, 6, 5), MAP_GROUND_COLOR.darkened(0.12))
+		_draw_world_rect(Rect2(14.5, 3.475, 12.5, 2.25), MAP_PATH_COLOR)
+		_draw_world_rect(Rect2(26.75, 2.1, 0.25, 5), Color("b49b77"))
 		_draw_world_rect(Rect2(-3.9, -4.0, 7.8, 8.0), Color("686176"))
-		_draw_world_rect(Rect2(-1.175, -12.5, 2.35, 25.0), MAP_PATH_COLOR)
+		_draw_world_rect(Rect2(-1.175, -20, 2.35, 32.5), MAP_PATH_COLOR)
 		_draw_world_rect(Rect2(-14.5, 3.475, 29.0, 2.25), MAP_PATH_COLOR)
 		_draw_world_rect(Rect2(-14.5, -5.75, 29.0, 1.9), MAP_PATH_COLOR.darkened(0.08))
 		for x: float in [-19.0, 19.0]:
@@ -166,7 +169,7 @@ func _draw_map_geometry() -> void:
 		_draw_world_rect(Rect2(-7.0, -10.5, 14.0, 17.0), MAP_RUIN_COLOR)
 		_draw_world_rect(Rect2(-11.75, 1.25, 5.5, 5.5), MAP_RUIN_COLOR.darkened(0.08))
 		_draw_world_rect(Rect2(6.25, -4.25, 5.5, 5.5), MAP_RUIN_COLOR.darkened(0.08))
-		_draw_world_rect(Rect2(-0.75, -12.0, 1.5, 25.0), Color("786c8d"))
+		_draw_world_rect(Rect2(-0.75, -12.0, 1.5, 28.0), Color("786c8d"))
 		_draw_world_rect(Rect2(-9.5, 3.2, 19.0, 1.2), Color("6c617f"))
 	draw_rect(map_rect, Color("9d91ae"), false, 1.5)
 

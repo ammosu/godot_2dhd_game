@@ -303,10 +303,10 @@ func _get_spawn_position(map_id: String, spawn_id: String) -> Vector3:
 			"after_battle":
 				return Vector3(0.0, 0.1, -5.8)
 			_:
-				return Vector3(-4.2, 0.1, 9.6)
+				return Vector3(0.0, 0.1, 13.85)
 	match spawn_id:
 		"from_ruins":
-			return Vector3(0.0, 0.1, -11.7)
+			return Vector3(0.0, 0.1, -18.05)
 		_:
 			return Vector3(0.0, 0.1, 7.5)
 
@@ -317,14 +317,11 @@ func _build_village() -> void:
 	_add_cobble_box("CentralPlaza", Vector3(0.0, -0.02, 0.0), Vector3(7.8, 0.12, 8.0), true)
 	WaterFeature.build(_map_root, Vector3(11.5, 0.02, -10.0), Vector2(9.0, 5.0))
 
-	_add_cobble_box("NorthRoad", Vector3(0.0, 0.025, 0.0), Vector3(2.35, 0.08, 25.0), false)
+	_add_cobble_box("NorthRoad", Vector3(0.0, 0.025, -3.75), Vector3(2.35, 0.08, 32.5), false)
 	_add_cobble_box("MarketRoad", Vector3(0.0, 0.023, 4.6), Vector3(29.0, 0.075, 2.25), false)
 	_add_cobble_box("GateRoad", Vector3(0.0, 0.022, -4.8), Vector3(29.0, 0.07, 1.9), false)
 	_configure_village_surfaces()
-	for x_position in [-22.3, 22.3]:
-		_add_box("BoundaryWall", Vector3(x_position, 0.75, 0.0), Vector3(0.7, 1.8, 39.0), PALETTE.stone_dark, true)
-	for z_position in [-19.3, 19.3]:
-		_add_box("BoundaryWall", Vector3(0.0, 0.75, z_position), Vector3(45.3, 1.8, 0.7), PALETTE.stone_dark, true)
+	_build_village_routes()
 	# Outer garden promenade expands exploration without stretching the village square.
 	for x_position: float in [-19.0, 19.0]:
 		_add_cobble_box("GardenWalk", Vector3(x_position, 0.022, 0), Vector3(1.8, 0.07, 34), false)
@@ -393,27 +390,71 @@ func _build_village() -> void:
 	stamp = _profile_map_stamp("village_moon_lamp", stamp)
 	_add_actor_interactable("elder", "與長老交談", Vector3(-3.0, 0.0, 1.2), "res://assets/generated/elder.tres", 1.6 / 724.0, Color.WHITE, false, MAIN_QUEST_MARKER)
 	_add_actor_interactable("rumi", "與露米交談", Vector3(6.4, 0.0, 4.2), "res://assets/generated/rumi.tres", 1.6 / 724.0, Color.WHITE, false, SIDE_CONTENT_MARKER)
-	_add_actor_interactable("noah", "與守門人交談", Vector3(2.2, 0.0, -10.9), "res://assets/generated/noah.tres", 1.6 / 724.0, Color.WHITE)
-	_add_portal("portal_to_ruins", "前往北境遺跡", Vector3(0.0, 0.0, -13.1), Color("86d9ff"))
+	_add_actor_interactable("noah", "與守門人交談", Vector3(2.2, 0.0, -17.0), "res://assets/generated/noah.tres", 1.6 / 724.0, Color.WHITE)
+	_add_portal("portal_to_ruins", "前往北境遺跡", Vector3(0.0, 0.0, -19.3), Color("86d9ff"))
 	stamp = _profile_map_stamp("village_actors_portal", stamp)
 	MeadowDressing.build(_map_root)
 	_profile_map_stamp("village_meadow", stamp)
 
 
+func _build_village_routes() -> void:
+	# Visible terrain beyond the checkpoint makes the opening read as a road.
+	_add_box("NorthApproachGround", Vector3(0, -0.35, -22.5), Vector3(12, 0.7, 7), Color("292b3e"), false)
+	_add_cobble_box("NorthApproachRoad", Vector3(0, 0.025, -22.0), Vector3(2.35, 0.08, 5.5), false)
+	for side: float in [-1.0, 1.0]:
+		_add_tree(Vector3(side * 4.0, 0, -22.0))
+	# North is a genuine boundary checkpoint; east is an independent future road.
+	_add_box("BoundaryWall", Vector3(-22.3, 0.75, 0.0), Vector3(0.7, 1.8, 39.0), PALETTE.stone_dark, true)
+	_add_box("BoundaryWall", Vector3(0.0, 0.75, 19.3), Vector3(45.3, 1.8, 0.7), PALETTE.stone_dark, true)
+	for side: float in [-1.0, 1.0]:
+		_add_box("BoundaryWall", Vector3(side * 12.2, 0.75, -19.3), Vector3(20.9, 1.8, 0.7), PALETTE.stone_dark, true)
+	# Leave a 3.4 m opening on the east perimeter, well clear of the homes.
+	_add_box("BoundaryWall", Vector3(22.3, 0.75, -8.2), Vector3(0.7, 1.8, 22.2), PALETTE.stone_dark, true)
+	_add_box("BoundaryWall", Vector3(22.3, 0.75, 12.8), Vector3(0.7, 1.8, 13.0), PALETTE.stone_dark, true)
+	_add_box("OutskirtsGround", Vector3(29.0, -0.38, 4.6), Vector3(16.0, 0.7, 19.0), Color("304b48"), false)
+	_add_cobble_box("EastRoad", Vector3(30.5, 0.022, 4.6), Vector3(8.0, 0.075, 2.25), false)
+	for tree_position: Vector3 in [Vector3(29, 0, 0), Vector3(32, 0, 1), Vector3(29, 0, 10), Vector3(33, 0, 9)]:
+		_add_tree(tree_position)
+	_add_box("EastRoadGround", Vector3(24.5, -0.35, 4.6), Vector3(6.0, 0.7, 5.0), Color("304b48"), true)
+	_add_cobble_box("EastRoad", Vector3(20.75, 0.025, 4.6), Vector3(12.5, 0.08, 2.25), false)
+	var timber := _make_material(Color("806247"), 0.96)
+	timber.albedo_texture = preload("res://assets/generated/timber_albedo.png")
+	timber.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	preload("res://scripts/gameplay/gate_details.gd").build_road_end(_map_root, timber)
+	var notice := Interactable3D.new()
+	notice.name = "EastRoadNotice"
+	notice.position = Vector3(26.0, 0.0, 4.6)
+	notice.interaction_id = "future_road"
+	notice.prompt_text = "查看舊路告示"
+	notice.collision_layer = 8
+	notice.collision_mask = 0
+	var collider := CollisionShape3D.new()
+	var shape := SphereShape3D.new()
+	shape.radius = 0.7
+	collider.shape = shape
+	collider.position.y = 0.6
+	notice.add_child(collider)
+	notice.activated.connect(_handle_interaction)
+	_map_root.add_child(notice)
+
+
 func _build_ruins() -> void:
+	_add_box("SouthApproachGround", Vector3(0, -0.35, 18.5), Vector3(12, 0.7, 7), Color("304b48"), false)
+	_add_cobble_box("SouthApproachRoad", Vector3(0, 0.025, 18.0), Vector3(2.35, 0.08, 5.5), false)
 	_add_box("RuinGround", Vector3(0.0, -0.35, 0.0), Vector3(34.0, 0.7, 32.0), Color("292b3e"), true)
 	_add_box("RuinCourt", Vector3(0.0, -0.02, -2.0), Vector3(14.0, 0.12, 17.0), PALETTE.ruin, true)
 	_add_box("WestRuinCourt", Vector3(-9.0, -0.015, 4.0), Vector3(5.5, 0.1, 5.5), PALETTE.ruin.darkened(0.08), true)
 	_add_box("EastRuinCourt", Vector3(9.0, -0.015, -1.5), Vector3(5.5, 0.1, 5.5), PALETTE.ruin.darkened(0.08), true)
 	preload("res://scripts/gameplay/ruin_surfaces.gd").configure(_map_root)
-	for z_index in range(-11, 13):
+	for z_index in range(-11, 16):
 		_add_box("MoonPath_%02d" % (z_index + 11), Vector3(0.0, 0.025, float(z_index)), Vector3(1.45, 0.08, 0.82), Color("786c8d"), false)
 	for x_index in range(-9, 10):
 		_add_box("RuinCrossPath_%02d" % (x_index + 9), Vector3(float(x_index), 0.022, 3.8), Vector3(0.82, 0.07, 1.18), Color("6c617f"), false)
 	for x_position in [-16.1, 16.1]:
 		_add_box("RuinBoundary", Vector3(x_position, 0.8, 0.0), Vector3(0.8, 2.0, 31.0), Color("242235"), true)
-	for z_position in [-15.1, 15.1]:
-		_add_box("RuinBoundary", Vector3(0.0, 0.8, z_position), Vector3(33.0, 2.0, 0.8), Color("242235"), true)
+	_add_box("RuinBoundary", Vector3(0.0, 0.8, -15.1), Vector3(33.0, 2.0, 0.8), Color("242235"), true)
+	for side: float in [-1.0, 1.0]:
+		_add_box("RuinBoundary", Vector3(side * 9.125, 0.8, 15.1), Vector3(14.75, 2.0, 0.8), Color("242235"), true)
 	var ruin_columns: Array[Vector3] = [
 		Vector3(-6.2, 0.0, -8.8), Vector3(6.2, 0.0, -8.8), Vector3(-6.2, 0.0, -1.5), Vector3(6.2, 0.0, -1.5),
 		Vector3(-6.2, 0.0, 6.2), Vector3(6.2, 0.0, 6.2), Vector3(-11.0, 0.0, 3.8), Vector3(11.0, 0.0, -1.5),
@@ -431,7 +472,7 @@ func _build_ruins() -> void:
 
 	_add_pedestal_interactable("ruin_tablet", "閱讀風化石碑", Vector3(-9.0, 0.0, 4.0), Color("8f86ac"))
 	_add_pedestal_interactable("moon_spring", "觸碰月泉", Vector3(9.0, 0.0, -1.5), Color("76e5d5"))
-	_add_portal("portal_to_village", "返回暮光村", Vector3(0.0, 0.0, 12.5), Color("efb56d"))
+	_add_portal("portal_to_village", "返回暮光村", Vector3(0.0, 0.0, 15.1), Color("86d9ff"))
 	if not bool(GameState.flags.get("guardian_defeated", false)):
 		_add_actor_interactable(
 			"guardian",
@@ -455,6 +496,9 @@ func _handle_interaction(interaction_id: String) -> void:
 		if GameState.current_map == "village" and HouseCatalog.is_interior(destination):
 			_portal_transition_pending = true
 			GameState.request_map(destination, "entry")
+		return
+	if interaction_id == "future_road":
+		dialogue_ui.show_dialogue([{"speaker": "舊路告示", "text": "東行舊道・前路修復中。木柵外的路段尚未開放，請由此折返。"}])
 		return
 	if interaction_id == "leave_house":
 		if HouseCatalog.is_interior(GameState.current_map):
@@ -966,6 +1010,7 @@ func _add_portal(interaction_id: String, prompt: String, world_position: Vector3
 	portal.interaction_id = interaction_id
 	portal.prompt_text = prompt
 	portal.position = world_position
+	portal.scale.y = 0.82
 	portal.collision_layer = 8
 	portal.collision_mask = 1
 	portal.monitoring = true
@@ -974,20 +1019,22 @@ func _add_portal(interaction_id: String, prompt: String, world_position: Vector3
 	_map_root.add_child(portal)
 
 	var shape_node := CollisionShape3D.new()
-	shape_node.position.y = 0.8
+	var approach_side: float = 1.0 if interaction_id == "portal_to_ruins" else -1.0
+	# Cross the threshold before changing maps; arrivals remain clear of this area.
+	shape_node.position = Vector3(0.0, 0.8, -approach_side * 0.7)
 	var shape := BoxShape3D.new()
 	shape.size = Vector3(2.2, 1.6, 0.6)
 	shape_node.shape = shape
 	portal.add_child(shape_node)
 
 	var frame_material := _make_coursed_stone()
-	var trim_material := _make_material(PALETTE.gold.darkened(0.18), 0.48, 0.72)
+	var trim_material := _make_material(Color("514a40"), 0.82, 0.35)
 	trim_material.albedo_texture = preload("res://assets/generated/aged_bronze_albedo.png")
 	trim_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	var door_material := _make_material(Color("263e4b"), 0.78, 0.16)
+	var door_material := _make_material(Color("92714e"), 0.94, 0.0)
 	door_material.albedo_texture = preload("res://assets/generated/timber_albedo.png")
 	door_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	var door_dark_material := _make_material(Color("172630"), 0.9, 0.22)
+	var door_dark_material := _make_material(Color("30271e"), 0.95, 0.0)
 
 	_add_portal_box(portal, Vector3(-1.48, 1.45, 0.0), Vector3(0.52, 2.9, 0.62), frame_material)
 	_add_portal_box(portal, Vector3(1.48, 1.45, 0.0), Vector3(0.52, 2.9, 0.62), frame_material)
@@ -1018,13 +1065,13 @@ func _add_portal(interaction_id: String, prompt: String, world_position: Vector3
 		for height: float in [-0.72, 0.72]:
 			_add_portal_box(hinge, Vector3(leaf_center, height, 0.12), Vector3(1.06, 0.1, 0.1), trim_material)
 		_add_portal_box(hinge, Vector3(leaf_center, 0.0, 0.11), Vector3(0.09, 2.25, 0.08), door_dark_material)
-	var approach_side: float = 1.0 if interaction_id == "portal_to_ruins" else -1.0
+	preload("res://scripts/gameplay/gate_details.gd").build(portal, left_hinge, right_hinge, frame_material, trim_material, door_dark_material)
 
 	var seal := MeshInstance3D.new()
 	seal.name = "MoonSeal"
 	seal.position = Vector3(0.0, 1.52, approach_side * 0.19)
 	seal.mesh = MoonSeal.ring_mesh(0.37, 0.12, 0.04)
-	seal.material_override = _make_material(color, 0.2, 0.35, color, 1.2)
+	seal.material_override = _make_material(color.darkened(0.4), 0.8, 0.3, color, 0.12)
 	portal.add_child(seal)
 
 	var seal_core := MeshInstance3D.new()
@@ -1034,24 +1081,15 @@ func _add_portal(interaction_id: String, prompt: String, world_position: Vector3
 	var core_mesh := PrismMesh.new()
 	core_mesh.size = Vector3(0.25, 0.38, 0.14)
 	seal_core.mesh = core_mesh
-	seal_core.material_override = _make_material(color.lightened(0.18), 0.12, 0.0, color, 1.0)
+	seal_core.material_override = _make_material(color.darkened(0.25), 0.7, 0.3, color, 0.12)
 	portal.add_child(seal_core)
 
 	var light := OmniLight3D.new()
 	light.position = Vector3(0.0, 1.55, approach_side * 0.45)
 	light.light_color = color
-	light.light_energy = 1.7
-	light.omni_range = 3.4
+	light.light_energy = 0.15
+	light.omni_range = 1.2
 	portal.add_child(light)
-
-	var gate_sign := Label3D.new()
-	gate_sign.text = "月紋門"
-	gate_sign.position = Vector3(0.0, 3.13, approach_side * 0.38)
-	gate_sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	gate_sign.font_size = 38
-	gate_sign.outline_size = 8
-	gate_sign.modulate = Color("f1d39a")
-	portal.add_child(gate_sign)
 
 	var marker := Label3D.new()
 	marker.position = Vector3(0.0, 3.72, 0.0)
@@ -1060,14 +1098,40 @@ func _add_portal(interaction_id: String, prompt: String, world_position: Vector3
 	marker.outline_size = 8
 	marker.modulate = color.lightened(0.22)
 	portal.add_child(marker)
+	# The physical gate carries the landmark; instructions stay in the HUD.
+	marker.visible = false
 
 	var starts_open := interaction_id != "portal_to_ruins" or GameState.quest_state != GameState.QuestState.NOT_STARTED
+	light.light_energy = 0.0 if starts_open else 0.15
 	left_hinge.rotation.y = -1.22 if starts_open else 0.0
 	right_hinge.rotation.y = 1.22 if starts_open else 0.0
+	var closed_door := StaticBody3D.new()
+	closed_door.name = "ClosedDoor"
+	var closed_shape := CollisionShape3D.new()
+	var closed_box := BoxShape3D.new()
+	closed_box.size = Vector3(2.4, 2.5, 0.2)
+	closed_shape.shape = closed_box
+	closed_shape.position.y = 1.4
+	closed_shape.disabled = starts_open
+	closed_door.add_child(closed_shape)
+	portal.add_child(closed_door)
+	seal.visible = not starts_open
+	seal_core.visible = not starts_open
 	seal.transparency = 1.0 if starts_open else 0.0
 	seal_core.transparency = 1.0 if starts_open else 0.0
 	marker.text = "◇ 穿過前往暮光村" if interaction_id == "portal_to_village" else ("◇ 穿過前往北境遺跡" if starts_open else "◆ 月印封鎖")
 	portal.prompt_text = "" if starts_open else "查看封印的月紋門"
+	# Cut away only the individual piece hiding the traveler at the far threshold.
+	# Hinge-local bounds follow the opening animation without stale world bounds.
+	for part: Node in portal.get_children():
+		if part == seal or part == seal_core:
+			continue
+		if part is MeshInstance3D or part == left_hinge or part == right_hinge:
+			var cutaway := ForegroundCutaway.new()
+			if part == left_hinge or part == right_hinge:
+				cutaway.minimum_height = -INF
+			part.add_child(cutaway)
+			cutaway.configure(part as Node3D, player, $CameraRig/Camera3D, &"gate_cutaways")
 	if interaction_id == "portal_to_ruins":
 		_village_gate_portal = portal
 		_village_gate_left = left_hinge
@@ -1120,9 +1184,12 @@ func _update_village_gate_state() -> void:
 	if should_open == _village_gate_is_open:
 		return
 	_village_gate_is_open = should_open
+	(_village_gate_portal.get_node("ClosedDoor").get_child(0) as CollisionShape3D).set_deferred("disabled", should_open)
 	_village_gate_portal.prompt_text = "" if should_open else "查看封印的月紋門"
 	_village_gate_marker.text = "◇ 穿過前往北境遺跡" if should_open else "◆ 月印封鎖"
-	_village_gate_light.light_energy = 2.6 if should_open else 1.7
+	_village_gate_light.light_energy = 0.0 if should_open else 0.15
+	_village_gate_seal.visible = not should_open
+	_village_gate_seal_core.visible = not should_open
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(_village_gate_left, "rotation:y", -1.22 if should_open else 0.0, 0.72).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN_OUT)
 	tween.tween_property(_village_gate_right, "rotation:y", 1.22 if should_open else 0.0, 0.72).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN_OUT)
@@ -1160,7 +1227,7 @@ func _add_box(node_name: String, world_position: Vector3, size: Vector3, color: 
 		mesh_instance.material_override = court
 		# A 3–4 cm collision lip must not outline the soil blend with a hard shadow.
 		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	if node_name == "Ground":
+	if node_name in ["Ground", "EastRoadGround", "OutskirtsGround"]:
 		mesh_instance.material_override = _make_village_surface(false)
 	elif node_name == "RuinGround":
 		var soil := ShaderMaterial.new()
@@ -1220,7 +1287,7 @@ func _add_cobble_box(node_name: String, world_position: Vector3, size: Vector3, 
 	mesh.size = size
 	mesh_instance.mesh = mesh
 	mesh_instance.material_override = _make_village_surface(true)
-	if node_name == "GardenWalk":
+	if node_name in ["GardenWalk", "EastRoad", "NorthApproachRoad", "SouthApproachRoad"]:
 		(mesh_instance.material_override as ShaderMaterial).set_shader_parameter("plaza_rect", Vector4(world_position.x, world_position.z, size.x * 0.5, size.z * 0.5))
 	# Visual paving and collision share the same top, avoiding invisible steps.
 	mesh_instance.position.y = 0.006 - world_position.y - size.y * 0.5
@@ -1736,7 +1803,7 @@ func _update_mini_map_targets() -> void:
 				main_target_position = Vector3(-3.0, 0.0, 1.2)
 				main_target_visible = true
 			GameState.QuestState.ACTIVE:
-				main_target_position = Vector3(0.0, 0.0, -13.1)
+				main_target_position = Vector3(0.0, 0.0, -19.3)
 				main_target_visible = true
 		optional_target_position = Vector3(6.4, 0.0, 4.2)
 		optional_target_visible = not bool(GameState.flags.get("rumi_tip_seen", false))
@@ -1747,7 +1814,7 @@ func _update_mini_map_targets() -> void:
 		main_target_position = Vector3(0.0, 0.0, -8.2)
 		main_target_visible = not bool(GameState.flags.get("guardian_defeated", false))
 	elif GameState.quest_state == GameState.QuestState.READY_TO_TURN_IN:
-		main_target_position = Vector3(0.0, 0.0, 12.5)
+		main_target_position = Vector3(0.0, 0.0, 15.1)
 		main_target_visible = true
 	_mini_map.set_main_target(main_target_position, main_target_visible)
 	_mini_map.set_optional_target(optional_target_position, optional_target_visible)

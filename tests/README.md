@@ -135,7 +135,7 @@ godot --path . --rendering-method gl_compatibility --script tests/water_render_t
 
 正式主線已使用 3 對 3 隊伍戰鬥：
 
-月紋門／村界材質回歸：`godot --headless --path . --script tests/gate_art_test.gd`，成功標記 `GATE_ART_TEST_PASS`。涵蓋雙面門扉裝飾、四面牆材質與碰撞一致、封印朝向及任務開門後淡出，不覆寫存檔。
+月紋門／村界材質回歸：`godot --headless --path . --script tests/gate_art_test.gd`，成功標記 `GATE_ART_TEST_PASS`。涵蓋雙面門扉裝飾、分段村界材質與碰撞一致、封印朝向及任務開門後隱藏，不覆寫存檔。
 
 角色姿勢測試檢查八個 AtlasTexture 的裁切、畫布與透明輪廓腳底基準。節奏測試是固定初始數值的確定性模擬，不代表完整難度評估：目前普通攻擊與全員零 MP 都在第 4 回合勝利（18 次角色行動），使用職業技能的策略在第 3 回合勝利（11 次行動）；仍需後續多場遭遇與玩家試玩。
 
@@ -453,3 +453,8 @@ Checks mesh sharing, ground contact, outward pane normals and preserved lighting
 `godot --headless --path . --script tests/conversation_facing_test.gd` 驗證長老、露米、諾亞的八方向交談、兩個鏡頭角度、九組角色／裝備搭配、地圖待機與對話共用角色圖集、雙方互相面向、接地與高度、對話鎖定、立即還原及換圖清理。成功標記為 `CONVERSATION_FACING_TEST_PASS`。不寫入正常存檔。
 
 實機以 `godot --path . --rendering-method forward_plus --script tests/conversation_facing_test.gd -- --facing-capture --mute-audio` 輸出三張待機 `/tmp/map-idle-*.png` 與六張對話 `/tmp/conversation-*.png`；另以 `gl_compatibility` 重跑。來源及提示詞見 `assets/generated/CONVERSATION_FACING.md`。轉身使用八個站姿切換，並非逐幀旋轉動畫。
+
+月紋門通行：`gate_art_test.gd` 另驗證雙側石牆、木門接合細節、門後觸發區，以及往返後角色位於門檻後方且不會立即跳回原地圖。
+實際畫面驗收：移除 `--headless` 並加 `-- --gate-capture`，以 `forward_plus` 和 `gl_compatibility` 各輸出關門、開門與抵達門後三張 `/tmp/wanderlight-gate-<renderer>-<view>.png`；門框／門扉僅在擋住角色時局部隱藏，碰撞仍保留。
+
+`gate_art_test.gd` 另驗證移至村界後的關隘往返與東側獨立道路：角色能穿出東側缺口，並被可見的路尾木柵阻擋；`--gate-capture` 增加 `east_road` 畫面。
