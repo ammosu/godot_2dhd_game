@@ -111,11 +111,24 @@ func get_nearest_interactable() -> Interactable3D:
 	var nearest_distance := INF
 	for area in _interaction_area.get_overlapping_areas():
 		if area is Interactable3D:
+			if area.interaction_id.begins_with("enter_house_") or area.interaction_id == "leave_house":
+				if not is_facing_position(area.global_position):
+					continue
 			var distance := global_position.distance_squared_to(area.global_position)
 			if distance < nearest_distance:
 				nearest = area
 				nearest_distance = distance
 	return nearest
+
+
+func is_facing_position(target: Vector3) -> bool:
+	var direction := EightWayFacing.screen_direction(target - global_position, get_viewport().get_camera_3d())
+	if direction.is_zero_approx():
+		return false
+	# Match the visible eight-way facing, including after the camera orbits.
+	var sector: int = EightWayFacing.SECTORS.find(_facing_column)
+	var facing := Vector2.from_angle(float(sector) * PI / 4.0)
+	return facing.dot(direction.normalized()) >= cos(PI / 4.0) - 0.0001
 
 
 func get_interaction_prompt() -> String:

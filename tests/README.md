@@ -508,7 +508,9 @@ godot --path . --rendering-method gl_compatibility --script tests/occluded_chara
 
 柱前上半身遮擋修正：玩家圖面使用 `BILLBOARD_FIXED_Y`，保持直立並只繞 Y 軸朝向鏡頭，透視剪影使用相同基底。避免完全 billboard 隨俯視角後傾，讓角色頭部穿入腳後方的石柱／牆面。`occluded_character_render_test.gd` 另載入實際柱模型，驗證八個鏡頭方向、0.8／1.1 公尺兩種柱前距離：與無柱參考圖比較，角色像素應完全不被覆蓋或染色。成功標記追加 `pillar_front_16_views`；`foreground_cutaway_test.gd` 同時確認陶匠住宅返回點不再因頭部後傾誤報鄰屋遮擋。
 
-房門開啟流程回歸：`godot --headless --path . --rendering-method gl_compatibility --script tests/house_door_test.gd`（亦以 `forward_plus` 執行）。成功標記 `HOUSE_DOOR_TEST_PASS`；涵蓋八棟住宅的玩家退讓、門軸動畫、走向入口、延後入屋、連按保護、住戶對話、室內門逐步開啟、延後出屋、退讓與開門時朝向房門、進出屋後朝向行進方向與操作解鎖。
+房門互動需先面對門（角色朝向前方左右各 45° 內），背對或側對時不顯示該門提示，也不觸發開門；村莊、星灣城住宅入口及室內出口皆適用。
+
+房門開啟流程回歸：`godot --headless --path . --rendering-method gl_compatibility --script tests/house_door_test.gd`（亦以 `forward_plus` 執行）。成功標記 `HOUSE_DOOR_TEST_PASS`；涵蓋八棟住宅室內外的背對／側對阻擋、正面提示與實際互動輸入，以及玩家退讓、門軸動畫、走向入口、延後入屋、連按保護、住戶對話、室內門逐步開啟、延後出屋、退讓與開門時朝向房門、進出屋後朝向行進方向與操作解鎖。
 
 場景物件碰撞：`godot --headless --path . --script tests/prop_collision_test.gd`。成功標記 `PROP_COLLISION_TEST_PASS`；以玩家膠囊從四側測試村莊及遺跡的木箱、陶罐、水晶、圍欄、路燈與樹幹，逐個排除鄰近物件干擾；另確認樹冠下可從樹幹旁通行。另執行 `house_door_test.gd` 確認八棟住宅入口仍可通行。
 
