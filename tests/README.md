@@ -645,3 +645,6 @@ godot --path . --script tests/door_action_art_test.gd -- --capture-dir=/absolute
 野外戰鬥畫面：`godot --path . --rendering-method forward_plus --script tests/field_render_test.gd`，另以 `gl_compatibility` 執行一次；截圖寫入 `/tmp/field-forward_plus.png`、`/tmp/field-gl_compatibility.png`。成功標記 `FIELD_RENDER_TEST_PASS`。
 
 野外自動戰鬥：`godot --headless --path . --script tests/field_auto_battle_test.gd`，驗證手動接手、技能與喝藥開關、失焦／選單暫停、預警閃避，以及從入口實際沿坡道清除三敵、拾取全部掉落並停止。不寫入玩家存檔。成功標記 `FIELD_AUTO_BATTLE_TEST_PASS`。
+
+
+山區地圖：`godot --headless --fixed-fps 60 --path . --script tests/mountain_maps_test.gd`，另加 `--rendering-method gl_compatibility` 執行一次。驗證三區路面碰撞、角色實際上下山、自動行走、高處存讀檔、步行出口與抵達後不會反覆換圖。獨立使用並清理 `user://mountain_maps_test.json`；成功標記 `MOUNTAIN_MAPS_TEST_PASS ground uphill downhill save walking_exits`。使用可見視窗加 `-- --capture` 可將三區截圖寫入 `/tmp/moss_steps.png`、`/tmp/wind_gorge.png`、`/tmp/moon_highland.png`。

@@ -16,7 +16,7 @@ func _run() -> void:
 	root.add_child(world)
 	var player := world.get_node("Player") as CharacterBody3D
 	player.set_physics_process(false)
-	var directions: Dictionary = {"travel_caravan": Vector3.RIGHT, "travel_caravan_back": Vector3.BACK, "travel_city": Vector3.FORWARD, "travel_city_home": Vector3.BACK, "travel_east": Vector3.RIGHT, "travel_home": Vector3.LEFT, "travel_forest": Vector3.FORWARD, "travel_road": Vector3.BACK}
+	var directions: Dictionary = {"forest_to_mountain": Vector3.FORWARD, "mountain_to_forest": Vector3.BACK, "mountain_to_gorge": Vector3.FORWARD, "gorge_to_steps": Vector3.BACK, "gorge_to_highland": Vector3.FORWARD, "highland_to_gorge": Vector3.BACK, "travel_caravan": Vector3.RIGHT, "travel_caravan_back": Vector3.BACK, "travel_city": Vector3.FORWARD, "travel_city_home": Vector3.BACK, "travel_east": Vector3.RIGHT, "travel_home": Vector3.LEFT, "travel_forest": Vector3.FORWARD, "travel_road": Vector3.BACK}
 	for id: String in Routes.EXITS:
 		var route: Array = Routes.EXITS[id]
 		for lane: float in [-1.15, 0.0, 1.15]:
@@ -55,7 +55,7 @@ func _run() -> void:
 		root.get_node(singleton).call("stop_all")
 	await create_timer(0.25).timeout
 	if _failures == 0:
-		print("ROAD_EXIT_TEST_PASS eight_routes three_lanes real_movement no_interact no_bounce input_lock")
+		print("ROAD_EXIT_TEST_PASS fourteen_routes three_lanes real_movement no_interact no_bounce input_lock")
 	quit(0 if _failures == 0 else 1)
 
 func _check(ok: bool, message: String) -> void:

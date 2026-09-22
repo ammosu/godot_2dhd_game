@@ -1,6 +1,7 @@
 extends Node
 ## Transient, collision-aware walking; persistent state stays in GameState.
 
+const Mountains = preload("res://scripts/gameplay/mountain_maps.gd")
 const CELL: float = 0.25
 var player: CharacterBody3D
 var path := PackedVector3Array()
@@ -36,6 +37,10 @@ func start(target: Vector3, bounds: Rect2) -> bool:
 	if GameState.is_input_locked():
 		return false
 	_target = target
+	if Mountains.NAMES.has(GameState.current_map):
+		path = Mountains.walking_path(GameState.current_map, player.global_position, target)
+		_last_position = player.global_position
+		return is_active()
 	var grid := AStarGrid2D.new()
 	grid.region = Rect2i(Vector2i.ZERO, Vector2i((bounds.size / CELL).ceil()) + Vector2i.ONE)
 	grid.cell_size = Vector2.ONE * CELL
@@ -118,7 +123,7 @@ func direction(delta: float) -> Vector3:
 		GameState.notification_requested.emit("已抵達目的地")
 		return Vector3.ZERO
 	# Skip only a single corner at a time; never smooth across unsupported ground.
-	if path.size() > 1 and current.distance_to(path[1]) < 0.8 and _clear_segment(current, path[1]):
+	if not Mountains.NAMES.has(GameState.current_map) and path.size() > 1 and current.distance_to(path[1]) < 0.8 and _clear_segment(current, path[1]):
 		path.remove_at(0)
 	if current.distance_to(Vector3(_last_position.x, 0, _last_position.z)) < 0.003:
 		_stalled += delta

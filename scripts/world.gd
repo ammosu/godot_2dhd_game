@@ -134,6 +134,10 @@ func _ready() -> void:
 		$CameraRig.set("_distance", 15.0)
 		$CameraRig.set("_target_yaw", deg_to_rad(-35.0))
 		($CameraRig as Hd2dCameraRig).snap_to_target()
+	elif "--mountain-preview" in OS.get_cmdline_user_args():
+		_test_mode = true
+		GameState.flags["intro_seen"] = true
+		_load_map("moss_steps", "from_base")
 	elif "--outskirts-preview" in OS.get_cmdline_user_args():
 		_test_mode = true
 		GameState.flags["intro_seen"] = true
@@ -314,7 +318,7 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 	GameMusic.sync_to_state()
 	GameAmbience.sync_to_state()
 	_refresh_hud()
-	if spawn_id in ["from_east_road", "from_village", "from_forest", "from_road", "from_ruins", "from_caravan", "from_city"]:
+	if spawn_id in ["from_base", "from_peak", "from_mountain", "from_east_road", "from_village", "from_forest", "from_road", "from_ruins", "from_caravan", "from_city"]:
 		var destination: String = str(Outskirts.NAMES.get(GameState.current_map, "北境遺跡" if GameState.current_map == "ruins" else "暮光村"))
 		_show_notice("抵達・" + destination)
 	_refresh_map_destinations()
@@ -748,6 +752,9 @@ func _handle_interaction(interaction_id: String) -> void:
 		if interaction_id == "city_rest":
 			GameState.restore_player()
 		dialogue_ui.show_dialogue([{ "speaker": talk[0], "text": talk[1] }])
+		return
+	if interaction_id == "highland_view" and GameState.current_map == "moon_highland":
+		dialogue_ui.show_dialogue([{ "speaker": "月冠眺望台", "text": "雲海從層疊的山脊間緩緩流過。來時的石徑已化作山腰的一道細線，暮光村的燈火在遠處閃爍。" }])
 		return
 	if Outskirts.EXITS.has(interaction_id):
 		var route: Array = Outskirts.EXITS[interaction_id]
@@ -2474,7 +2481,7 @@ func _refresh_map_destinations() -> void:
 		var kind := "event"
 		if target.interaction_id.begins_with("portal_") or Outskirts.EXITS.has(target.interaction_id) or target.interaction_id == "leave_house":
 			kind = "exit"
-		_mini_map.destinations.append({"position": target.global_position, "title": target.prompt_text, "kind": kind})
+		_mini_map.destinations.append({"position": target.global_position, "title": _map_destination_title(target), "kind": kind})
 	_mini_map.queue_redraw()
 
 
@@ -2485,3 +2492,10 @@ func _on_map_destination(point: Dictionary) -> void:
 		_show_notice("自動前往・" + str(point.title) + "（移動鍵取消）")
 	else:
 		_show_notice("目前無法到達這個位置，請選擇其他地點")
+
+
+func _map_destination_title(target: Interactable3D) -> String:
+	if Outskirts.EXITS.has(target.interaction_id):
+		var destination: String = Outskirts.EXITS[target.interaction_id][1]
+		return "前往・" + str(Outskirts.NAMES.get(destination, "暮光村"))
+	return target.prompt_text

@@ -79,8 +79,14 @@ func _route_description(map_id: String) -> String:
 			return "南 → 東行舊道　｜　北 → 星灣城\n沿彎曲商道穿過丘林，路燈標示兩端出口。"
 		"starbay":
 			return "南門 → 風丘商道 → 東行舊道 → 暮光村\n房屋門口按 Space／Enter 進入；茶棚可恢復生命與魔力。"
+		"moss_steps":
+			return "山腳 → 螢光森林　｜　山頂 → 風切峽道\n沿苔岩折返石徑登高，崖邊矮牆標示安全路線。"
+		"wind_gorge":
+			return "山腳 → 苔階山徑　｜　山頂 → 月冠高地\n沿峽壁繞行，穿過兩重髮夾彎。"
+		"moon_highland":
+			return "山腳 → 風切峽道　｜　盡頭 → 月冠眺望台\n循月晶石登上高地，可沿原路下山。"
 		"firefly_forest":
-			return "南 → 東行舊道\n青藍色驚嘆號標示目前的可選事件。"
+			return "南 → 東行舊道　｜　北 → 苔階山徑\n青藍色驚嘆號標示目前的可選事件。"
 	if Houses.is_interior(map_id):
 		return "南側出口 → %s\n靠近門口按 Space／Enter，返回這棟房屋外。" % ("星灣城" if Houses.parent_map(map_id) == "starbay" else "暮光村")
 	return "沿道路探索目前區域。"

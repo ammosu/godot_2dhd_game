@@ -1,8 +1,15 @@
 extends RefCounted
 ## Connected optional exploration maps; persistent event mutations live in GameState.
 
-const NAMES := {"east_road": "東行舊道", "firefly_forest": "螢光森林", "caravan_road": "風丘商道", "starbay": "星灣城"}
+const Mountains = preload("res://scripts/gameplay/mountain_maps.gd")
+const NAMES := {"moss_steps": "苔階山徑", "wind_gorge": "風切峽道", "moon_highland": "月冠高地", "east_road": "東行舊道", "firefly_forest": "螢光森林", "caravan_road": "風丘商道", "starbay": "星灣城"}
 const EXITS := {
+	"forest_to_mountain": ["firefly_forest", "moss_steps", "from_base"],
+	"mountain_to_forest": ["moss_steps", "firefly_forest", "from_mountain"],
+	"mountain_to_gorge": ["moss_steps", "wind_gorge", "from_base"],
+	"gorge_to_steps": ["wind_gorge", "moss_steps", "from_peak"],
+	"gorge_to_highland": ["wind_gorge", "moon_highland", "from_base"],
+	"highland_to_gorge": ["moon_highland", "wind_gorge", "from_peak"],
 	"travel_caravan": ["east_road", "caravan_road", "from_road"],
 	"travel_caravan_back": ["caravan_road", "east_road", "from_caravan"],
 	"travel_city": ["caravan_road", "starbay", "from_road"],
@@ -21,6 +28,10 @@ const EVENTS := {
 }
 
 static func spawn(map_id: String, spawn_id: String) -> Vector3:
+	if Mountains.NAMES.has(map_id):
+		return Mountains.spawn(map_id, spawn_id)
+	if map_id == "firefly_forest" and spawn_id == "from_mountain":
+		return Vector3(0, 0.1, -11)
 	if map_id in ["caravan_road", "starbay"]:
 		return load("res://scripts/gameplay/starbay.gd").spawn(map_id, spawn_id)
 	if map_id == "east_road":
@@ -77,6 +88,9 @@ static func add_interaction(world: Node3D, id: String, prompt: String, at: Vecto
 
 
 static func build(world: Node3D, map_id: String) -> void:
+	if Mountains.NAMES.has(map_id):
+		Mountains.build(world, map_id)
+		return
 	if map_id in ["caravan_road", "starbay"]:
 		load("res://scripts/gameplay/starbay.gd").build(world, map_id)
 		return
@@ -94,7 +108,7 @@ static func build(world: Node3D, map_id: String) -> void:
 		for segment: Vector2 in [Vector2(-5.9, 18.2), Vector2(10.9, 8.2)]:
 			world._add_box("WoodlandBank", Vector3(-16.5, 0.4, segment.x), Vector3(1, 1.5, segment.y), Color("354840"), true)
 	for z: float in [-14.5, 14.5]:
-		if (forest and z > 0) or (not forest and z < 0):
+		if forest or z < 0:
 			for side: float in [-1, 1]:
 				world._add_box("WoodlandBank", Vector3(side * 9.4, 0.4, z), Vector3(15.2, 1.5, 1), Color("354840"), true)
 		else:
@@ -131,7 +145,7 @@ static func build(world: Node3D, map_id: String) -> void:
 		world.get("_map_root").add_child(preload("res://scripts/gameplay/forest_fireflies.gd").new())
 		world._add_supply_crate(Vector3(-7, 0, -3), 0.2)
 		world._add_flower_clump(Vector3(7, 0, -7), "ivory")
-		world._add_tree(Vector3(0, 0, -13))
+		add_interaction(world, "forest_to_mountain", "北行・苔階山徑", Vector3(0, 0, -13.5), true)
 		for at: Vector3 in [Vector3(-3, 0, -10), Vector3(3, 0, -10), Vector3(7.8, 0, -7.4)]:
 			world._add_crystal(at, 0.45)
 		add_interaction(world, "travel_road", "南行・返回東行舊道", Vector3(0, 0, 13), true)

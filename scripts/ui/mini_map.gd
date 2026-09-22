@@ -149,7 +149,7 @@ func _draw() -> void:
 			line.append(_world_to_map(point))
 		if line.size() > 1:
 			draw_polyline(line, PLAYER_COLOR, 2.0, true)
-	if interactive:
+	if interactive or Outskirts.Mountains.NAMES.has(_map_id):
 		for point: Dictionary in destinations:
 			var center := Vector2.ZERO
 			draw_set_transform(_world_to_map(point.position), 0.0, Vector2.ONE * 1.65)
@@ -196,6 +196,7 @@ func _draw_region_labels() -> void:
 			_draw_place_name(Vector3(12, 0, 6), "風丘商道 →")
 			_draw_place_name(Vector3(0, 0, -10), "螢光森林 ↑")
 		"firefly_forest":
+			_draw_place_name(Vector3(0, 0, -12), "苔階山徑 ↑")
 			_draw_place_name(Vector3(0, 0, 11), "東行舊道 ↓")
 		_:
 			if HouseCatalog.is_interior(_map_id):
@@ -306,6 +307,11 @@ func _draw_map_geometry() -> void:
 		else:
 			_draw_geography_polygon(Starbay.ribbon(Starbay.curve(Starbay.ROAD), 4.2), MAP_PATH_COLOR)
 			draw_circle(_world_to_map(Vector3(12, 0, -26)), 4, EXIT_COLOR)
+	elif Outskirts.Mountains.NAMES.has(_map_id):
+		var mountain_path := PackedVector2Array()
+		for at: Vector3 in Outskirts.Mountains.route(_map_id):
+			mountain_path.append(_world_to_map(at))
+		_draw_path(mountain_path, 4.8)
 	elif Outskirts.NAMES.has(_map_id):
 		_draw_world_rect(Rect2(-17, -15, 34, 30), Color("304b48"))
 		_draw_world_rect(Rect2(-1.8, -15, 3.6, 30), MAP_PATH_COLOR)
@@ -351,6 +357,8 @@ func _draw_world_rect(world_rect: Rect2, color: Color) -> void:
 
 
 func _draw_exit_marker() -> void:
+	if Outskirts.Mountains.NAMES.has(_map_id):
+		return # Mountain exits are drawn from their actual interaction positions.
 	var exit_position := VILLAGE_EXIT if _map_id == "village" else RUINS_EXIT
 	if HouseCatalog.is_interior(_map_id):
 		exit_position = Vector3(0, 0, 2.95)
@@ -408,6 +416,8 @@ func get_world_bounds() -> Rect2:
 	if HouseCatalog.City.index_of(_map_id) >= 0:
 		var theme: Dictionary = HouseCatalog.City.THEMES[HouseCatalog.City.home(_map_id).kind]
 		bounds = Rect2(-float(theme.width) - 0.3, -float(theme.depth) - 0.3, float(theme.width) * 2 + 0.6, float(theme.depth) + 4.1)
+	if Outskirts.Mountains.NAMES.has(_map_id):
+		bounds = Outskirts.Mountains.BOUNDS
 	if Starbay.NAMES.has(_map_id):
 		bounds = Starbay.BOUNDS[_map_id]
 	return bounds
