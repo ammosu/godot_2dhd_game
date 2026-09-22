@@ -18,6 +18,7 @@ func _run() -> void:
 	for frame: int in range(3):
 		await physics_frame
 	world._start_guardian_battle()
+	world.battle_ui.confirm_preparation()
 	var ui: CanvasLayer = world.battle_ui
 	ui.set_physics_process(false)
 	ui.session.paused = false

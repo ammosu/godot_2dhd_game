@@ -3,6 +3,10 @@ extends CanvasLayer
 
 signal battle_finished(victory: bool)
 const Encounter = preload("res://scripts/gameplay/world_action_battle.gd")
+const Preparation = preload("res://scripts/ui/battle_preparation.gd")
+var _preparation: AcceptDialog
+var _preparing: bool = false
+var _preparation_shade: ColorRect
 var session: RefCounted
 var _root: Control
 var encounter: Node3D
@@ -28,6 +32,15 @@ func _ready() -> void:
 	layer = 70
 	_build()
 	_root.hide()
+	_preparation_shade = ColorRect.new()
+	_preparation_shade.color = Color(0.02, 0.03, 0.06, 0.55)
+	_preparation_shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_root.add_child(_preparation_shade)
+	_preparation_shade.hide()
+	_preparation = Preparation.new()
+	_preparation.theme = GameState.ui_theme
+	add_child(_preparation)
+	_preparation.options_confirmed.connect(confirm_preparation)
 	get_window().focus_exited.connect(_lost_focus)
 
 func configure_world(map: Node3D, player: CharacterBody3D, rig: Node3D, guardian: Node3D) -> void:
@@ -49,10 +62,26 @@ func start_battle(enemy: Dictionary) -> void:
 	_resolved = false
 	_touch_move = Vector2.ZERO
 	_root.show()
-	if "--battle-preview" in OS.get_cmdline_user_args():
-		session.paused = true
+	session.paused = true
+	_preparing = true
+	_preparation_shade.show()
+	_preparation.open_choices()
 	_hint.text = "WASD 移動 · J 攻擊 · K 技能 · 空白 閃避 · Tab 換人 · Q/E 鏡頭"
 	_refresh()
+
+func confirm_preparation(options: Dictionary = {}) -> void:
+	if not _preparing:
+		return
+	session.configure_automation(options)
+	_preparing = false
+	_preparation.hide()
+	_preparation_shade.hide()
+	session.paused = false
+	_hint.text = _auto_description() if session.auto_enabled else "WASD 移動 · J 攻擊 · K 技能 · 空白 閃避 · Tab 換人"
+	_refresh()
+
+func _auto_description() -> String:
+	return "自動：技能%s · 喝藥%s。移動或出招即可接手。" % ["開" if session.auto_use_skills else "關", "HP ≤ %d%%" % roundi(session.auto_potion_threshold * 100.0) if session.auto_use_potions else "關"]
 
 func is_active() -> bool:
 	return _root != null and _root.visible
@@ -64,7 +93,7 @@ func did_player_win() -> bool:
 	return session != null and int(session.winner) == 0
 
 func can_accept_action() -> bool:
-	return is_active() and not _resolved and not session.paused
+	return is_active() and not _preparing and not _resolved and not session.paused
 
 func _physics_process(delta: float) -> void:
 	if not can_accept_action():
@@ -80,7 +109,7 @@ func _physics_process(delta: float) -> void:
 func advance_combat(delta: float, movement: Vector2) -> void:
 	if not can_accept_action():
 		return
-	session.step(delta, movement)
+	GameState.advance_action_battle(delta, movement)
 	if GameState.player_hp != int(session.actors[0].hp) or GameState.player_mp != int(session.actors[0].mp):
 		GameState.sync_party_battle()
 	for event: Dictionary in session.events:
@@ -114,14 +143,14 @@ func choose_action(action: String) -> void:
 	_refresh()
 
 func _toggle_auto() -> void:
-	if not is_active() or _resolved:
+	if not is_active() or _resolved or _preparing:
 		return
 	session.set_auto_enabled(not bool(session.auto_enabled))
-	_hint.text = "自動：追擊、攻擊、技能與閃避；不喝藥。移動或出招即可接手。" if session.auto_enabled else "已切回手動操作。B 可再次開啟自動戰鬥。"
+	_hint.text = _auto_description() if session.auto_enabled else "已切回手動操作。B 可再次開啟自動戰鬥。"
 	_refresh()
 
 func _toggle_pause() -> void:
-	if not is_active() or _resolved:
+	if not is_active() or _resolved or _preparing:
 		return
 	session.paused = not bool(session.paused)
 	_touch_move = Vector2.ZERO
@@ -134,6 +163,8 @@ func _lost_focus() -> void:
 		_refresh()
 
 func _input(event: InputEvent) -> void:
+	if _preparing:
+		return
 	if is_active() and event is InputEventScreenTouch and event.pressed:
 		if _press_at(event.position):
 			get_viewport().set_input_as_handled()
@@ -162,6 +193,8 @@ func _input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 func _press_at(point: Vector2) -> bool:
+	if _preparing:
+		return false
 	if _auto_button.get_global_rect().has_point(point):
 		_toggle_auto()
 		return true
@@ -226,8 +259,8 @@ func _refresh() -> void:
 	_boss.value = session.actors[3].hp
 	_boss_name.text = "遺跡守衛  %d / %d" % [session.actors[3].hp, session.actors[3].max_hp]
 	_pause.text = "繼續 [Esc]" if session.paused else "暫停 [Esc]"
-	_pause.disabled = _resolved
-	_auto_button.disabled = _resolved
+	_pause.disabled = _resolved or _preparing
+	_auto_button.disabled = _resolved or _preparing
 	_auto_button.set_pressed_no_signal(bool(session.auto_enabled))
 	_auto_button.text = "自動戰鬥：開 [B]" if session.auto_enabled else "自動戰鬥：關 [B]"
 	var names: Dictionary = {"attack": "普攻 [J]", "skill": ["月影斬", "守護", "霜星爆"][int(session.controlled)] + " [K]", "dodge": "閃避 [空白]", "switch": "換人 [Tab]", "potion": "藥水 ×%d [H]" % int(GameState.inventory.get("potion", 0))}
@@ -289,7 +322,7 @@ func _build() -> void:
 	_auto_button.size = Vector2(240, 48)
 	_auto_button.toggle_mode = true
 	_auto_button.focus_mode = Control.FOCUS_NONE
-	_auto_button.tooltip_text = "自動追擊、攻擊、技能與閃避，不消耗藥水。移動或出招可立即接手；Tab 只切換跟隨角色。"
+	_auto_button.tooltip_text = "依戰前設定自動追擊、攻擊、技能、閃避與喝藥。移動或出招可立即接手；Tab 只切換跟隨角色。"
 	_auto_button.pressed.connect(_toggle_auto)
 	if MobileControls.is_mobile_device():
 		_auto_button.mouse_filter = Control.MOUSE_FILTER_IGNORE

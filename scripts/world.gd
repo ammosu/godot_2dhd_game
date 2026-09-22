@@ -2178,6 +2178,7 @@ func _run_playthrough_test() -> void:
 	GameState.player_hp = 1
 	player.global_position = Vector3(0, 0.1, -5.5)
 	_start_guardian_battle()
+	battle_ui.confirm_preparation()
 	for ally: Dictionary in GameState.battle_session.actors:
 		if int(ally.team) == 0:
 			ally.hp = 1
@@ -2220,6 +2221,9 @@ func _run_playthrough_test() -> void:
 		return
 	while dialogue_ui.is_open():
 		dialogue_ui.advance()
+	if not _test_require(battle_ui._preparing and GameState.battle_session.paused, "battle preparation pauses combat"):
+		return
+	battle_ui.confirm_preparation()
 	if not _test_require(battle_ui.is_active() and GameState.mode == GameState.Mode.BATTLE, "battle start"):
 		return
 	battle_ui.set_physics_process(false)

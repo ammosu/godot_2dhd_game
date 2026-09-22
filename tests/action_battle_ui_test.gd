@@ -34,7 +34,26 @@ func _run() -> void:
 	world._start_guardian_battle()
 	var ui: CanvasLayer = world.battle_ui
 	ui.set_physics_process(false)
-	ui.session.paused = false
+	check(ui._preparing and ui.session.paused, "Preparation must freeze the encounter before confirmation")
+	var prepared_positions: Array = ui.session.actors.duplicate(true)
+	ui.advance_combat(0.05, Vector2.RIGHT)
+	ui._toggle_pause()
+	check(ui.session.actors == prepared_positions and ui.session.paused, "Preparation blocks combat and pause shortcuts")
+	ui._preparation.confirmed.emit()
+	check(not ui._preparing and not ui.session.paused and not ui.session.auto_enabled, "Manual confirmation releases combat")
+	# Reopen only the preparation gate to exercise the real option-to-model signal.
+	ui._preparing = true
+	ui.session.paused = true
+	ui._preparation.open_choices()
+	ui._preparation.auto_mode.button_pressed = true
+	ui._preparation.skills.button_pressed = false
+	ui._preparation.potions.button_pressed = true
+	ui._preparation.threshold.select(1)
+	check(not ui._preparation.threshold.disabled, "Potion toggle enables threshold choice")
+	ui._preparation.confirmed.emit()
+	check(ui.session.auto_enabled and not ui.session.auto_use_skills and ui.session.auto_use_potions and is_equal_approx(ui.session.auto_potion_threshold, 0.5), "Popup choices reach the combat model")
+	ui.session.configure_automation({})
+
 	check(ui.is_active() and state.mode == state.Mode.BATTLE, "World encounter must start")
 	check(world._map_root == map and root.get_camera_3d() == camera, "Combat must retain map and exploration camera")
 	check(ui.find_children("*", "SubViewport", true, false).is_empty(), "Combat HUD must not own a separate rendered world")

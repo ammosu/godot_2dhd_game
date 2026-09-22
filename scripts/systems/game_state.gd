@@ -77,6 +77,17 @@ func begin_action_battle(enemy: Dictionary) -> RefCounted:
 	return battle_session
 
 
+func advance_action_battle(delta: float, movement: Vector2) -> void:
+	if not battle_session is ActionBattle:
+		return
+	# Manual movement takes over before any consumable can be spent this frame.
+	if not movement.is_zero_approx():
+		battle_session.set_auto_enabled(false)
+	if battle_session.wants_auto_potion():
+		use_action_potion()
+	battle_session.step(delta, movement)
+
+
 func use_action_potion() -> bool:
 	if not battle_session is ActionBattle or int(inventory.get("potion", 0)) <= 0:
 		return false

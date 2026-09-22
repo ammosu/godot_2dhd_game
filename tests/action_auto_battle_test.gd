@@ -73,6 +73,54 @@ func _run() -> void:
 		model.actors[index].hp = 0
 	model.step(1.0 / 60.0, Vector2.ZERO)
 	check(model.winner == 1 and not model.auto_enabled, "Defeat stops auto")
+	model = fresh()
+	model.configure_automation({"auto": true, "skills": false})
+	model.actors[0].position = Vector2.ZERO
+	model.actors[3].position = Vector2(1.3, 0)
+	model._ai(0, 0.01)
+	check(model.actors[0].mp == 20 and model.actors[0].intent == "attack", "Disabled skills use normal attacks without spending MP")
+	model.actors[2].position = Vector2.ZERO
+	model.actors[1].hp = 1
+	var elder_mp: int = model.actors[2].mp
+	model._ai(2, 0.01)
+	check(model.actors[2].mp == elder_mp and model.actors[1].hp == 1, "Disabled skills also stop automatic healing")
+	model.set_auto_enabled(false)
+	model.actors[0].cooldown = 0.0
+	model.actors[0].windup = 0.0
+	check(model.command("skill"), "Disabling automatic skills still allows manual skills")
+	var state: Node = root.get_node("GameState")
+	state.reset_new_game(false)
+	model = state.begin_action_battle({})
+	state.inventory["potion"] = 3
+	model.actors[0].hp = 30
+	model.configure_automation({"auto": true, "skills": false, "potions": false})
+	state.advance_action_battle(0.01, Vector2.ZERO)
+	check(state.inventory.potion == 3 and model.actors[0].hp == 30, "Disabled auto potions never consume stock")
+	model.configure_automation({"auto": true, "skills": false, "potions": true, "threshold": 0.3})
+	model.actors[0].hp = 31
+	state.advance_action_battle(0.01, Vector2.ZERO)
+	check(state.inventory.potion == 3, "HP above threshold must not consume potion")
+	model.actors[0].hp = 30
+	model.paused = true
+	state.advance_action_battle(0.01, Vector2.ZERO)
+	check(state.inventory.potion == 3, "Paused auto must not consume potion")
+	model.paused = false
+	state.advance_action_battle(0.01, Vector2.ZERO)
+	check(state.inventory.potion == 2 and model.actors[0].hp == 65 and state.player_hp == 65, "Threshold consumes one shared potion and syncs persistent HP")
+	model.actors[0].hp = 10
+	state.advance_action_battle(0.01, Vector2.ZERO)
+	check(state.inventory.potion == 2, "Cooldown blocks repeated potion consumption")
+	model.actors[0].cooldown = 0.0
+	state.advance_action_battle(0.01, Vector2.LEFT)
+	check(state.inventory.potion == 2 and not model.auto_enabled, "Manual takeover precedes automatic consumables")
+	model.set_auto_enabled(true)
+	state.inventory["potion"] = 0
+	state.advance_action_battle(0.01, Vector2.ZERO)
+	check(state.inventory.potion == 0 and model.actors[0].hp == 10, "Empty stock neither heals nor becomes negative")
+	model.winner = 0
+	state.inventory["potion"] = 1
+	state.advance_action_battle(0.01, Vector2.ZERO)
+	check(state.inventory.potion == 1, "Resolved combat does not consume potions")
 	if failures == 0:
-		print("ACTION_AUTO_BATTLE_TEST_PASS default pursuit skills dodge pause takeover switch no_mp victory defeat")
+		print("ACTION_AUTO_BATTLE_TEST_PASS default pursuit skills dodge pause takeover switch no_mp victory defeat settings potions")
 	quit(0 if failures == 0 else 1)

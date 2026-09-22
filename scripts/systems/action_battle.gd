@@ -8,6 +8,9 @@ var visibility_resolver: Callable
 var controlled: int = 0
 var paused: bool = false
 var auto_enabled: bool = false
+var auto_use_skills: bool = true
+var auto_use_potions: bool = false
+var auto_potion_threshold: float = 0.3
 var events: Array[Dictionary] = []
 
 func setup(hp: int, mp: int, attack: int, defense: int, enemy: Dictionary) -> void:
@@ -15,6 +18,9 @@ func setup(hp: int, mp: int, attack: int, defense: int, enemy: Dictionary) -> vo
 	controlled = 0
 	paused = false
 	auto_enabled = false
+	auto_use_skills = true
+	auto_use_potions = false
+	auto_potion_threshold = 0.3
 	events.clear()
 	for index: int in range(actors.size()):
 		var actor: Dictionary = actors[index]
@@ -73,6 +79,18 @@ func command(action: String) -> bool:
 func set_auto_enabled(enabled: bool) -> void:
 	auto_enabled = enabled and winner == -1
 
+func configure_automation(options: Dictionary) -> void:
+	auto_use_skills = bool(options.get("skills", true))
+	auto_use_potions = bool(options.get("potions", false))
+	auto_potion_threshold = clampf(float(options.get("threshold", 0.3)), 0.1, 0.9)
+	set_auto_enabled(bool(options.get("auto", false)))
+
+func wants_auto_potion() -> bool:
+	if not auto_enabled or not auto_use_potions or paused or winner != -1:
+		return false
+	var actor: Dictionary = actors[controlled]
+	return int(actor.hp) > 0 and float(actor.hp) / maxf(float(actor.max_hp), 1.0) <= auto_potion_threshold
+
 func _use_skill(index: int) -> bool:
 	var actor: Dictionary = actors[index]
 	if float(actor.skill_cd) > 0.0 or int(actor.mp) < 5:
@@ -107,7 +125,7 @@ func use_potion() -> bool:
 	if winner != -1 or paused:
 		return false
 	var actor: Dictionary = actors[controlled]
-	if int(actor.hp) <= 0 or int(actor.hp) >= int(actor.max_hp) or float(actor.cooldown) > 0.0 or float(actor.windup) > 0.0:
+	if int(actor.hp) <= 0 or int(actor.hp) >= int(actor.max_hp) or float(actor.cooldown) > 0.0 or float(actor.windup) > 0.0 or float(actor.dash) > 0.0:
 		return false
 	var amount: int = mini(35, int(actor.max_hp) - int(actor.hp))
 	actor.hp = int(actor.hp) + amount
@@ -195,7 +213,7 @@ func _ai(index: int, dt: float) -> void:
 		var direction: Vector2 = steering_resolver.call(index, target) if steering_resolver.is_valid() else diff.normalized()
 		_move(index, direction * (2.8 if index < 3 else 2.0 if index != 4 else 3.0) * dt)
 	elif float(actor.cooldown) <= 0.0:
-		if index == 2 and int(actor.mp) >= 6:
+		if auto_use_skills and index == 2 and int(actor.mp) >= 6:
 			for ally: int in living(0):
 				if int(actors[ally].hp) < int(actors[ally].max_hp) / 2:
 					var amount: int = mini(25, int(actors[ally].max_hp) - int(actors[ally].hp))
@@ -205,7 +223,7 @@ func _ai(index: int, dt: float) -> void:
 					actor.support_cast = 0.4
 					events.append({"kind": "heal", "index": ally, "amount": amount})
 					return
-		if auto_enabled and index < 3:
+		if auto_enabled and auto_use_skills and index < 3:
 			var should_cast: bool = index == 0 or (index == 2 and int(actor.mp) >= 11)
 			if index == 1:
 				for ally: int in living(0):

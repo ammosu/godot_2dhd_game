@@ -575,7 +575,7 @@ godot --headless --path . --rendering-method gl_compatibility -- --playthrough-t
 
 既有 `party_*` 回合測試保留為舊系統回歸測試，不代表主場景目前的操作。戰場圖庫仍使用原本靜態展示介面。
 
-直接試玩：`godot --path . -- --battle-preview`，以暫停狀態開啟，按 Esc 開始，不寫入正常自動存檔。
+直接試玩：`godot --path . -- --battle-preview`，開啟戰鬥準備彈窗，選擇自動／技能／藥水設定後按「開始戰鬥」，不寫入正常自動存檔。
 
 
 自動動作戰鬥：`godot --headless --path . --script tests/action_auto_battle_test.gd`。
@@ -588,3 +588,5 @@ godot --headless --path . --rendering-method gl_compatibility -- --playthrough-t
 `godot --path . --rendering-method gl_compatibility --script tests/action_art_world_test.gd` renders a deterministic original-map fixture with casting, moon slash, frost, heal and ward effects; saves `/tmp/wanderlight-action-art-world.png`. Repeat with `forward_plus` for desktop visual QA. These fixtures use new-game test state and never save over player data.
 
 After changing action PNGs, run `python3 tools/art/inspect_action_atlases.py` (Pillow) to regenerate measured `regions.json` and `regions.gd`, inspect the images, then run the art test and Web export. The measurement script reads alpha only and does not alter source raster pixels.
+
+戰前準備回歸：`tests/action_battle_ui_test.gd` 驗證確認前凍結與快捷鍵防繞過；`tests/action_auto_battle_test.gd` 驗證技能關閉、手動技能、藥水門檻、庫存扣除、冷卻、暫停、手動接管與結束後不扣藥。
