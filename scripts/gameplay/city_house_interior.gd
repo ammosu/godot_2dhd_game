@@ -64,10 +64,12 @@ func _ready() -> void:
 	_light(Vector3(0, 2.4, -float(plan.depth) + 1.4), Color("b7cddd"), 0.8, 7)
 	_chest(Vector3(float(plan.width) - 0.8, 0, 2.5))
 	_build_exit(stone)
-	_interaction("inspect_house_shelf", "查看" + str(plan.furniture), Vector3(0, 0.7, -2.15))
+	_interaction("inspect_house_shelf", "查看" + str(City.furniture(house_id).name), Vector3(0, 0.7, -2.15))
 	# A small lectern marks the inspect point without occupying the walkway.
 	_counter(Vector3(1.0, 0, -2.1), Vector3(0.48, 0.72, 0.46), false)
 	_books(Vector3(1.0, 0.78, -2.1))
+
+	City.Shops.interior(self, house_id, _wood, _cloth)
 
 func _build_shell(plaster: Material, stone: Material) -> void:
 	var outline := City.footprint(house_id)
@@ -144,6 +146,10 @@ func _bed(at: Vector3, yaw: float) -> void:
 	var bed := Node3D.new()
 	bed.name = "CityBed"
 	add_child(bed)
+	Finish.contact(bed, Vector3.ZERO, Vector2(1.85, 2.65), 0.24)
+	for x: float in [-0.65, 0.65]:
+		for z: float in [-1.0, 1.0]:
+			_box(bed, "BedFoot", Vector3(x, 0.083, z), Vector3(0.14, 0.12, 0.14), _wood, false)
 	_box(bed, "Frame", Vector3(0, 0.29, 0), Vector3(1.65, 0.32, 2.45), _wood, true)
 	_box(bed, "Mattress", Vector3(0, 0.52, 0), Vector3(1.52, 0.18, 2.25), _linen, false)
 	_box(bed, "Headboard", Vector3(0, 0.75, -1.17), Vector3(1.7, 1.2, 0.14), _wood, false)
@@ -164,6 +170,7 @@ func _dining(at: Vector3) -> void:
 	_books(at + Vector3(0.35, 0.95, 0))
 
 func _counter(at: Vector3, size: Vector3, goods: bool = true) -> void:
+	Finish.contact(self, at, Vector2(size.x + 0.2, size.z + 0.2), 0.22)
 	_box(self, "Counter", at + Vector3.UP * size.y * 0.5, size, _wood, true)
 	_box(self, "CounterLid", at + Vector3.UP * size.y, Vector3(size.x + 0.08, 0.08, size.z + 0.08), _wood, false)
 	if goods:

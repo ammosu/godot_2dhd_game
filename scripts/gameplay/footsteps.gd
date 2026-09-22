@@ -36,7 +36,7 @@ static func surface_at(tree: SceneTree, position: Vector3) -> StringName:
 	for candidate: Node in tree.get_nodes_in_group("polygon_footsteps"):
 		var node := candidate as Node3D
 		if node != null and absf(position.y - node.position.y) < 0.4 and Geometry2D.is_point_in_polygon(Vector2(position.x, position.z), node.get_meta("step_polygon")):
-			return &"stone"
+			return node.get_meta("step_surface", &"stone")
 	var surface: StringName = &"dirt"
 	var priority: int = -1
 	for candidate: Node in tree.get_nodes_in_group(GROUP):

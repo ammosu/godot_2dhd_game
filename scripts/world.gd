@@ -1,6 +1,9 @@
 class_name PrototypeWorld
 extends Node3D
 
+signal map_presented
+
+const DoorInteraction = preload("res://scripts/gameplay/door_interaction.gd")
 const Starbay = preload("res://scripts/gameplay/starbay.gd")
 const Outskirts = preload("res://scripts/gameplay/outskirts.gd")
 
@@ -316,6 +319,7 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 		_show_notice("抵達・" + destination)
 	_refresh_map_destinations()
 	_profile_map_stamp("total_" + map_id, profile_started)
+	map_presented.emit()
 
 
 func _profile_map_stamp(stage: String, started: int) -> int:
@@ -632,30 +636,26 @@ func _open_house_door(destination: String) -> void:
 	GameState.set_mode(GameState.Mode.TRANSITION)
 	player.velocity = Vector3.ZERO
 	player.lock_door_facing(doorway.global_position)
-	var retreat := doorway.to_global(Vector3(0, 0, -3.15) * HouseCatalog.EXTERIOR_SCALE)
-	if not await player.walk_to_door_point(retreat, 1.6):
+	var approach := doorway.to_global(Vector3(0, 0, -2.24) * HouseCatalog.EXTERIOR_SCALE)
+	if not await player.walk_to_door_point(approach, 2.0):
 		player.release_door_facing()
 		_portal_transition_pending = false
 		GameState.set_mode(GameState.Mode.EXPLORE)
 		return
 	player.face_world_position(doorway.global_position)
-	var opening := create_tween()
-	opening.tween_property(hinge, "rotation:y", PI * 0.48, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	opening.tween_interval(0.15)
-	await opening.finished
+	await DoorInteraction.animate(player, hinge)
 	if not is_instance_valid(doorway):
 		return
 	var threshold := doorway.to_global(Vector3(0, 0, -1.92) * HouseCatalog.EXTERIOR_SCALE)
 	if not await player.walk_to_door_point(threshold):
-		var closing := create_tween()
-		closing.tween_property(hinge, "rotation:y", 0.0, 0.35)
-		await closing.finished
+		await DoorInteraction.animate(player, hinge, true)
 		player.release_door_facing()
 		_portal_transition_pending = false
 		GameState.set_mode(GameState.Mode.EXPLORE)
 		return
 	if is_instance_valid(source_map) and source_map == _map_root and GameState.current_map == HouseCatalog.parent_map(destination):
 		GameState.request_map(destination, "entry")
+		await _close_arrival_door(destination)
 	if GameState.mode == GameState.Mode.TRANSITION:
 		GameState.set_mode(GameState.Mode.EXPLORE)
 
@@ -667,15 +667,63 @@ func _leave_house() -> void:
 	GameState.set_mode(GameState.Mode.TRANSITION)
 	player.velocity = Vector3.ZERO
 	player.lock_door_facing(room.to_global(Vector3(0, 0, 3.37)))
-	await room.open_exit_door()
+	if not await player.walk_to_door_point(room.to_global(Vector3(0, 0, 2.72)), 2.0):
+		player.release_door_facing()
+		_portal_transition_pending = false
+		GameState.set_mode(GameState.Mode.EXPLORE)
+		return
+	await DoorInteraction.animate(player, room.get_exit_door_hinge())
 	if is_instance_valid(source_map) and source_map == _map_root and GameState.current_map == source_id:
 		GameState.request_map(HouseCatalog.parent_map(source_id), "from_" + source_id)
+		await _close_arrival_door(source_id)
 	if GameState.mode == GameState.Mode.TRANSITION:
 		GameState.set_mode(GameState.Mode.EXPLORE)
 
 
+func _close_arrival_door(home_id: String) -> void:
+	await map_presented
+	var hinge: Node3D
+	var target: Vector3
+	var reach_point: Vector3
+	if HouseCatalog.is_interior(GameState.current_map):
+		var room := _map_root.get_node("HouseInterior") as HouseInterior
+		hinge = room.get_exit_door_hinge()
+		target = room.to_global(Vector3(0, 0, 3.37))
+		reach_point = room.to_global(Vector3(0, 0, 2.72))
+	else:
+		for house: Node in _map_root.get_children():
+			if house.get_meta("house_id", "") == home_id:
+				hinge = house.get_node("ArchitecturalDetails/DoorHinge") as Node3D
+				target = (house as Node3D).global_position
+				reach_point = (house as Node3D).to_global(Vector3(0, 0, -2.24) * HouseCatalog.EXTERIOR_SCALE)
+				break
+	if hinge == null:
+		return
+	GameState.set_mode(GameState.Mode.TRANSITION)
+	var onward := Vector3.FORWARD
+	if not HouseCatalog.is_interior(GameState.current_map):
+		onward = onward.rotated(Vector3.UP, float(HouseCatalog.find_home(home_id).yaw))
+	var arrival := player.global_position
+	hinge.rotation.y = DoorInteraction.OPEN_ANGLE
+	player.lock_door_facing(target)
+	if await player.walk_to_door_point(reach_point, 2.0):
+		await DoorInteraction.animate(player, hinge, true)
+	else:
+		var closing := hinge.create_tween()
+		closing.tween_property(hinge, "rotation:y", 0.0, 0.5)
+		await closing.finished
+	# Return outside the automatic-interaction zone before restoring input.
+	await player.walk_to_door_point(arrival, 2.0)
+	player.release_door_facing()
+	player.face_world_position(player.global_position + onward)
+
+
 func _handle_interaction(interaction_id: String) -> void:
 	if GameState.is_input_locked() or _portal_transition_pending:
+		return
+	if interaction_id == "shop_inn_rest" and GameState.current_map == "house_city_01":
+		GameState.restore_player()
+		dialogue_ui.show_dialogue([{ "speaker": "小春・旅店掌櫃", "text": "睡得好嗎？熱茶已經泡好了。\n（生命與魔力已恢復。）" }])
 		return
 	if interaction_id == "house_resident" and HouseCatalog.is_interior(GameState.current_map):
 		var resident: Dictionary = HouseCatalog.resident(GameState.current_map)
@@ -1447,7 +1495,7 @@ func _add_box(node_name: String, world_position: Vector3, size: Vector3, color: 
 	if node_name in ["Ground", "RuinGround"]:
 		Footsteps.register_surface(root, size, &"dirt")
 	elif node_name.ends_with("RuinCourt") or node_name.begins_with("MoonPath_") or node_name.begins_with("RuinCrossPath_"):
-		Footsteps.register_surface(root, size, &"stone", 10)
+		Footsteps.register_surface(root, size, &"dirt" if GameState.current_map in ["east_road", "firefly_forest", "caravan_road"] else &"stone", 10)
 	var mesh_instance := MeshInstance3D.new()
 	var mesh := BoxMesh.new()
 	mesh.size = size
@@ -1519,6 +1567,10 @@ func _make_village_surface(road_surface: bool) -> ShaderMaterial:
 	material.set_shader_parameter("meadow_texture", preload("res://assets/generated/meadow_albedo.png"))
 	material.set_shader_parameter("cobble_texture", preload("res://assets/generated/village_paving_v2.png"))
 	material.set_shader_parameter("road_surface", road_surface)
+	material.set_shader_parameter("dirt_texture", preload("res://assets/generated/terrain/trampled_gravel.png"))
+	material.set_shader_parameter("broken_texture", preload("res://assets/generated/terrain/weathered_stone.png"))
+	material.set_shader_parameter("dry_grass_texture", preload("res://assets/generated/terrain/meadow_dry.png"))
+	material.set_shader_parameter("road_kind", 2 if GameState.current_map in ["east_road", "firefly_forest", "caravan_road"] else 0)
 	return material
 
 
@@ -1529,7 +1581,7 @@ func _add_cobble_box(node_name: String, world_position: Vector3, size: Vector3, 
 		root.add_to_group("village_garden_walks")
 	root.position = world_position
 	_map_root.add_child(root)
-	Footsteps.register_surface(root, size, &"stone", 10)
+	Footsteps.register_surface(root, size, &"dirt" if GameState.current_map in ["east_road", "firefly_forest", "caravan_road"] else &"stone", 10)
 	var mesh_instance := MeshInstance3D.new()
 	var mesh := BoxMesh.new()
 	mesh.size = size
@@ -1554,7 +1606,7 @@ func _add_cobble_box(node_name: String, world_position: Vector3, size: Vector3, 
 		root.add_child(collision_shape)
 
 
-func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, rotation_y: float, house_id: String, japanese_variant: int = -1) -> void:
+func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, rotation_y: float, house_id: String, japanese_variant: int = -1, shop_id: String = "") -> void:
 	var house := StaticBody3D.new()
 	house.name = "VillageHouse"
 	house.set_meta("house_id", house_id)
@@ -1578,7 +1630,9 @@ func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, r
 	var foundation_material := _make_material(Color("aaa6af"), 0.96)
 	foundation_material.albedo_texture = _art_texture("res://assets/generated/ruin_flagstone.png")
 	foundation_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	if japanese_variant >= 0:
+	if not shop_id.is_empty():
+		preload("res://scripts/gameplay/city_shops.gd").exterior(house, shop_id)
+	elif japanese_variant >= 0:
 		preload("res://scripts/gameplay/japanese_house.gd").build(house, japanese_variant)
 	else:
 		_add_portal_box(house, Vector3(0.0, 0.18, 0.0), Vector3(4.16, 0.35, 3.36), foundation_material)
@@ -1617,7 +1671,7 @@ func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, r
 		if child is Node3D:
 			(child as Node3D).transform = exterior_transform * (child as Node3D).transform
 
-	if japanese_variant < 0:
+	if japanese_variant < 0 and shop_id.is_empty():
 		HouseExterior.build_collision(house, house_id)
 	var collision_shape := CollisionShape3D.new()
 	collision_shape.position.y = 1.15 * HouseCatalog.EXTERIOR_SCALE.y
@@ -1625,6 +1679,14 @@ func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, r
 	shape.size = HouseCatalog.EXTERIOR_COLLISION
 	collision_shape.shape = shape
 	house.add_child(collision_shape)
+	# The visible doorstep must support the actor during handle contact.
+	var step_collider := CollisionShape3D.new()
+	step_collider.name = "DoorstepCollision"
+	step_collider.position = Vector3(0, 0.13, -1.99) * HouseCatalog.EXTERIOR_SCALE
+	var step_box := BoxShape3D.new()
+	step_box.size = Vector3(1.20, 0.26, 0.65) * HouseCatalog.EXTERIOR_SCALE
+	step_collider.shape = step_box
+	house.add_child(step_collider)
 	var entrance := Interactable3D.new()
 	entrance.name = "HouseEntrance"
 	entrance.facing_direction = Vector3.BACK
@@ -1771,6 +1833,9 @@ func _add_grass_clump(world_position: Vector3, variant: String, pixel_size: floa
 	grass.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	grass.shaded = true
 	grass.double_sided = true
+	var patch: float = sin(world_position.x * 0.29 + sin(world_position.z * 0.37)) * 0.5 + 0.5
+	grass.modulate = Color.WHITE.lerp(Color("c4ba8b"), patch * 0.32)
+	grass.flip_h = sin(world_position.x * 7.1 + world_position.z * 3.7) > 0.0
 	_map_root.add_child(grass)
 
 

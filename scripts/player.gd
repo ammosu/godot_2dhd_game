@@ -9,6 +9,7 @@ const FACING_ANIMATIONS: Array[StringName] = EightWayFacing.ANIMATIONS
 const SpriteGrounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 const Footsteps = preload("res://scripts/gameplay/footsteps.gd")
 const EquipmentAppearance = preload("res://scripts/gameplay/equipment_appearance.gd")
+const DoorActionArt = preload("res://scripts/gameplay/door_action_art.gd")
 const CONVERSATION_DISTANCE: float = 1.35
 var auto_walk := preload("res://scripts/gameplay/map_navigation.gd").new()
 var field_combat: Node
@@ -28,6 +29,9 @@ var _footstep_map: String = ""
 var _door_facing_locked: bool = false
 var _door_facing_target: Vector3 = Vector3.ZERO
 var _automatic_interaction_armed: bool = false
+var _door_pose: int = -1
+var _presentation_scale: float = 1.0
+var _walking_offset: Vector2
 
 
 func _ready() -> void:
@@ -36,6 +40,7 @@ func _ready() -> void:
 	_last_step_position = global_position
 	SpriteGrounding.anchor(sprite, sprite.sprite_frames.get_frame_texture(&"down", 0))
 	_sprite_rest_height = sprite.position.y
+	_walking_offset = sprite.offset
 	SpriteGrounding.add_shadow(self, 0.32, 0.028)
 	_create_interaction_detector()
 	GameState.state_changed.connect(_refresh_equipment)
@@ -43,21 +48,22 @@ func _ready() -> void:
 
 
 func set_presentation_scale(factor: float) -> void:
+	_presentation_scale = factor
 	sprite.pixel_size = _base_pixel_size * factor
 	# The sprite pivots around its feet; scale the ground shadow in X/Z only.
 	$ContactShadow.scale = Vector3(factor, 1.0, factor)
 
 
 func _refresh_equipment() -> void:
-	var key := EquipmentAppearance.variant(GameState.equipped)
+	var key := EquipmentAppearance.variant(GameState.equipped) + (":door" if _door_pose >= 0 else "")
 	if key == _appearance_key:
 		return
 	_appearance_key = key
 	var direction := sprite.animation
 	var frame := sprite.frame
-	sprite.sprite_frames = EquipmentAppearance.walking_frames(GameState.equipped)
+	sprite.sprite_frames = DoorActionArt.frames(GameState.equipped) if _door_pose >= 0 else EquipmentAppearance.walking_frames(GameState.equipped)
 	sprite.animation = direction
-	sprite.frame = frame
+	sprite.frame = mini(frame, sprite.sprite_frames.get_frame_count(direction) - 1)
 
 
 func _physics_process(delta: float) -> void:
@@ -206,9 +212,20 @@ func _update_sprite(input_vector: Vector2, move_direction: Vector3, delta: float
 	if _door_facing_locked:
 		input_vector = EightWayFacing.screen_direction(_door_facing_target - global_position, get_viewport().get_camera_3d())
 		_update_facing_column(input_vector)
+	_refresh_equipment()
+	if _door_pose >= 0:
+		sprite.animation = FACING_ANIMATIONS[_facing_column]
+		sprite.frame = _door_pose
+		var texture := sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame)
+		sprite.pixel_size = _base_pixel_size * _presentation_scale * 290.0 / float(texture.get_meta("body_height"))
+		sprite.offset = Vector2(texture.get_width() * 0.5 - float(texture.get_meta("foot_center")), float(texture.get_meta("ground_y")) - texture.get_height() * 0.5)
+		return
+	sprite.pixel_size = _base_pixel_size * _presentation_scale
+	sprite.offset = _walking_offset
 	if not move_direction.is_zero_approx():
 		_walk_time += delta * 8.0
-		_update_facing_column(input_vector)
+		if not _door_facing_locked:
+			_update_facing_column(input_vector)
 		sprite.animation = FACING_ANIMATIONS[_facing_column]
 		sprite.frame = int(floor(_walk_time)) % 4
 		sprite.position.y = _sprite_rest_height
@@ -220,6 +237,24 @@ func _update_sprite(input_vector: Vector2, move_direction: Vector3, delta: float
 		sprite.position.y = move_toward(sprite.position.y, _sprite_rest_height, delta * 0.5)
 		sprite.rotation.z = move_toward(sprite.rotation.z, 0.0, delta * 0.5)
 	_refresh_equipment()
+
+
+func reach_for_door() -> void:
+	# The door remains still until the visibly articulated hand reaches contact.
+	_door_pose = 0
+	_update_sprite(Vector2.ZERO, Vector3.ZERO, 0.0)
+	await get_tree().create_timer(0.16).timeout
+	_door_pose = 1
+	_update_sprite(Vector2.ZERO, Vector3.ZERO, 0.0)
+	await get_tree().create_timer(0.10).timeout
+
+
+func withdraw_door_hand() -> void:
+	_door_pose = 0
+	_update_sprite(Vector2.ZERO, Vector3.ZERO, 0.0)
+	await get_tree().create_timer(0.16).timeout
+	_door_pose = -1
+	_update_sprite(Vector2.ZERO, Vector3.ZERO, 0.0)
 
 
 func _update_facing_column(input_vector: Vector2) -> void:
@@ -278,7 +313,19 @@ func walk_to_door_point(target: Vector3, speed: float = 2.8) -> bool:
 		velocity = direction * minf(speed, offset.length() / delta)
 		velocity.y = -2.0
 		var before := global_position
+		# Climb the real low doorstep using sweeps, never teleport through walls.
+		var horizontal := direction * minf(speed * delta, offset.length())
+		var raised := global_transform
+		raised.origin.y += 0.34
+		var climb := test_move(global_transform, horizontal) and not test_move(global_transform, Vector3.UP * 0.34) and not test_move(raised, horizontal)
+		if climb:
+			move_and_collide(Vector3.UP * 0.34)
 		move_and_slide()
+		if climb:
+			move_and_collide(Vector3.DOWN * 0.36)
+		var traveled := Vector2(global_position.x - before.x, global_position.z - before.z).length()
+		if _footsteps.advance(traveled, is_on_floor(), true, false):
+			GameAudio.play_cue(_footsteps.next_cue(Footsteps.surface_at(get_tree(), global_position)))
 		_update_sprite(EightWayFacing.screen_direction(direction, get_viewport().get_camera_3d()), direction, delta)
 		if Vector2(global_position.x - before.x, global_position.z - before.z).length() < 0.001:
 			break
@@ -297,6 +344,8 @@ func lock_door_facing(target: Vector3) -> void:
 
 func release_door_facing() -> void:
 	_door_facing_locked = false
+	_door_pose = -1
+	_update_sprite(Vector2.ZERO, Vector3.ZERO, 0.0)
 
 
 func face_world_position(target: Vector3) -> void:

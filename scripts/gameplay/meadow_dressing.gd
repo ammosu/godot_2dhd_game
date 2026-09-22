@@ -100,6 +100,8 @@ static func build(map_root: Node3D) -> void:
 		sprite.shaded = true
 		sprite.double_sided = true
 		sprite.flip_h = index % 2 == 0
+		var dryness: float = sin(sprite.position.x * 0.29 + sin(sprite.position.z * 0.37)) * 0.5 + 0.5
+		sprite.modulate *= Color.WHITE.lerp(Color("c4ba8b"), dryness * 0.32)
 		dressing.add_child(sprite)
 	_build_borders(map_root)
 	_build_groundcover(map_root)
@@ -221,4 +223,6 @@ static func _build_borders(map_root: Node3D) -> void:
 		sprite.modulate = Color(0.68, 0.76, 0.80) if kind < 2 else Color(0.85, 0.88, 0.9)
 		sprite.double_sided = true
 		sprite.flip_h = index % 2 == 0
+		var dryness: float = sin(sprite.position.x * 0.29 + sin(sprite.position.z * 0.37)) * 0.5 + 0.5
+		sprite.modulate *= Color.WHITE.lerp(Color("c4ba8b"), dryness * 0.32)
 		layer.add_child(sprite)

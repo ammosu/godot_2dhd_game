@@ -33,15 +33,15 @@ func _run() -> void:
 		_check(state.call("is_input_locked"), "Opening must lock controls")
 		# A second activation cannot skip the animation or enter a different house.
 		world.call("_handle_interaction", "enter_house_02")
-		await create_timer(0.15).timeout
-		_check_facing(world, (entrance.get_parent() as Node3D).global_position, "Retreat must keep facing door")
-		await create_timer(0.3).timeout
-		_check(state.get("current_map") == "village", "Repeated input skipped opening")
+		await _wait_until(func() -> bool: return player.get("_door_pose") == 1)
+		_check(is_zero_approx(hinge.rotation.y), "Hand must reach before door moves")
+		_check_facing(world, (entrance.get_parent() as Node3D).global_position, "Reach must face door")
 		var local_player := (entrance.get_parent() as Node3D).to_local(player.global_position)
-		_check(local_player.z < -3.05 * Houses.EXTERIOR_SCALE.z, "Player must retreat beyond the door swing")
-		_check(hinge.rotation.y > 0.0 and hinge.rotation.y < PI * 0.48, "Door must swing progressively")
-		_check_facing(world, (entrance.get_parent() as Node3D).global_position, "Entry opening must face door")
-		await create_timer(1.7).timeout
+		_check(absf(local_player.z + 2.24 * Houses.EXTERIOR_SCALE.z) < 0.06, "Player must approach within arm reach")
+		await create_timer(0.30).timeout
+		_check(state.get("current_map") == "village", "Repeated input skipped opening")
+		_check(hinge.rotation.y < 0.0 and hinge.rotation.y > -PI * 0.48, "Door must swing away progressively after contact")
+		await _wait_until(func() -> bool: return not state.call("is_input_locked"))
 		_check(state.get("current_map") == home.id, "Opening entered wrong home")
 		_check(not state.call("is_input_locked"), "Entry must restore controls")
 		_check_facing(world, player.global_position + Vector3.FORWARD, "Arrival indoors must face into room")
@@ -68,11 +68,23 @@ func _run() -> void:
 		_check(state.get("current_map") == home.id, "Exit must wait for opening")
 		_check(state.call("is_input_locked"), "Exit opening must lock controls")
 		world.call("_handle_interaction", "leave_house")
-		await create_timer(0.3).timeout
+		await _wait_until(func() -> bool: return player.get("_door_pose") == 1)
+		_check(is_zero_approx(exit_hinge.rotation.y), "Exit hand must reach before door moves")
+		await create_timer(0.30).timeout
 		_check(state.get("current_map") == home.id, "Repeated exit skipped opening")
-		_check(exit_hinge.rotation.y > 0.0 and exit_hinge.rotation.y < PI * 0.48, "Interior door must swing progressively")
-		_check_facing(world, Vector3(0, 0, 3.37), "Exit opening must face door")
-		await create_timer(0.55).timeout
+		_check(exit_hinge.rotation.y < 0.0 and exit_hinge.rotation.y > -PI * 0.48, "Interior door must swing progressively")
+		await _wait_until(func() -> bool: return state.get("current_map") == "village")
+		await _wait_until(func() -> bool: return player.get("_door_pose") == 1)
+		_check(state.call("is_input_locked"), "Arrival closing must retain input lock")
+		_check(bool(player.get("_door_facing_locked")), "Arrival must turn back to close door")
+		var returned_hinge: Node3D
+		for house: Node in world.get("_map_root").get_children():
+			if house.get_meta("house_id", "") == home.id:
+				returned_hinge = house.get_node("ArchitecturalDetails/DoorHinge") as Node3D
+		_check(returned_hinge != null and returned_hinge.rotation.y < 0.0, "Arrival door must visibly close")
+		await _wait_until(func() -> bool: return not state.call("is_input_locked"))
+		_check(returned_hinge != null and is_zero_approx(returned_hinge.rotation.y), "Arrival door must finish closed")
+		_check(player.get("_door_pose") == -1, "Door action must restore walking art")
 		_check(state.get("current_map") == "village", "Exit must return to village")
 		_check(not state.call("is_input_locked"), "Exit must restore controls")
 		_check_facing(world, player.global_position + Vector3.FORWARD.rotated(Vector3.UP, float(home.yaw)), "Arrival outside must face away from house")
@@ -83,7 +95,7 @@ func _run() -> void:
 		root.get_node(singleton).call("stop_all")
 	await create_timer(0.25).timeout
 	if _failures == 0:
-		print("HOUSE_DOOR_TEST_PASS eight_homes retreat animated_open walk_in delayed_entry repeat_guard residents input_unlock exit automatic_entry automatic_exit arrival_guard")
+		print("HOUSE_DOOR_TEST_PASS eight_homes approach hand_contact animated_open walk_in delayed_entry repeat_guard residents input_unlock exit automatic_entry automatic_exit arrival_guard")
 	quit(0 if _failures == 0 else 1)
 
 
@@ -113,7 +125,7 @@ func _check_automatic_doors(world: Node, state: Node) -> void:
 		player.call("face_world_position", player.global_position + approach)
 		await _settle()
 		_check(state.call("is_input_locked"), "Close facing door must open without a button")
-		await create_timer(3.0).timeout
+		await _wait_until(func() -> bool: return not state.call("is_input_locked"))
 		_check(state.get("current_map") == home_id, "Automatic entry must reach correct house")
 		if state.get("current_map") != home_id:
 			return
@@ -136,9 +148,9 @@ func _check_automatic_doors(world: Node, state: Node) -> void:
 		player.call("face_world_position", player.global_position + Vector3.BACK)
 		await _settle()
 		_check(state.call("is_input_locked"), "Close indoor exit must open without a button")
-		await create_timer(0.9).timeout
+		await _wait_until(func() -> bool: return not state.call("is_input_locked"))
 		_check(state.get("current_map") == parent_map, "Automatic exit must return to correct map")
-		await create_timer(0.9).timeout
+		await _wait_until(func() -> bool: return not state.call("is_input_locked"))
 		_check(state.get("current_map") == parent_map and not state.call("is_input_locked"), "Return must not bounce back inside")
 
 
@@ -189,3 +201,10 @@ func _check(condition: bool, message: String) -> void:
 	if not condition:
 		_failures += 1
 		push_error(message)
+
+
+func _wait_until(condition: Callable) -> void:
+	var deadline := Time.get_ticks_msec() + 10000
+	while not condition.call() and Time.get_ticks_msec() < deadline:
+		await process_frame
+	_check(condition.call(), "Door choreography timed out")

@@ -1,5 +1,6 @@
 extends RefCounted
 ## Stable city addresses, room plans and dialogue; no persistent state here.
+const Shops = preload("res://scripts/gameplay/city_shops.gd")
 const POSITIONS := [
 	Vector3(-24, 25, -0.6), Vector3(-10, 27, 0.6), Vector3(-29, 20, -0.2),
 	Vector3(-34, 11, -1.4), Vector3(-34, 3, -1.6), Vector3(-23, 7, 1.3),
@@ -40,14 +41,20 @@ static func home(id: String) -> Dictionary:
 	if index < 0:
 		return {}
 	var at: Vector3 = POSITIONS[index]
-	return {"id": id, "name": TITLES[index], "position": Vector3(at.x, 0, at.y), "yaw": at.z, "kind": KINDS[index], "index": index}
+	return {"id": id, "name": Shops.SHOPS[id].name if Shops.SHOPS.has(id) else TITLES[index], "position": Vector3(at.x, 0, at.y), "yaw": at.z, "kind": KINDS[index], "index": index}
 
 static func resident(id: String) -> Dictionary:
+	if Shops.SHOPS.has(id):
+		var shop: Dictionary = Shops.SHOPS[id]
+		return {"name": shop.owner, "art": "city_residents/" + str(shop.art), "tint": Color.WHITE, "text": shop.line}
 	var info := home(id)
 	var theme: Dictionary = THEMES[info.kind]
 	return preload("res://scripts/gameplay/city_resident_catalog.gd").resident(int(info.index), str(theme.line))
 
 static func furniture(id: String) -> Dictionary:
+	if Shops.SHOPS.has(id):
+		var shop: Dictionary = Shops.SHOPS[id]
+		return {"name": shop.display, "text": shop.detail}
 	var theme: Dictionary = THEMES[home(id).kind]
 	return {"name": theme.furniture, "text": theme.text}
 

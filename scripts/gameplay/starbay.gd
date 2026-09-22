@@ -1,5 +1,6 @@
 extends RefCounted
 ## Shared authored geography for the playable world and both map views.
+const Shops = preload("res://scripts/gameplay/city_shops.gd")
 const Civic = preload("res://scripts/gameplay/city_civic.gd")
 const NAMES := {"caravan_road": "風丘商道", "starbay": "星灣城"}
 const BOUNDS := {"caravan_road": Rect2(-32, -32, 60, 64), "starbay": Rect2(-46, -43, 88, 86)}
@@ -61,12 +62,12 @@ static func surface(world: Node3D, label: String, polygon: PackedVector2Array, h
 	var visual := MeshInstance3D.new()
 	visual.name = label
 	visual.mesh = mesh.commit()
-	var material := StandardMaterial3D.new()
-	material.albedo_texture = preload("res://assets/generated/village_paving_v2.png") if paving else preload("res://assets/generated/meadow_albedo.png")
-	material.albedo_color = Color("a79b8e") if paving else Color("657861")
-	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	material.roughness = 1.0
+	var material: ShaderMaterial = world._make_village_surface(paving)
+	material.set_shader_parameter("polygon_surface", true)
+	material.set_shader_parameter("planted_island", false)
+	var dirt_road: bool = label == "WindingCaravanRoad"
+	var worn_path: bool = label.begins_with("CivicLink") or label == "GardenWalk" or label in ["CityStreet1", "CityStreet4"]
+	material.set_shader_parameter("road_kind", 2 if dirt_road else 1 if worn_path else 0)
 	visual.material_override = material
 	visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	world.get("_map_root").add_child(visual)
@@ -75,6 +76,7 @@ static func surface(world: Node3D, label: String, polygon: PackedVector2Array, h
 	if paving:
 		visual.add_to_group("polygon_footsteps")
 		visual.set_meta("step_polygon", polygon)
+		visual.set_meta("step_surface", &"dirt" if dirt_road else &"stone")
 
 static func ellipse(center: Vector2, size: Vector2) -> PackedVector2Array:
 	var points := PackedVector2Array()
@@ -117,14 +119,14 @@ static func build(world: Node3D, map_id: String) -> void:
 		var catalog: Dictionary = preload("res://scripts/gameplay/house_catalog.gd").HOMES[index % 8]
 		var address: String = preload("res://scripts/gameplay/city_house_catalog.gd").address(index)
 		var japanese: bool = address in preload("res://scripts/gameplay/japanese_house.gd").ADDRESSES
-		world._add_house(Vector3(home.x, 0, home.y), catalog.wall, catalog.roof, home.z, catalog.id, index if japanese else -1)
+		world._add_house(Vector3(home.x, 0, home.y), catalog.wall, catalog.roof, home.z, catalog.id, index if japanese else -1, address if Shops.SHOPS.has(address) else "")
 		var building: Node3D = world.get("_map_root").get_child(-1)
 		building.name = "CityHouse%d" % index
 		var id: String = preload("res://scripts/gameplay/city_house_catalog.gd").address(index)
 		building.set_meta("house_id", id)
 		var entrance: Interactable3D = building.get_node("HouseEntrance")
 		entrance.interaction_id = "enter_" + id
-		entrance.prompt_text = "進入" + str(preload("res://scripts/gameplay/city_house_catalog.gd").TITLES[index])
+		entrance.prompt_text = "進入" + str(preload("res://scripts/gameplay/city_house_catalog.gd").home(id).name)
 		building.add_to_group("city_houses")
 	for at: Vector2 in [Vector2(-20, 33), Vector2(-12, 33), Vector2(-20, 18), Vector2(-24, 12), Vector2(-31, -4), Vector2(-9, -23), Vector2(-3, -27), Vector2(4, -16), Vector2(24, -8), Vector2(19, 10), Vector2(3, 10), Vector2(-1, 17)]:
 		world._add_lamp(Vector3(at.x, 0, at.y))

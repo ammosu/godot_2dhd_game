@@ -4,6 +4,7 @@ extends Node3D
 
 signal interaction_requested(interaction_id: String)
 const Footsteps = preload("res://scripts/gameplay/footsteps.gd")
+const Finish = preload("res://scripts/gameplay/interior_finish.gd")
 const Cloth = preload("res://scripts/gameplay/cloth_material.gd")
 const Dressing = preload("res://scripts/gameplay/house_dressing.gd")
 
@@ -31,12 +32,15 @@ func _ready() -> void:
 	boards.name = "FloorBoards"
 	boards.multimesh = MultiMesh.new()
 	boards.multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	boards.multimesh.use_colors = true
 	var plank := BoxMesh.new()
 	plank.size = Vector3(0.385, 0.024, 7)
 	boards.multimesh.mesh = plank
 	boards.multimesh.instance_count = 20
 	for board: int in range(20):
 		boards.multimesh.set_instance_transform(board, Transform3D(Basis.IDENTITY, Vector3(-3.8 + board * 0.4, 0.012, 0)))
+		boards.multimesh.set_instance_color(board, Color(0.92, 0.94, 0.96).lightened(float((board * 7) % 5) * 0.018))
+	floor_wood.vertex_color_use_as_albedo = true
 	boards.material_override = floor_wood
 	boards.set_meta("floor_detail", true)
 	add_child(boards)
@@ -78,6 +82,10 @@ func _ready() -> void:
 		for y: float in [1.28, 1.85, 2.42]:
 			_box(_walls[0], "WindowFrame", Vector3(x, y, -3.33), Vector3(1.17, 0.07, 0.11), wood, false)
 		_box(_walls[0], "WindowSill", Vector3(x, 1.25, -3.27), Vector3(1.25, 0.10, 0.32), wood, false)
+	Finish.contact(self, Vector3(-2.6, 0, -1.85), Vector2(1.85, 2.65), 0.24)
+	for x: float in [-3.25, -1.95]:
+		for z: float in [-2.85, -0.85]:
+			_box(self, "BedFoot", Vector3(x, 0.083, z), Vector3(0.14, 0.12, 0.14), wood, false)
 	# North-facing sleeping alcove with a low divider that cannot hide the player.
 	_box(self, "BedFrame", Vector3(-2.6, 0.29, -1.85), Vector3(1.65, 0.32, 2.45), wood, true)
 	_box(self, "Mattress", Vector3(-2.6, 0.52, -1.85), Vector3(1.52, 0.18, 2.25), linen, false)
@@ -130,6 +138,10 @@ func _ready() -> void:
 	_box(_door_hinge, "DoorHandle", Vector3(1.05, 0.97, -0.08), Vector3(0.07, 0.12, 0.08), stone, false)
 	_interaction("leave_house", "返回村莊", Vector3(0, 0.7, 2.95))
 	_interaction("inspect_house_shelf", "查看" + str(preload("res://scripts/gameplay/house_catalog.gd").FURNITURE[house_id].name), Vector3(-3.0, 0.7, 1.4))
+
+
+func get_exit_door_hinge() -> Node3D:
+	return _door_hinge
 
 
 func open_exit_door() -> void:
@@ -270,14 +282,21 @@ func _interaction(id: String, prompt: String, origin: Vector3) -> void:
 
 
 func _table(origin: Vector3, wood: Material) -> void:
-	_box(self, "TableTop", origin + Vector3(0, 0.85, 0), Vector3(1.75, 0.12, 1.15), wood, true)
+	Finish.contact(self, origin, Vector2(1.95, 1.40), 0.16)
+	_box(self, "TableTop", origin + Vector3(0, 0.85, 0), Vector3(1.75, 0.12, 1.15), wood, true, false)
+	for plank: int in range(4):
+		_box(self, "TablePlank", origin + Vector3(0, 0.85, -0.43125 + plank * 0.2875), Vector3(1.75, 0.12, 0.2825), wood, false)
+	for side: float in [-1.0, 1.0]:
+		_box(self, "TableApron", origin + Vector3(0, 0.72, side * 0.43), Vector3(1.5, 0.15, 0.06), wood, false)
 	for x: float in [-0.7, 0.7]:
 		for z: float in [-0.42, 0.42]:
+			Finish.contact(self, origin + Vector3(x, 0, z), Vector2(0.29, 0.29), 0.24)
 			_box(self, "TableLeg", origin + Vector3(x, 0.42, z), Vector3(0.12, 0.8, 0.12), wood, false)
 	_box(self, "TableCollision", origin + Vector3(0, 0.43, 0), Vector3(1.75, 0.85, 1.15), wood, true, false)
 
 
 func _stool(origin: Vector3, wood: Material) -> void:
+	Finish.contact(self, origin, Vector2(0.76, 0.72), 0.20)
 	_box(self, "StoolSeat", origin + Vector3(0, 0.46, 0), Vector3(0.58, 0.10, 0.55), wood, false)
 	for x: float in [-0.21, 0.21]:
 		for z: float in [-0.20, 0.20]:
@@ -348,6 +367,8 @@ func _box(parent: Node3D, label: String, origin: Vector3, size: Vector3, materia
 		box.size = size
 		mesh.mesh = box
 		mesh.material_override = material
+		if label in ["TablePlank", "TableApron", "TableLeg", "StoolSeat", "StoolLeg", "BedFrame", "BedFoot", "Frame", "Headboard", "Counter", "CounterLid"]:
+			mesh.material_override = Finish.wood(size, label in ["TablePlank", "StoolSeat", "CounterLid"])
 		body.add_child(mesh)
 	if collision:
 		var collider := CollisionShape3D.new()

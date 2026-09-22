@@ -620,7 +620,25 @@ godot --headless --path . --rendering-method gl_compatibility --script tests/sta
 
 小地圖自動尋路：`godot --headless --path . --script tests/map_navigation_test.gd`。驗證小地圖不接受點選、放大地圖圖示命中、村莊與遺跡實際行走抵達、障礙繞行、手動／模式／換圖取消、不可達目的地、大地圖點選，以及星灣城與室內路線。成功標記 `MAP_NAVIGATION_TEST_PASS`。
 
+## 城內店舖
+
+`godot --headless --path . --script tests/city_shop_test.gd` 驗證四店門口可達、實際開門／返程、專屬店名、室內通道、NPC 對話、陳設調查、旅店恢復及獨立測試存讀檔。成功標記：`CITY_SHOP_TEST_PASS four_shops doors collisions dialogue rest save return`。
+
+視覺檢查：`godot --path . --rendering-method forward_plus --script tests/city_shop_test.gd -- --capture`，以及相同指令改用 `gl_compatibility`。輸出 `/tmp/city-shop-house_city_*-<renderer>.png` 與 `/tmp/city-shop-room-house_city_*-<renderer>.png`。不寫玩家正常存檔。
+
 壁爐動態回歸：`godot --path . --rendering-method forward_plus --script tests/hearth_art_test.gd`，另以 `gl_compatibility` 執行。檢查側火舌根部對齊、呼吸縮放後的火焰高度、火星大小與橫樑界線；MultiMesh 位置檢查需要實際 GPU，headless 只執行其他檢查。
+
+`house_door_test.gd` 也驗證進出後回身關門、關門期間鎖定操作、門扇完全閉合與主角姿態復原。
+
+路面變化沿用 `garden_art_test.gd` 驗證村莊道路邊界與植栽；`footsteps_test.gd` 額外檢查東行土路及商道多邊形採用泥地音效。渲染檢查需使用 Forward+ 與 Compatibility 實際查看村莊、東行舊道、螢光森林、風丘商道與星灣城，確認路面分級與草地斑駁。
+
+伸手開關門美術與同步測試（八方向、四種換裝、腳底對齊、手到門才動、動作後復原）：
+
+```sh
+godot --headless --path . --script tests/door_action_art_test.gd
+# 實際渲染截圖，需先建立輸出目錄
+godot --path . --script tests/door_action_art_test.gd -- --capture-dir=/absolute/output/directory
+```
 
 野外戰鬥：`godot --headless --path . --script tests/field_combat_test.gd`。驗證玩家膠囊上下坡、怪物追上高台與追下坡、離開追擊範圍後返回、高低差阻擋命中、攻擊起手／打斷／冷卻、閃避與介面暫停、經驗升級、掉落拾取、讀檔不重複獎勵、v3 遷移與倒下回村。獨立使用 `user://field_combat_test.json`，成功標記 `FIELD_COMBAT_TEST_PASS`。
 

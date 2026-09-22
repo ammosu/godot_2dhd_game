@@ -79,6 +79,7 @@ Before declaring work complete:
 - Check command output for both `ERROR:` and `SCRIPT ERROR:`; exit code alone is not sufficient for Godot checks.
 - Run `git diff --check`.
 - Review `git status --short` and keep unrelated user changes untouched.
+- After every completed update, restart this project’s running game (leave unrelated Godot projects and editors alone), launch the updated game, and check startup output so the user can test it immediately.
 
 ## Assets and licensing
 
