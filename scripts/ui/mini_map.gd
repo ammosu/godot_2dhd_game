@@ -136,7 +136,7 @@ func _draw() -> void:
 func _draw_region_labels() -> void:
 	if Starbay.NAMES.has(_map_id):
 		if _map_id == "starbay":
-			for place: Array in Starbay.PLACES:
+			for place: Array in Starbay.PLACES + Starbay.Civic.PLACES:
 				_draw_place_name(Vector3(place[0].x, 0, place[0].y), place[1])
 		else:
 			_draw_place_name(Vector3(12, 0, -25), "星灣城 ↑")
@@ -246,6 +246,19 @@ func _draw_map_geometry() -> void:
 			_draw_geography_polygon(Starbay.ellipse(Vector2(-6, 11), Vector2(9, 6)), MAP_PATH_COLOR)
 			_draw_geography_polygon(Starbay.ellipse(Vector2(-8, -27), Vector2(6.5, 5)), MAP_PATH_COLOR)
 			_draw_geography_polygon(Starbay.ellipse(Vector2(12, 4), Vector2(3, 2)), MAP_WATER_COLOR)
+			for pocket: Vector2 in Starbay.Civic.POCKETS:
+				_draw_geography_polygon(Starbay.ellipse(pocket, Vector2(2.4, 2.2)), Color("50765a"))
+			for link: Array in Starbay.Civic.LINKS:
+				_draw_geography_polygon(Starbay.ribbon(Starbay.curve(link), 1.5), MAP_PATH_COLOR)
+			for court: Array in [[Starbay.Civic.MOON, 2.9], [Starbay.Civic.TREE, 2.3]]:
+				_draw_geography_polygon(Starbay.ellipse(court[0], Vector2.ONE * (float(court[1]) + 0.7)), MAP_PATH_COLOR)
+				_draw_geography_polygon(Starbay.ellipse(court[0], Vector2.ONE * (float(court[1]) - 0.7)), Color("597754"))
+			_draw_geography_polygon(Starbay.ellipse(Starbay.Civic.MOON, Vector2.ONE * 1.5), Color("c3ac78"))
+			_draw_geography_polygon(Starbay.ellipse(Starbay.Civic.TREE, Vector2.ONE * 1.3), Color("84a571"))
+			var pavilion := PackedVector2Array()
+			for corner: int in range(6):
+				pavilion.append(Starbay.Civic.PAVILION + Vector2(cos(corner * TAU / 6), sin(corner * TAU / 6)) * 2.1)
+			_draw_geography_polygon(pavilion, Color("84a6b0"))
 			for home: Vector3 in Starbay.HOMES:
 				var corners := PackedVector2Array()
 				for corner: Vector2 in [Vector2(-2.3, -1.84), Vector2(2.3, -1.84), Vector2(2.3, 1.84), Vector2(-2.3, 1.84)]:

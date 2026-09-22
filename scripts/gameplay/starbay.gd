@@ -1,5 +1,6 @@
 extends RefCounted
 ## Shared authored geography for the playable world and both map views.
+const Civic = preload("res://scripts/gameplay/city_civic.gd")
 const NAMES := {"caravan_road": "風丘商道", "starbay": "星灣城"}
 const BOUNDS := {"caravan_road": Rect2(-32, -32, 60, 64), "starbay": Rect2(-46, -43, 88, 86)}
 const OUTLINE := [Vector2(-20, 38), Vector2(-28, 32), Vector2(-37, 23), Vector2(-41, 9), Vector2(-37, -6), Vector2(-29, -13), Vector2(-31, -25), Vector2(-20, -34), Vector2(-4, -38), Vector2(9, -32), Vector2(13, -23), Vector2(28, -25), Vector2(37, -15), Vector2(34, -3), Vector2(27, 4), Vector2(32, 15), Vector2(22, 24), Vector2(8, 27), Vector2(-4, 34), Vector2(-12, 38)]
@@ -134,6 +135,7 @@ static func build(world: Node3D, map_id: String) -> void:
 	build_market(world)
 	build_belfry(world)
 	dress_materials(world)
+	Civic.build(world)
 	add_residents(world)
 	var exits := preload("res://scripts/gameplay/outskirts.gd")
 	exits.add_interaction(world, "travel_city_home", "返回風丘商道", Vector3(-16, 0, 36.8), true)

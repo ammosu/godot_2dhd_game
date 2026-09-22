@@ -82,12 +82,14 @@ static func _variant_for(root: Node3D, species: int, preferred: int) -> int:
 	return selected
 
 
-static func decorate(root: Node3D, at: Vector3) -> void:
+static func decorate(root: Node3D, at: Vector3, species_override: int = -1) -> void:
 	_prepare()
 	var key: int = absi(roundi(at.x * 37.0) + roundi(at.z * 71.0))
 	var species: int = (key ^ (key >> 3) ^ (key >> 7)) % SPECIES.size()
 	if at.x > 13.0 and at.z < -9.0:
 		species = 3
+	if species_override >= 0 and species_override < SPECIES.size():
+		species = species_override
 	var variant: int = _variant_for(root, species, (key ^ (key >> 5)) % VARIANT_COUNT)
 	var index: int = species * VARIANT_COUNT + variant
 	root.set_meta("tree_species", SPECIES[species])

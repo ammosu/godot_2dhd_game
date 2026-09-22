@@ -62,6 +62,16 @@ func _run() -> void:
 	check(not world.get("_mini_map").has_main_target(), "no unrelated quest marker")
 	for index: int in range(City.STREETS.size()):
 		sweep(City.curve(City.STREETS[index]).slice(2, -2), "street%d" % index)
+	check(get_nodes_in_group("civic_landmarks").size() == 3, "three civic landmarks")
+	for index: int in range(City.Civic.LINKS.size()):
+		sweep(City.curve(City.Civic.LINKS[index]), "civic link%d" % index)
+	sweep(City.Civic.ring(City.Civic.MOON, 2.9), "moon promenade")
+	sweep(City.Civic.ring(City.Civic.TREE, 2.3), "tree promenade")
+	for id: String in City.Civic.TALKS:
+		world.call("_handle_interaction", id)
+		check(world.get_node("DialogueUI").call("is_open"), "civic dialogue " + id)
+		while world.get_node("DialogueUI").call("is_open"):
+			world.get_node("DialogueUI").call("advance")
 	check(world.get_node("Player").position.y > -0.1, "player grounded")
 	var footsteps := preload("res://scripts/gameplay/footsteps.gd")
 	check(footsteps.surface_at(self, Vector3(-6, 0.05, 11)) == &"stone", "polygon stone footsteps")
@@ -85,7 +95,7 @@ func _run() -> void:
 	check(state.get("current_map") == "starbay", "saved city")
 	check(world.get_node("Player").position.distance_to(Vector3(-6, 0.1, 11)) < 0.5, "saved position")
 	if "--capture" in OS.get_cmdline_user_args():
-		for shot: Array in [["starbay_market", Vector3(-6, 0.1, 12)], ["starbay_belfry", Vector3(-8, 0.1, -22)]]:
+		for shot: Array in [["starbay_moon", Vector3(-6, 0.1, -9)], ["starbay_tree", Vector3(-15.7, 0.1, 10)], ["starbay_pavilion", Vector3(8, 0.1, 1)], ["starbay_market", Vector3(-6, 0.1, 12)], ["starbay_belfry", Vector3(-8, 0.1, -22)]]:
 			world.get_node("Player").position = shot[1]
 			world.get_node("CameraRig").call("snap_to_target")
 			for frame: int in range(12):

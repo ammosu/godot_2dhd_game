@@ -226,3 +226,5 @@ godot --path . -- --outskirts-preview
 ### 即時戰鬥動作素材
 
 地圖戰鬥使用六位角色的四方向動作圖集，涵蓋走路、蓄力、出手、收招、施法、閃避、受傷與倒地；支援目前旅人、諾亞和長老的武器／服裝組合。方向依實際相機計算，手動與自動戰鬥共用同一套動畫。月影斬、月光彈、冰霜新星、治療與守護會在地圖內播放原創特效，暫停時一併停止。素材清單、逐格裁切資料與生成提示見 [action art](assets/generated/action/README.md)。
+
+星灣城公共空間依照[城市配置圖](docs/design/starbay-civic-plan-v1.png)補入月儀庭、樹蔭庭園與水岸六角涼亭，搭配花壇、長椅、街角樹木及串接小徑；按 G 可查看三處地標，在附近按 Space 閱讀介紹。配置保留既有曲線街道、26 棟住宅及出入口，詳見[配置對照](docs/design/starbay-civic-layout.md)。`godot --path . -- --civic-preview` 可從月儀庭旁開始試玩，不寫入正常自動存檔。

@@ -35,6 +35,9 @@ func _run() -> void:
 		var kind: String = City.home(id).kind
 		player.position = Houses.return_position(id)
 		await settle()
+		var entrance: Node3D = world.get("_map_root").get_node("CityHouse%d/HouseEntrance" % index)
+		player.call("release_door_facing")
+		player.call("face_world_position", entrance.global_position)
 		var target: Node = player.call("get_nearest_interactable")
 		check(target != null and target.get("interaction_id") == "enter_" + id, "door reachable " + id)
 		if target == null or target.get("interaction_id") != "enter_" + id:

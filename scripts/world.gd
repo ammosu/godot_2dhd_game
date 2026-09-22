@@ -98,6 +98,12 @@ func _ready() -> void:
 		player.global_position = Vector3(0, 0.1, -5.5)
 		($CameraRig as Hd2dCameraRig).snap_to_target()
 		_start_guardian_battle.call_deferred()
+	elif "--civic-preview" in OS.get_cmdline_user_args():
+		_test_mode = true
+		GameState.flags["intro_seen"] = true
+		_load_map("starbay", "from_road")
+		player.global_position = Vector3(-6, 0.1, -9)
+		($CameraRig as Hd2dCameraRig).snap_to_target()
 	elif "--japanese-preview" in OS.get_cmdline_user_args():
 		_test_mode = true
 		GameState.flags["intro_seen"] = true
@@ -670,6 +676,10 @@ func _handle_interaction(interaction_id: String) -> void:
 		if HouseCatalog.is_interior(destination) and GameState.current_map == HouseCatalog.parent_map(destination):
 			_portal_transition_pending = true
 			_open_house_door(destination)
+		return
+	if Starbay.Civic.TALKS.has(interaction_id) and GameState.current_map == "starbay":
+		var civic_talk: Array = Starbay.Civic.TALKS[interaction_id]
+		dialogue_ui.show_dialogue([{ "speaker": civic_talk[0], "text": civic_talk[1] }])
 		return
 	if Starbay.TALKS.has(interaction_id) and GameState.current_map == "starbay":
 		var talk: Array = Starbay.TALKS[interaction_id]
