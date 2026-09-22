@@ -643,3 +643,5 @@ godot --path . --script tests/door_action_art_test.gd -- --capture-dir=/absolute
 野外戰鬥：`godot --headless --path . --script tests/field_combat_test.gd`。驗證玩家膠囊上下坡、怪物追上高台與追下坡、離開追擊範圍後返回、高低差阻擋命中、攻擊起手／打斷／冷卻、閃避與介面暫停、經驗升級、掉落拾取、讀檔不重複獎勵、v3 遷移與倒下回村。獨立使用 `user://field_combat_test.json`，成功標記 `FIELD_COMBAT_TEST_PASS`。
 
 野外戰鬥畫面：`godot --path . --rendering-method forward_plus --script tests/field_render_test.gd`，另以 `gl_compatibility` 執行一次；截圖寫入 `/tmp/field-forward_plus.png`、`/tmp/field-gl_compatibility.png`。成功標記 `FIELD_RENDER_TEST_PASS`。
+
+野外自動戰鬥：`godot --headless --path . --script tests/field_auto_battle_test.gd`，驗證手動接手、技能與喝藥開關、失焦／選單暫停、預警閃避，以及從入口實際沿坡道清除三敵、拾取全部掉落並停止。不寫入玩家存檔。成功標記 `FIELD_AUTO_BATTLE_TEST_PASS`。

@@ -1,5 +1,6 @@
 extends Node3D
 ## Optional overworld encounter. GameState owns progression, defeat flags and loot.
+const Automation = preload("res://scripts/gameplay/field_auto_battle.gd")
 const Terrain = preload("res://scripts/gameplay/field_terrain.gd")
 const Navigation = preload("res://scripts/gameplay/field_navigation.gd")
 const Art = preload("res://scripts/gameplay/action_sprite_library.gd")
@@ -13,6 +14,8 @@ const SPAWNS: Array[Dictionary] = [
 	{"id": "road_wolf_ramp", "at": Vector3(2, 0.41, 10.5), "caster": false},
 	{"id": "road_mage_terrace", "at": Vector3(10, 1.85, 10.5), "caster": true},
 ]
+var automation := Automation.new()
+var _auto_button: Button
 var player: CharacterBody3D
 var navigation := Navigation.new()
 var enemies: Array[Dictionary] = []
@@ -100,9 +103,13 @@ func _spawn_enemy(spawn: Dictionary) -> void:
 		"cooldown": 0.7, "windup": 0.0, "swing": 0.0, "aim": Vector3.ZERO,
 		"path": PackedVector3Array(), "repath": 0.0, "patrol": 1.0})
 
-func movement_velocity(requested: Vector3) -> Vector3:
+func movement_velocity(requested: Vector3, delta: float = 0.0) -> Vector3:
 	if _focus_paused:
 		return Vector3.ZERO
+	if not requested.is_zero_approx():
+		automation.set_enabled(false, self)
+	else:
+		requested = automation.direction(self, delta) * player.move_speed
 	if not requested.is_zero_approx():
 		facing = requested.normalized()
 	if dodge_time > 0:
@@ -114,6 +121,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var action: String = ""
 	if event is InputEventKey and event.pressed:
+		if event.physical_keycode == KEY_B:
+			automation.set_enabled(not automation.enabled, self)
+			get_viewport().set_input_as_handled()
+			return
 		match event.physical_keycode:
 			KEY_J: action = "attack"
 			KEY_K: action = "skill"
@@ -129,7 +140,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		perform(action)
 		get_viewport().set_input_as_handled()
 
-func perform(action: String) -> bool:
+func perform(action: String, automated: bool = false) -> bool:
+	if not automated:
+		automation.set_enabled(false, self)
 	if not ready_for_combat or _focus_paused or GameState.mode != GameState.Mode.EXPLORE or GameState.player_hp <= 0:
 		return false
 	if action == "potion":
@@ -326,6 +339,7 @@ func _enemy_strike(enemy: Dictionary) -> void:
 		_number(player.global_position, "−%d" % damage, Color("ff9985"))
 		if GameState.player_hp == 0:
 			GameState.restore_after_defeat()
+			automation.set_enabled(false, self)
 			GameState.set_mode(GameState.Mode.TRANSITION)
 			_recover.call_deferred()
 
@@ -413,7 +427,7 @@ func _build_hud() -> void:
 	_hud.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
 	_hud.offset_left = -260
 	_hud.offset_right = 260
-	_hud.offset_top = -144
+	_hud.offset_top = -188
 	_hud.offset_bottom = -32
 	layer.add_child(_hud)
 	var column := VBoxContainer.new()
@@ -422,6 +436,24 @@ func _build_hud() -> void:
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_status.add_theme_font_size_override("font_size", 17)
 	column.add_child(_status)
+	var options := HBoxContainer.new()
+	options.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_child(options)
+	_auto_button = Button.new()
+	_auto_button.focus_mode = Control.FOCUS_NONE
+	_auto_button.pressed.connect(func() -> void: automation.set_enabled(not automation.enabled, self))
+	options.add_child(_auto_button)
+	var skills := CheckButton.new()
+	skills.text = "使用技能"
+	skills.button_pressed = automation.use_skills
+	skills.focus_mode = Control.FOCUS_NONE
+	skills.toggled.connect(func(value: bool) -> void: automation.use_skills = value)
+	options.add_child(skills)
+	var potions := CheckButton.new()
+	potions.text = "低血量喝藥"
+	potions.focus_mode = Control.FOCUS_NONE
+	potions.toggled.connect(func(value: bool) -> void: automation.use_potions = value)
+	options.add_child(potions)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	column.add_child(row)
@@ -435,6 +467,8 @@ func _build_hud() -> void:
 		_buttons[action] = button
 
 func _update_hud() -> void:
+	_auto_button.text = "自動：開 B" if automation.enabled else "自動：關 B"
+	_auto_button.disabled = not ready_for_combat
 	_status.text = "Lv.%d  EXP %d/%d   HP %d/%d   MP %d/%d\n舊道南側狩獵地・月苔 ×%d" % [GameState.player_level, GameState.player_xp, GameState.xp_to_next_level(), GameState.player_hp, GameState.player_max_hp, GameState.player_mp, GameState.player_max_mp, int(GameState.inventory.get("moon_moss", 0))]
 	var cooldowns: Dictionary = {"attack": attack_cooldown, "skill": skill_cooldown, "dodge": dodge_cooldown, "potion": 0.0}
 	var labels: Dictionary = {"attack": "普攻 J / 1", "skill": "月影斬 K / 2", "dodge": "閃避 Shift", "potion": "藥水 H ×%d" % int(GameState.inventory.get("potion", 0))}

@@ -94,7 +94,9 @@ func _physics_process(delta: float) -> void:
 		input_vector = EightWayFacing.screen_direction(move_direction, get_viewport().get_camera_3d())
 	var target_velocity := move_direction * move_speed
 	if is_instance_valid(field_combat):
-		target_velocity = field_combat.movement_velocity(target_velocity)
+		target_velocity = field_combat.movement_velocity(target_velocity, delta)
+		move_direction = target_velocity.normalized()
+		input_vector = EightWayFacing.screen_direction(move_direction, get_viewport().get_camera_3d())
 
 	velocity.x = move_toward(velocity.x, target_velocity.x, acceleration * delta)
 	velocity.z = move_toward(velocity.z, target_velocity.z, acceleration * delta)
