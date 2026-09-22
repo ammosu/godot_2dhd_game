@@ -1916,6 +1916,23 @@ func _build_hud() -> void:
 	_mini_map.offset_bottom = _mini_map.offset_top + 176.0
 	_mini_map.theme = GameState.ui_theme
 	hud.add_child(_mini_map)
+	var map_ui := preload("res://scripts/ui/map_ui.gd").new()
+	map_ui.name = "MapUI"
+	map_ui.source_map = _mini_map
+	add_child(map_ui)
+	var map_button := Button.new()
+	map_button.name = "OpenMap"
+	map_button.text = "地圖  G" if not MobileControls.is_mobile_device() else "地圖"
+	map_button.theme = GameState.ui_theme
+	map_button.anchor_left = 1.0
+	map_button.anchor_right = 1.0
+	map_button.offset_left = -250.0
+	map_button.offset_right = -24.0
+	map_button.offset_top = _mini_map.offset_top + 234.0
+	map_button.offset_bottom = map_button.offset_top + 48.0
+	map_button.pressed.connect(map_ui.open)
+	hud.add_child(map_button)
+	map_ui.open_button = map_button
 
 	_prompt_label = Label.new()
 	_prompt_label.anchor_left = 0.5

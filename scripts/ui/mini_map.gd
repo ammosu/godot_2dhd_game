@@ -31,6 +31,7 @@ var _main_target_visible: bool = false
 var _optional_target_visible: bool = false
 var _panel_style: StyleBoxFlat
 var _camera_yaw: float = 0.0
+var north_up: bool = false
 
 
 func _ready() -> void:
@@ -46,6 +47,9 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	if north_up:
+		set_camera_yaw(0.0)
+		return
 	var camera := get_viewport().get_camera_3d()
 	if camera != null:
 		var right := camera.global_basis.x
@@ -100,6 +104,13 @@ func get_map_id() -> String:
 	return _map_id
 
 
+func copy_state_from(source: MiniMap) -> void:
+	set_map(source._map_id)
+	set_player_state(source._player_world_position, Vector3(source._player_heading.x, 0, source._player_heading.y))
+	set_main_target(source._main_target_world_position, source._main_target_visible)
+	set_optional_target(source._optional_target_world_position, source._optional_target_visible)
+
+
 func has_main_target() -> bool:
 	return _main_target_visible
 
@@ -112,6 +123,8 @@ func _draw() -> void:
 	_draw_panel()
 	_draw_map_geometry()
 	_draw_exit_marker()
+	if north_up:
+		_draw_region_labels()
 	if _optional_target_visible:
 		_draw_optional_target(_world_to_map(_optional_target_world_position))
 	if _main_target_visible:
@@ -119,10 +132,39 @@ func _draw() -> void:
 	_draw_player_marker(_world_to_map(_player_world_position))
 
 
+func _draw_region_labels() -> void:
+	match _map_id:
+		"village":
+			for home: Dictionary in HouseCatalog.HOMES:
+				_draw_place_name(home.position, str(home.name))
+			_draw_place_name(Vector3(0, 0, -17), "北境遺跡 ↑")
+			_draw_place_name(Vector3(25, 0, 2), "東行舊道 →")
+		"ruins":
+			_draw_place_name(Vector3(0, 0, 13), "暮光村 ↓")
+			_draw_place_name(Vector3(-9, 0, 3), "石碑")
+			_draw_place_name(Vector3(9, 0, -2), "月泉")
+		"east_road":
+			_draw_place_name(Vector3(-13, 0, 3), "← 暮光村")
+			_draw_place_name(Vector3(0, 0, -10), "螢光森林 ↑")
+		"firefly_forest":
+			_draw_place_name(Vector3(0, 0, 11), "東行舊道 ↓")
+		_:
+			if HouseCatalog.is_interior(_map_id):
+				_draw_place_name(Vector3(0, 0, 2.4), "出口 ↓")
+
+
+func _draw_place_name(at: Vector3, title: String) -> void:
+	var font := get_theme_default_font()
+	var extent := font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 16)
+	var position := _world_to_map(at) + Vector2(-extent.x * 0.5, 6)
+	draw_rect(Rect2(position - Vector2(4, 17), extent + Vector2(8, 2)), Color(0.025, 0.025, 0.05, 0.86))
+	draw_string(font, position, title, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color("fff2d2"))
+
+
 func _draw_panel() -> void:
 	draw_style_box(_panel_style, Rect2(Vector2.ZERO, size))
 
-	var font := ThemeDB.fallback_font
+	var font := get_theme_default_font()
 	var title := "暮光村" if _map_id == "village" else "北境遺跡"
 	if Outskirts.NAMES.has(_map_id):
 		title = str(Outskirts.NAMES[_map_id])
@@ -249,7 +291,7 @@ func _draw_optional_target(center: Vector2) -> void:
 
 
 func _draw_exclamation(center: Vector2, color: Color) -> void:
-	var font := ThemeDB.fallback_font
+	var font := get_theme_default_font()
 	draw_string(font, center + Vector2(-3.5, 4.5), "!", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 14, color)
 
 
@@ -276,6 +318,8 @@ func _world_to_map(world_position: Vector3) -> Vector2:
 	# buildings, or clipping corner markers. Clamp only out-of-map positions.
 	var point := Vector2(world_position.x, world_position.z).clamp(bounds.position, bounds.end)
 	var scale_factor := (minf(map_rect.size.x, map_rect.size.y) - 20.0) / bounds.size.length()
+	if north_up:
+		scale_factor = minf((map_rect.size.x - 40.0) / bounds.size.x, (map_rect.size.y - 40.0) / bounds.size.y)
 	return map_rect.get_center() + (point - bounds.get_center()).rotated(_camera_yaw) * scale_factor
 
 

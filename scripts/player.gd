@@ -56,6 +56,11 @@ func _refresh_equipment() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if GameState.mode == GameState.Mode.MAP:
+		velocity = Vector3.ZERO
+		_last_step_position = global_position
+		_update_sprite(Vector2.ZERO, Vector3.ZERO, delta)
+		return
 	if _footstep_map != GameState.current_map or global_position.distance_to(_last_step_position) > 2.0:
 		_footsteps.advance(0.0, false, false, true)
 		_footstep_map = GameState.current_map

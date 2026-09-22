@@ -547,3 +547,10 @@ godot --headless --path . --script tests/dialogue_occlusion_test.gd
 對外道路自動通行：`godot --headless --path . --script tests/road_exit_test.gd`。以真正玩家碰撞體從四個出口各三條路線行走，不呼叫互動，檢查目的地、每次只切圖一次、抵達不彈回，以及對話鎖定後恢復；成功標記 `ROAD_EXIT_TEST_PASS`。
 
 同種樹形變化：`godot --headless --path . --script tests/tree_variants_test.gd`，成功標記 `TREE_VARIANTS_TEST_PASS`。驗證 15 個素材、透明裁切邊界、鄰近垂柳使用不同樹形、重新建立地圖配置不變及樹根接地。完整遊戲碰撞另跑 `prop_collision_test.gd`。
+
+### Regional map UI
+
+`godot --headless --path . --script tests/map_ui_test.gd`
+
+Expected: `MAP_UI_TEST_PASS five_regions input_lock modal_guards keyboard button north_up targets`.
+Checks G/Esc and the map button, five region types, objective synchronization, north-up orientation, movement lock, and opening guards during dialogue/battle/equipment/transitions. Uses test-mode save isolation. Run with an actual renderer to also capture `/tmp/wanderlight-large-map.png` for visual review; append `-- --mobile-controls` to inspect the touch layout.

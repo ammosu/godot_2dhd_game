@@ -28,6 +28,10 @@ window/stretch/mode="canvas_items"
 
 [input]
 
+map_menu={
+"deadzone": 0.25,
+"events": [Object(InputEventKey,"physical_keycode":71)]
+}
 audio_mute={
 "deadzone": 0.25,
 "events": [Object(InputEventKey,"physical_keycode":77,"unicode":109)]
