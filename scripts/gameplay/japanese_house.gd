@@ -15,7 +15,7 @@ static func build(house: Node3D, variant: int) -> void:
 	paper.emission_enabled = true
 	paper.emission = Color("c49a5f")
 	paper.emission_energy_multiplier = 0.22
-	var cloth := material("linen_albedo.png", [Color("4d7883"), Color("9d6955"), Color("777e58")][variant % 3])
+	var cloth := preload("res://scripts/gameplay/cloth_material.gd").make([Color("4d7883"), Color("9d6955"), Color("777e58")][variant % 3])
 	box(root, "StoneFooting", Vector3(0, 0.17, 0), Vector3(4.18, 0.34, 3.42), stone)
 	# Preserve the recessed opening for the inward-moving door and the approach animation.
 	for side: float in [-1, 1]:

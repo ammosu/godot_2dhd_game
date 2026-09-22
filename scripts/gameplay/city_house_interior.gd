@@ -11,8 +11,8 @@ func _ready() -> void:
 	plan = City.THEMES[home.kind]
 	set_meta("room_kind", home.kind)
 	_wood = _material("timber_albedo.png", Color("bda68d"))
-	_linen = _material("linen_albedo.png", Color("ecdfc8"))
-	_cloth = _material("linen_albedo.png", (plan.color as Color).lightened(float(int(home.index) % 3) * 0.07))
+	_linen = Cloth.make(Color("ecdfc8"))
+	_cloth = Cloth.make((plan.color as Color).lightened(float(int(home.index) % 3) * 0.07))
 	var plaster := _material("plaster_albedo.png", Color("d5d0bc"))
 	var stone := _material("ruin_flagstone.png", Color("a6a0a0"))
 	_build_shell(plaster, stone)

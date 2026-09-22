@@ -4,6 +4,7 @@ extends Node3D
 
 signal interaction_requested(interaction_id: String)
 const Footsteps = preload("res://scripts/gameplay/footsteps.gd")
+const Cloth = preload("res://scripts/gameplay/cloth_material.gd")
 const Dressing = preload("res://scripts/gameplay/house_dressing.gd")
 
 var house_id: String = "house_01"
@@ -16,8 +17,8 @@ func _ready() -> void:
 	var wood := _material("timber_albedo.png", Color("baa28a"))
 	var plaster := _material("plaster_albedo.png", Color("ddd2b9"))
 	var stone := _material("ruin_flagstone.png", Color("8c8790"))
-	var linen := _material("linen_albedo.png", Color("eee0cb"))
-	var blanket := _material("linen_albedo.png", Color("62969e") if int(house_id.right(2)) % 2 == 0 else Color("b77782"))
+	var linen := Cloth.make(Color("eee0cb"))
+	var blanket := Cloth.make(Color("62969e") if int(house_id.right(2)) % 2 == 0 else Color("b77782"))
 	linen.uv1_scale = Vector3(2, 2, 1)
 	blanket.uv1_scale = Vector3(2, 2, 1)
 	_box(self, "Foundation", Vector3(0, -0.17, 0), Vector3(8.3, 0.32, 7.3), stone, false)
@@ -174,18 +175,21 @@ func _build_bedding(cloth: StandardMaterial3D, linen: Material) -> void:
 	# A continuous thin surface hangs beyond the mattress; no rigid slab edge.
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for row: int in range(12):
-		for column: int in range(12):
+	for row: int in range(32):
+		for column: int in range(32):
 			for corner: Vector2i in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 0), Vector2i(1, 1), Vector2i(0, 1)]:
-				var uv := Vector2(column + corner.x, row + corner.y) / 12.0
+				var uv := Vector2(column + corner.x, row + corner.y) / 32.0
 				var x := (uv.x - 0.5) * 1.78
 				var z := lerpf(-2.38, -0.56, uv.y)
 				var side_drop := pow(maxf(0.0, (absf(x) - 0.68) / 0.21), 2.0) * 0.22
 				var end_drop := pow(maxf(0.0, (z + 0.79) / 0.23), 2.0) * 0.18
-				var height := 0.665 + sin(uv.y * PI * 4.0) * 0.009 - maxf(side_drop, end_drop)
+				var folds := sin(uv.y * PI * 9.0 + uv.x * 2.0) * 0.012
+				var edge_folds := sin(uv.y * PI * 13.0) * 0.016 * smoothstep(0.48, 0.89, absf(x))
+				var height := 0.665 + folds + edge_folds - maxf(side_drop, end_drop)
 				surface.set_uv(uv)
 				surface.add_vertex(Vector3(-2.6 + x, height, z))
 	surface.generate_normals()
+	surface.generate_tangents()
 	quilt.mesh = surface.commit()
 	var material := cloth.duplicate() as StandardMaterial3D
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED

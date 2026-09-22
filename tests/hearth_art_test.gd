@@ -44,6 +44,18 @@ func _run() -> void:
 	for index: int in range(100):
 		fire.call("_process", 0.031)
 		_check(light.light_energy >= 2.09 and light.light_energy <= 2.31, "Firelight flicker exceeds safe amplitude")
+		var tip: float = fire.position.y + flames.position.y + flames.sprite_frames.get_frame_texture(&"default", flames.frame).get_height() * flames.pixel_size * flames.scale.y
+		_check(tip < 1.40, "Breathing flame crosses mantel")
+		for layer: int in range(2):
+			var tongue := fire.get_node("RearFlame%d" % layer) as AnimatedSprite3D
+			var frame_height: float = tongue.sprite_frames.get_frame_texture(&"default", tongue.frame).get_height()
+			_check(is_zero_approx(tongue.offset.y - frame_height * 0.5), "Rear flame base slides away from logs")
+		if DisplayServer.get_name() != "headless":
+			var embers := fire.get_node("RisingEmbers") as MultiMeshInstance3D
+			for ember: int in range(embers.multimesh.instance_count):
+				var transform := embers.multimesh.get_instance_transform(ember)
+				_check(transform.origin.y + fire.position.y < 1.40, "Ember escapes through mantel")
+				_check(transform.basis.x.length() <= 0.01, "Ember becomes an oversized glowing blob")
 	_check(fire.find_children("*", "CollisionObject3D", true, false).is_empty(), "Hearth decoration changed collision")
 	room.queue_free()
 	for singleton: String in ["GameAudio", "GameMusic", "GameAmbience"]:

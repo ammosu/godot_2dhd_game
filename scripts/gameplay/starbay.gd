@@ -241,13 +241,15 @@ static func add_canopy_strip(world: Node3D, at: Vector3, color: Color) -> void:
 		var y1: float = 2.35 - sin(float(index + 1) / 8.0 * PI) * 0.16 + z1 * 0.12
 		var vertices: Array[Vector3] = [Vector3(0, y0, z0), Vector3(0.45, y0, z0), Vector3(0.45, y1, z1), Vector3(0, y1, z1)]
 		for corner: int in [0, 1, 2, 0, 2, 3]:
+			surface_tool.set_uv(Vector2(vertices[corner].x, vertices[corner].z + 1.05))
 			surface_tool.add_vertex(vertices[corner])
 	surface_tool.generate_normals()
 	var canopy := MeshInstance3D.new()
 	canopy.name = "CanvasAwning"
 	canopy.position = at
+	surface_tool.generate_tangents()
 	canopy.mesh = surface_tool.commit()
-	var material: StandardMaterial3D = world._make_material(color, 1.0)
+	var material: StandardMaterial3D = preload("res://scripts/gameplay/cloth_material.gd").make(color)
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	canopy.material_override = material
 	world.get("_map_root").add_child(canopy)

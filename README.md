@@ -232,3 +232,11 @@ godot --path . -- --outskirts-preview
 ## 介面字體
 
 一般介面、對話與場景招牌採用內嵌的思源黑體台灣繁中 Regular；地圖、裝備與戰鬥標題以思源宋體台灣繁中 SemiBold 點綴。標題 Label 使用共用 Theme 的 `TitleLabel` variation，對話正文加大行距。兩款字體採 SIL OFL 1.1，可免費商用，桌面與 Web 均不依賴系統字體；來源與完整授權見 `THIRD_PARTY_ASSETS.md`。像素美術維持 nearest-neighbor 過濾。
+
+### 場景布料材質
+
+床被、枕頭、地毯、織布、町屋門簾與星灣棚布共用 `scripts/gameplay/cloth_material.gd`：保留原有亞麻色彩貼圖及 nearest 像素取樣，加入快取的原創經緯織紋法線、低鏡面反射與高粗糙度。床被使用較細的垂墜網格及輕微皺褶。角色服裝圖集不受此材質影響。可用 `godot --path . -- --interior-preview` 檢視床被與地毯；幾何回歸使用 `tests/interior_textiles_test.gd`。
+
+### 壁爐與燈火
+
+壁爐保留原有像素火焰圖集，增加兩層錯開節奏的側火舌、底部炭火、十顆循環上升並縮小熄滅的火星，以及連動的微幅暖光色彩變化。火舌根部固定在木柴上，火星在壁爐橫樑下消失；火星使用共享 MultiMesh，支援 Forward+ 與 Compatibility。路燈霧面玻璃的亮芯有小幅晃動，各燈以位置錯開閃動節奏。
