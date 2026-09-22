@@ -1,6 +1,13 @@
 class_name MiniMap
 extends Control
 
+signal destination_selected(point: Dictionary)
+
+var interactive: bool = false
+var _hovered_destination: Dictionary = {}
+var destinations: Array[Dictionary] = []
+var navigation_path := PackedVector3Array()
+
 const Starbay = preload("res://scripts/gameplay/starbay.gd")
 const Outskirts = preload("res://scripts/gameplay/outskirts.gd")
 const HouseCatalog = preload("res://scripts/gameplay/house_catalog.gd")
@@ -37,7 +44,12 @@ var north_up: bool = false
 
 func _ready() -> void:
 	process_priority = 30 # Follow the camera rig's actual interpolated pose.
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mouse_filter = Control.MOUSE_FILTER_STOP if interactive else Control.MOUSE_FILTER_IGNORE
+	tooltip_text = "點擊圖示自動前往・手動移動取消" if interactive else ""
+	mouse_exited.connect(func() -> void:
+		_hovered_destination = {}
+		queue_redraw()
+	)
 	custom_minimum_size = Vector2(226.0, 226.0)
 	_panel_style = StyleBoxFlat.new()
 	_panel_style.bg_color = PANEL_COLOR
@@ -106,6 +118,9 @@ func get_map_id() -> String:
 
 
 func copy_state_from(source: MiniMap) -> void:
+	_hovered_destination = {}
+	destinations = source.destinations
+	navigation_path = source.navigation_path
 	set_map(source._map_id)
 	set_player_state(source._player_world_position, Vector3(source._player_heading.x, 0, source._player_heading.y))
 	set_main_target(source._main_target_world_position, source._main_target_visible)
@@ -128,9 +143,35 @@ func _draw() -> void:
 		_draw_region_labels()
 	if _optional_target_visible:
 		_draw_optional_target(_world_to_map(_optional_target_world_position))
+	if navigation_path.size() > 0:
+		var line := PackedVector2Array([_world_to_map(_player_world_position)])
+		for point: Vector3 in navigation_path:
+			line.append(_world_to_map(point))
+		if line.size() > 1:
+			draw_polyline(line, PLAYER_COLOR, 2.0, true)
+	if interactive:
+		for point: Dictionary in destinations:
+			var center := Vector2.ZERO
+			draw_set_transform(_world_to_map(point.position), 0.0, Vector2.ONE * 1.65)
+			draw_circle(center, 7.0, PANEL_COLOR)
+			if point.kind == "exit":
+				draw_polyline(PackedVector2Array([center + Vector2(0, -6), center + Vector2(6, 0), center + Vector2(0, 6), center + Vector2(-6, 0), center + Vector2(0, -6)]), EXIT_COLOR, 2.0, true)
+			else:
+				_draw_optional_target(center)
+			draw_set_transform(Vector2.ZERO)
+	# Keep current quest emphasis visible over the clickable destination icons.
 	if _main_target_visible:
 		_draw_main_target(_world_to_map(_main_target_world_position))
 	_draw_player_marker(_world_to_map(_player_world_position))
+	if interactive and not _hovered_destination.is_empty():
+		var title := "點擊前往・" + str(_hovered_destination.title)
+		var font := get_theme_default_font()
+		var extent := font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 18)
+		var at := _world_to_map(_hovered_destination.position) + Vector2(18, -18)
+		at.x = clampf(at.x, 16.0, maxf(16.0, size.x - extent.x - 16.0))
+		at.y = maxf(at.y, 54.0)
+		draw_rect(Rect2(at - Vector2(6, 21), extent + Vector2(12, 4)), PANEL_COLOR)
+		draw_string(font, at, title, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color("fff2d2"))
 
 
 func _draw_region_labels() -> void:
@@ -144,8 +185,6 @@ func _draw_region_labels() -> void:
 		return
 	match _map_id:
 		"village":
-			for home: Dictionary in HouseCatalog.HOMES:
-				_draw_place_name(home.position, str(home.name))
 			_draw_place_name(Vector3(0, 0, -17), "北境遺跡 ↑")
 			_draw_place_name(Vector3(25, 0, 2), "東行舊道 →")
 		"ruins":
@@ -360,7 +399,7 @@ func _draw_player_marker(center: Vector2) -> void:
 	draw_colored_polygon(points, PLAYER_COLOR)
 
 
-func _world_to_map(world_position: Vector3) -> Vector2:
+func get_world_bounds() -> Rect2:
 	var bounds := VILLAGE_BOUNDS if _map_id == "village" else RUINS_BOUNDS
 	if HouseCatalog.is_interior(_map_id):
 		bounds = INTERIOR_BOUNDS
@@ -371,6 +410,11 @@ func _world_to_map(world_position: Vector3) -> Vector2:
 		bounds = Rect2(-float(theme.width) - 0.3, -float(theme.depth) - 0.3, float(theme.width) * 2 + 0.6, float(theme.depth) + 4.1)
 	if Starbay.NAMES.has(_map_id):
 		bounds = Starbay.BOUNDS[_map_id]
+	return bounds
+
+
+func _world_to_map(world_position: Vector3) -> Vector2:
+	var bounds := get_world_bounds()
 	var map_rect := _get_map_rect()
 	# Fixed isotropic scale fits every rotation without zoom pulsing, skewing
 	# buildings, or clipping corner markers. Clamp only out-of-map positions.
@@ -383,3 +427,35 @@ func _world_to_map(world_position: Vector3) -> Vector2:
 
 func _get_map_rect() -> Rect2:
 	return Rect2(Vector2(10.0, 30.0), Vector2(size.x - 20.0, size.y - 40.0))
+
+
+func destination_at(at: Vector2) -> Dictionary:
+	if not interactive:
+		return {}
+	var closest: Dictionary = {}
+	var distance: float = 20.0
+	for point: Dictionary in destinations:
+		var next_distance := at.distance_to(_world_to_map(point.position))
+		if next_distance < distance:
+			distance = next_distance
+			closest = point
+	return closest
+
+
+func _gui_input(event: InputEvent) -> void:
+	if not interactive:
+		return
+	if event is InputEventMouseMotion:
+		var point := destination_at(event.position)
+		_hovered_destination = point
+		queue_redraw()
+		tooltip_text = "點擊前往：" + str(point.title) if not point.is_empty() else "點擊圖示自動前往・手動移動取消"
+		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if not point.is_empty() else Control.CURSOR_ARROW
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		accept_event()
+		var state := get_node("/root/GameState")
+		if state.mode not in [state.Mode.EXPLORE, state.Mode.MAP]:
+			return
+		var point := destination_at(event.position)
+		if not point.is_empty():
+			destination_selected.emit(point)

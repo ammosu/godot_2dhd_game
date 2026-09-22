@@ -617,3 +617,5 @@ godot --headless --path . --rendering-method gl_compatibility --script tests/sta
 `godot --path . --rendering-method forward_plus --script tests/japanese_house_capture.gd` 擷取南門旅舍、溪風茶室及守鐘人之家的正側面；改為 `gl_compatibility` 可檢查 Web 相容渲染。輸出 `/tmp/japanese-house-<index>-<renderer>.png`，成功標記 `JAPANESE_HOUSE_CAPTURE_PASS`。此工具只作畫面檢查、不寫存檔；進出功能使用 `tests/city_house_test.gd` 的 26 棟門口回歸，街道通行使用 `tests/starbay_test.gd`。
 
 星灣城測試另涵蓋三座公共地標、五條新增步道、月儀／老樹環形步道的角色膠囊掃掠與地板，以及三處介紹互動。`--capture` 額外輸出 `/tmp/starbay_moon.png`、`/tmp/starbay_tree.png`、`/tmp/starbay_pavilion.png`；地圖截圖會包含新地標。
+
+小地圖自動尋路：`godot --headless --path . --script tests/map_navigation_test.gd`。驗證小地圖不接受點選、放大地圖圖示命中、村莊與遺跡實際行走抵達、障礙繞行、手動／模式／換圖取消、不可達目的地、大地圖點選，以及星灣城與室內路線。成功標記 `MAP_NAVIGATION_TEST_PASS`。

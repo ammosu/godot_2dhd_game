@@ -1,6 +1,6 @@
 class_name MapUI
 extends CanvasLayer
-## Read-only regional map. Gameplay state and objective positions remain authoritative.
+## Interactive regional map. Gameplay state and objective positions remain authoritative.
 
 const MapControl = preload("res://scripts/ui/mini_map.gd")
 const Houses = preload("res://scripts/gameplay/house_catalog.gd")
@@ -103,7 +103,7 @@ func _build_ui() -> void:
 	var header := HBoxContainer.new()
 	column.add_child(header)
 	var title := Label.new()
-	title.text = "區域地圖　／　北方朝上"
+	title.text = "區域地圖　／　點擊圖示自動前往"
 	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", Color("ffe29a"))
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -118,12 +118,17 @@ func _build_ui() -> void:
 	_close_button.focus_previous = _close_button.get_path()
 	map_view = MapControl.new()
 	map_view.north_up = true
+	map_view.interactive = true
 	map_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(map_view)
+	map_view.destination_selected.connect(func(point: Dictionary) -> void:
+		close()
+		source_map.destination_selected.emit(point)
+	)
 	var legend := HFlowContainer.new()
 	legend.add_theme_constant_override("h_separation", 24)
 	column.add_child(legend)
-	for item: Array in [["▲ 你的位置", MiniMap.PLAYER_COLOR], ["◇ / ● 區域出口", MiniMap.EXIT_COLOR], ["! 主線目標", MiniMap.MAIN_TARGET_COLOR], ["! 可選事件", MiniMap.OPTIONAL_TARGET_COLOR]]:
+	for item: Array in [["▲ 你的位置", MiniMap.PLAYER_COLOR], ["◇ / ● 區域出口", MiniMap.EXIT_COLOR], ["! 主線目標", MiniMap.MAIN_TARGET_COLOR], ["! 人物／事件", MiniMap.OPTIONAL_TARGET_COLOR]]:
 		var label := Label.new()
 		label.text = item[0]
 		label.add_theme_color_override("font_color", item[1])

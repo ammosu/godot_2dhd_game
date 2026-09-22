@@ -149,6 +149,9 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if _mini_map.navigation_path != player.auto_walk.path:
+		_mini_map.navigation_path = player.auto_walk.path.duplicate()
+		_mini_map.queue_redraw()
 	_ambient_time += delta
 	if is_instance_valid(_moon_lamp_core):
 		_moon_lamp_core.rotation.y += delta * 0.45
@@ -212,6 +215,7 @@ func _on_map_change_requested(map_id: String, spawn_id: String) -> void:
 
 
 func _load_map(map_id: String, spawn_id: String) -> void:
+	player.auto_walk.cancel()
 	dialogue_ui.clear_illustration()
 	var profile_started: int = Time.get_ticks_usec()
 	if _map_root != null and is_instance_valid(_map_root):
@@ -302,6 +306,7 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 	if spawn_id in ["from_east_road", "from_village", "from_forest", "from_road", "from_ruins", "from_caravan", "from_city"]:
 		var destination: String = str(Outskirts.NAMES.get(GameState.current_map, "北境遺跡" if GameState.current_map == "ruins" else "暮光村"))
 		_show_notice("抵達・" + destination)
+	_refresh_map_destinations()
 	_profile_map_stamp("total_" + map_id, profile_started)
 
 
@@ -1976,6 +1981,7 @@ func _build_hud() -> void:
 	_mini_map.offset_bottom = _mini_map.offset_top + 176.0
 	_mini_map.theme = GameState.ui_theme
 	hud.add_child(_mini_map)
+	_mini_map.destination_selected.connect(_on_map_destination)
 	var map_ui := preload("res://scripts/ui/map_ui.gd").new()
 	map_ui.name = "MapUI"
 	map_ui.source_map = _mini_map
@@ -2380,3 +2386,28 @@ func _test_require(condition: bool, label: String) -> bool:
 	push_error("PLAYTHROUGH_TEST_FAIL %s" % label)
 	get_tree().quit(1)
 	return false
+
+
+func _refresh_map_destinations() -> void:
+	_mini_map.destinations.clear()
+	for node: Node in _map_root.find_children("*", "Area3D", true, false):
+		var target := node as Interactable3D
+		if target == null or target.get_parent() is CharacterBody3D:
+			continue
+		# Ordinary homes are scenery, not navigation landmarks.
+		if target.interaction_id.begins_with("enter_house_"):
+			continue
+		var kind := "event"
+		if target.interaction_id.begins_with("portal_") or Outskirts.EXITS.has(target.interaction_id) or target.interaction_id == "leave_house":
+			kind = "exit"
+		_mini_map.destinations.append({"position": target.global_position, "title": target.prompt_text, "kind": kind})
+	_mini_map.queue_redraw()
+
+
+func _on_map_destination(point: Dictionary) -> void:
+	if GameState.is_input_locked():
+		return
+	if player.auto_walk.start(point.position, _mini_map.get_world_bounds()):
+		_show_notice("自動前往・" + str(point.title) + "（移動鍵取消）")
+	else:
+		_show_notice("目前無法到達這個位置，請選擇其他地點")

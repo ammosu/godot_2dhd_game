@@ -10,6 +10,7 @@ const SpriteGrounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 const Footsteps = preload("res://scripts/gameplay/footsteps.gd")
 const EquipmentAppearance = preload("res://scripts/gameplay/equipment_appearance.gd")
 const CONVERSATION_DISTANCE: float = 1.35
+var auto_walk := preload("res://scripts/gameplay/map_navigation.gd").new()
 var _appearance_key: String = ""
 
 @onready var sprite: AnimatedSprite3D = $Sprite3D
@@ -29,6 +30,8 @@ var _automatic_interaction_armed: bool = false
 
 
 func _ready() -> void:
+	add_child(auto_walk)
+	auto_walk.player = self
 	_last_step_position = global_position
 	SpriteGrounding.anchor(sprite, sprite.sprite_frames.get_frame_texture(&"down", 0))
 	_sprite_rest_height = sprite.position.y
@@ -77,6 +80,11 @@ func _physics_process(delta: float) -> void:
 		return
 	var input_vector := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var move_direction := _camera_relative_direction(input_vector)
+	if not input_vector.is_zero_approx():
+		auto_walk.cancel()
+	elif auto_walk.is_active():
+		move_direction = auto_walk.direction(delta)
+		input_vector = EightWayFacing.screen_direction(move_direction, get_viewport().get_camera_3d())
 	var target_velocity := move_direction * move_speed
 
 	velocity.x = move_toward(velocity.x, target_velocity.x, acceleration * delta)
@@ -93,7 +101,8 @@ func _physics_process(delta: float) -> void:
 		GameAudio.play_cue(_footsteps.next_cue(Footsteps.surface_at(get_tree(), global_position)))
 	_last_step_position = global_position
 	_update_sprite(input_vector, move_direction, delta)
-	_update_automatic_interaction()
+	if not auto_walk.is_active():
+		_update_automatic_interaction()
 
 
 func reset_automatic_interaction() -> void:

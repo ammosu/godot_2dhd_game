@@ -4,7 +4,8 @@ func _initialize() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
-	var map := preload("res://scripts/ui/mini_map.gd").new()
+	# Load after autoload initialization, including the shared Starbay scripts.
+	var map: Control = load("res://scripts/ui/mini_map.gd").new()
 	map.size = Vector2(226, 226)
 	for map_id: String in ["village", "ruins", "house_01"]:
 		map.set_map(map_id)
