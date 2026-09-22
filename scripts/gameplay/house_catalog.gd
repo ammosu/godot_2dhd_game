@@ -1,6 +1,8 @@
 extends RefCounted
 ## Stable house identities shared by entrances, interiors and return spawns.
 
+const City = preload("res://scripts/gameplay/city_house_catalog.gd")
+
 const EXTERIOR_SCALE := Vector3(1.15, 1.08, 1.15)
 const INTERIOR_CHARACTER_SCALE: float = 1.35
 const EXTERIOR_COLLISION := Vector3(4.0, 2.3, 3.2) * EXTERIOR_SCALE
@@ -51,6 +53,8 @@ const FURNITURE: Dictionary = {
 
 
 static func find_home(map_id: String) -> Dictionary:
+	if City.index_of(map_id) >= 0:
+		return City.home(map_id)
 	for home: Dictionary in HOMES:
 		if home.id == map_id:
 			return home
@@ -77,3 +81,13 @@ static func safe_village_position(position: Vector3) -> Vector3:
 		if absf(local.x) < half_size.x + 0.3 and absf(local.z) < half_size.z + 0.3 and local.y < EXTERIOR_COLLISION.y:
 			return return_position(home.id)
 	return position
+
+
+static func parent_map(map_id: String) -> String:
+	return "starbay" if City.index_of(map_id) >= 0 else "village"
+
+static func resident(map_id: String) -> Dictionary:
+	return City.resident(map_id) if City.index_of(map_id) >= 0 else RESIDENTS[map_id]
+
+static func furniture(map_id: String) -> Dictionary:
+	return City.furniture(map_id) if City.index_of(map_id) >= 0 else FURNITURE[map_id]

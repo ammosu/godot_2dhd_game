@@ -1,6 +1,7 @@
 class_name PrototypeWorld
 extends Node3D
 
+const Starbay = preload("res://scripts/gameplay/starbay.gd")
 const Outskirts = preload("res://scripts/gameplay/outskirts.gd")
 
 const MiniMapControl = preload("res://scripts/ui/mini_map.gd")
@@ -97,6 +98,18 @@ func _ready() -> void:
 		player.global_position = Vector3(0, 0.1, -5.5)
 		($CameraRig as Hd2dCameraRig).snap_to_target()
 		_start_guardian_battle.call_deferred()
+	elif "--city-house-preview" in OS.get_cmdline_user_args():
+		_test_mode = true
+		GameState.flags["intro_seen"] = true
+		_load_map("house_city_01", "entry")
+	elif "--city-preview" in OS.get_cmdline_user_args():
+		_test_mode = true
+		GameState.flags["intro_seen"] = true
+		_load_map("starbay", "from_road")
+	elif "--caravan-preview" in OS.get_cmdline_user_args():
+		_test_mode = true
+		GameState.flags["intro_seen"] = true
+		_load_map("caravan_road", "from_road")
 	elif "--outskirts-preview" in OS.get_cmdline_user_args():
 		_test_mode = true
 		GameState.flags["intro_seen"] = true
@@ -225,7 +238,7 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 	($Moonlight as DirectionalLight3D).light_color = Color("b9c9ed")
 
 	if indoors:
-		var room := HouseInterior.new()
+		var room: HouseInterior = preload("res://scripts/gameplay/city_house_interior.gd").new() if HouseCatalog.City.index_of(map_id) >= 0 else HouseInterior.new()
 		room.name = "HouseInterior"
 		room.house_id = map_id
 		room.interaction_requested.connect(_handle_interaction)
@@ -265,15 +278,14 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 	($CameraRig as Hd2dCameraRig).configure_dialogue_scenery(_map_root)
 	if HouseCatalog.is_interior(map_id) and spawn_id == "entry":
 		player.face_world_position(player.global_position + Vector3.FORWARD)
-	elif map_id == "village" and spawn_id.begins_with("from_house_"):
-		for home: Dictionary in HouseCatalog.HOMES:
-			if str(home.id) == spawn_id.trim_prefix("from_"):
-				player.face_world_position(player.global_position + Vector3.FORWARD.rotated(Vector3.UP, float(home.yaw)))
-				break
+	elif map_id in ["village", "starbay"] and spawn_id.begins_with("from_house_"):
+		var home: Dictionary = HouseCatalog.find_home(spawn_id.trim_prefix("from_"))
+		if not home.is_empty():
+			player.face_world_position(player.global_position + Vector3.FORWARD.rotated(Vector3.UP, float(home.yaw)))
 	GameMusic.sync_to_state()
 	GameAmbience.sync_to_state()
 	_refresh_hud()
-	if spawn_id in ["from_east_road", "from_village", "from_forest", "from_road", "from_ruins"]:
+	if spawn_id in ["from_east_road", "from_village", "from_forest", "from_road", "from_ruins", "from_caravan", "from_city"]:
 		var destination: String = str(Outskirts.NAMES.get(GameState.current_map, "北境遺跡" if GameState.current_map == "ruins" else "暮光村"))
 		_show_notice("抵達・" + destination)
 	_profile_map_stamp("total_" + map_id, profile_started)
@@ -325,13 +337,15 @@ func _retain_map_materials() -> void:
 
 
 func _get_spawn_position(map_id: String, spawn_id: String) -> Vector3:
+	if map_id == "starbay" and spawn_id.begins_with("from_house_city_"):
+		return HouseCatalog.return_position(spawn_id.trim_prefix("from_"))
 	if Outskirts.NAMES.has(map_id):
 		return Outskirts.spawn(map_id, spawn_id)
 	if map_id == "village" and spawn_id == "from_east_road":
 		return Vector3(24, 0.1, 4.6)
 	if HouseCatalog.is_interior(map_id):
 		return Vector3(0, 0.15, 1.9)
-	if map_id == "village" and spawn_id.begins_with("from_house_"):
+	if map_id in ["village", "starbay"] and spawn_id.begins_with("from_house_"):
 		return HouseCatalog.return_position(spawn_id.trim_prefix("from_"))
 	if map_id == "ruins":
 		match spawn_id:
@@ -457,7 +471,7 @@ func _add_wandering_villagers() -> void:
 
 
 func _talk_to_wandering_villager(villager: CharacterBody3D) -> void:
-	if GameState.is_input_locked() or _portal_transition_pending or GameState.current_map != "village":
+	if GameState.is_input_locked() or _portal_transition_pending or GameState.current_map not in ["village", "starbay"]:
 		return
 	player.make_conversation_space(villager)
 	player.face_world_position(villager.global_position)
@@ -555,7 +569,7 @@ func _build_ruins() -> void:
 
 
 func _add_house_resident(house_id: String) -> void:
-	var resident: Dictionary = HouseCatalog.RESIDENTS[house_id]
+	var resident: Dictionary = HouseCatalog.resident(house_id)
 	# Keep the resident in the central aisle, clear of the table and bed divider.
 	_add_actor_interactable("house_resident", "與" + str(resident.name) + "交談",
 		Vector3(-0.75, 0.024, 0.0), "res://assets/generated/" + str(resident.art) + ".tres",
@@ -613,7 +627,7 @@ func _open_house_door(destination: String) -> void:
 		_portal_transition_pending = false
 		GameState.set_mode(GameState.Mode.EXPLORE)
 		return
-	if is_instance_valid(source_map) and source_map == _map_root and GameState.current_map == "village":
+	if is_instance_valid(source_map) and source_map == _map_root and GameState.current_map == HouseCatalog.parent_map(destination):
 		GameState.request_map(destination, "entry")
 	if GameState.mode == GameState.Mode.TRANSITION:
 		GameState.set_mode(GameState.Mode.EXPLORE)
@@ -628,7 +642,7 @@ func _leave_house() -> void:
 	player.lock_door_facing(room.to_global(Vector3(0, 0, 3.37)))
 	await room.open_exit_door()
 	if is_instance_valid(source_map) and source_map == _map_root and GameState.current_map == source_id:
-		GameState.request_map("village", "from_" + source_id)
+		GameState.request_map(HouseCatalog.parent_map(source_id), "from_" + source_id)
 	if GameState.mode == GameState.Mode.TRANSITION:
 		GameState.set_mode(GameState.Mode.EXPLORE)
 
@@ -637,7 +651,7 @@ func _handle_interaction(interaction_id: String) -> void:
 	if GameState.is_input_locked() or _portal_transition_pending:
 		return
 	if interaction_id == "house_resident" and HouseCatalog.is_interior(GameState.current_map):
-		var resident: Dictionary = HouseCatalog.RESIDENTS[GameState.current_map]
+		var resident: Dictionary = HouseCatalog.resident(GameState.current_map)
 		var actor := _map_root.get_node("HouseResident") as Node3D
 		player.make_conversation_space(actor)
 		player.face_world_position(actor.global_position)
@@ -646,9 +660,15 @@ func _handle_interaction(interaction_id: String) -> void:
 		return
 	if interaction_id.begins_with("enter_house_"):
 		var destination := interaction_id.trim_prefix("enter_")
-		if GameState.current_map == "village" and HouseCatalog.is_interior(destination):
+		if HouseCatalog.is_interior(destination) and GameState.current_map == HouseCatalog.parent_map(destination):
 			_portal_transition_pending = true
 			_open_house_door(destination)
+		return
+	if Starbay.TALKS.has(interaction_id) and GameState.current_map == "starbay":
+		var talk: Array = Starbay.TALKS[interaction_id]
+		if interaction_id == "city_rest":
+			GameState.restore_player()
+		dialogue_ui.show_dialogue([{ "speaker": talk[0], "text": talk[1] }])
 		return
 	if Outskirts.EXITS.has(interaction_id):
 		var route: Array = Outskirts.EXITS[interaction_id]
@@ -669,7 +689,7 @@ func _handle_interaction(interaction_id: String) -> void:
 	if interaction_id == "inspect_house_shelf":
 		if not HouseCatalog.is_interior(GameState.current_map):
 			return
-		var furniture: Dictionary = HouseCatalog.FURNITURE[GameState.current_map]
+		var furniture: Dictionary = HouseCatalog.furniture(GameState.current_map)
 		var text: String = str(furniture.text)
 		if GameState.current_map == "house_02" and GameState.quest_state != GameState.QuestState.COMPLETE:
 			text = "三盆幼苗在微光中垂著葉。盆沿的舊註記寫著：月光恢復時，新葉會朝村外的道路伸展。"
@@ -944,8 +964,11 @@ func _add_actor_interactable(interaction_id: String, prompt: String, world_posit
 		sprite.set_script(preload("res://scripts/gameplay/equipment_actor.gd"))
 		sprite.set("actor_id", interaction_id)
 	if interaction_id == "house_resident":
-		sprite.set_script(preload("res://scripts/gameplay/resident_art.gd"))
-		sprite.set("resident_id", texture_path.get_file().get_basename())
+		if texture_path.contains("/city_residents/"):
+			sprite.set_script(preload("res://scripts/gameplay/city_resident_art.gd"))
+		else:
+			sprite.set_script(preload("res://scripts/gameplay/resident_art.gd"))
+			sprite.set("resident_id", texture_path.get_file().get_basename())
 		sprite.set("visible_height", 1.4 * HouseCatalog.INTERIOR_CHARACTER_SCALE)
 	sprite.texture = _art_texture(texture_path)
 	sprite.pixel_size = pixel_size

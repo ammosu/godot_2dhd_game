@@ -1,6 +1,7 @@
 class_name MiniMap
 extends Control
 
+const Starbay = preload("res://scripts/gameplay/starbay.gd")
 const Outskirts = preload("res://scripts/gameplay/outskirts.gd")
 const HouseCatalog = preload("res://scripts/gameplay/house_catalog.gd")
 const INTERIOR_BOUNDS := Rect2(-4.3, -3.8, 8.6, 7.6)
@@ -133,6 +134,14 @@ func _draw() -> void:
 
 
 func _draw_region_labels() -> void:
+	if Starbay.NAMES.has(_map_id):
+		if _map_id == "starbay":
+			for place: Array in Starbay.PLACES:
+				_draw_place_name(Vector3(place[0].x, 0, place[0].y), place[1])
+		else:
+			_draw_place_name(Vector3(12, 0, -25), "星灣城 ↑")
+			_draw_place_name(Vector3(-18, 0, 24), "東行舊道 ↓")
+		return
 	match _map_id:
 		"village":
 			for home: Dictionary in HouseCatalog.HOMES:
@@ -145,6 +154,7 @@ func _draw_region_labels() -> void:
 			_draw_place_name(Vector3(9, 0, -2), "月泉")
 		"east_road":
 			_draw_place_name(Vector3(-13, 0, 3), "← 暮光村")
+			_draw_place_name(Vector3(12, 0, 6), "風丘商道 →")
 			_draw_place_name(Vector3(0, 0, -10), "螢光森林 ↑")
 		"firefly_forest":
 			_draw_place_name(Vector3(0, 0, 11), "東行舊道 ↓")
@@ -228,17 +238,36 @@ func _draw_map_geometry() -> void:
 			var size := Vector2(extent.x, extent.z)
 			var center := Vector2(home.position.x, home.position.z)
 			_draw_world_rect(Rect2(center - size * 0.5, size), Color("594e5e"))
+	elif Starbay.NAMES.has(_map_id):
+		_draw_geography_polygon(Starbay.outline(_map_id), MAP_GROUND_COLOR)
+		if _map_id == "starbay":
+			for index: int in range(Starbay.STREETS.size()):
+				_draw_geography_polygon(Starbay.ribbon(Starbay.curve(Starbay.STREETS[index]), 4.2 if index == 0 else 2.8), MAP_PATH_COLOR)
+			_draw_geography_polygon(Starbay.ellipse(Vector2(-6, 11), Vector2(9, 6)), MAP_PATH_COLOR)
+			_draw_geography_polygon(Starbay.ellipse(Vector2(-8, -27), Vector2(6.5, 5)), MAP_PATH_COLOR)
+			_draw_geography_polygon(Starbay.ellipse(Vector2(12, 4), Vector2(3, 2)), MAP_WATER_COLOR)
+			for home: Vector3 in Starbay.HOMES:
+				var corners := PackedVector2Array()
+				for corner: Vector2 in [Vector2(-2.3, -1.84), Vector2(2.3, -1.84), Vector2(2.3, 1.84), Vector2(-2.3, 1.84)]:
+					corners.append(Vector2(home.x, home.y) + corner.rotated(-home.z))
+				_draw_geography_polygon(corners, Color("a58b83"))
+		else:
+			_draw_geography_polygon(Starbay.ribbon(Starbay.curve(Starbay.ROAD), 4.2), MAP_PATH_COLOR)
+			draw_circle(_world_to_map(Vector3(12, 0, -26)), 4, EXIT_COLOR)
 	elif Outskirts.NAMES.has(_map_id):
 		_draw_world_rect(Rect2(-17, -15, 34, 30), Color("304b48"))
 		_draw_world_rect(Rect2(-1.8, -15, 3.6, 30), MAP_PATH_COLOR)
 		if _map_id == "east_road":
-			_draw_world_rect(Rect2(-17, 3.2, 24, 3.6), MAP_PATH_COLOR)
+			_draw_world_rect(Rect2(-17, 3.2, 34, 3.6), MAP_PATH_COLOR)
 			_draw_world_rect(Rect2(0.5, -1.5, 7, 7), MAP_PATH_COLOR)
 			draw_circle(_world_to_map(Vector3(0, 0, -12)), 4, EXIT_COLOR)
+			draw_circle(_world_to_map(Vector3(14, 0, 5)), 4, EXIT_COLOR)
 		else:
 			_draw_world_rect(Rect2(-9, -3.8, 18, 1.6), MAP_PATH_COLOR)
 			_draw_world_rect(Rect2(6.2, -7.5, 1.6, 5), MAP_PATH_COLOR)
 			_draw_world_rect(Rect2(-3, -12.5, 6, 5), MAP_PATH_COLOR)
+	elif HouseCatalog.City.index_of(_map_id) >= 0:
+		_draw_geography_polygon(HouseCatalog.City.footprint(_map_id), Color("86694f"))
 	elif HouseCatalog.is_interior(_map_id):
 		_draw_world_rect(Rect2(-4, -3.5, 8, 7), Color("86694f"))
 		_draw_world_rect(Rect2(-3.425, -3.075, 1.65, 2.45), Color("497c82"))
@@ -253,6 +282,13 @@ func _draw_map_geometry() -> void:
 		_draw_world_rect(Rect2(-0.75, -12.0, 1.5, 28.0), Color("786c8d"))
 		_draw_world_rect(Rect2(-9.5, 3.2, 19.0, 1.2), Color("6c617f"))
 	draw_rect(map_rect, Color("9d91ae"), false, 1.5)
+
+
+func _draw_geography_polygon(polygon: PackedVector2Array, color: Color) -> void:
+	var points := PackedVector2Array()
+	for point: Vector2 in polygon:
+		points.append(_world_to_map(Vector3(point.x, 0, point.y)))
+	draw_colored_polygon(points, color)
 
 
 func _draw_world_rect(world_rect: Rect2, color: Color) -> void:
@@ -270,6 +306,10 @@ func _draw_exit_marker() -> void:
 		exit_position = Vector3(-14, 0, 5)
 	elif _map_id == "firefly_forest":
 		exit_position = Vector3(0, 0, 13)
+	if _map_id == "starbay":
+		exit_position = Vector3(-16, 0, 36.8)
+	elif _map_id == "caravan_road":
+		exit_position = Vector3(-18, 0, 25)
 	var center := _world_to_map(exit_position)
 	var points := PackedVector2Array([
 		center + Vector2(0.0, -6.0), center + Vector2(6.0, 0.0),
@@ -313,6 +353,11 @@ func _world_to_map(world_position: Vector3) -> Vector2:
 		bounds = INTERIOR_BOUNDS
 	if Outskirts.NAMES.has(_map_id):
 		bounds = Rect2(-17, -15, 34, 30)
+	if HouseCatalog.City.index_of(_map_id) >= 0:
+		var theme: Dictionary = HouseCatalog.City.THEMES[HouseCatalog.City.home(_map_id).kind]
+		bounds = Rect2(-float(theme.width) - 0.3, -float(theme.depth) - 0.3, float(theme.width) * 2 + 0.6, float(theme.depth) + 4.1)
+	if Starbay.NAMES.has(_map_id):
+		bounds = Starbay.BOUNDS[_map_id]
 	var map_rect := _get_map_rect()
 	# Fixed isotropic scale fits every rotation without zoom pulsing, skewing
 	# buildings, or clipping corner markers. Clamp only out-of-map positions.

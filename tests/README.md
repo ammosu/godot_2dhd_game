@@ -590,3 +590,22 @@ godot --headless --path . --rendering-method gl_compatibility -- --playthrough-t
 After changing action PNGs, run `python3 tools/art/inspect_action_atlases.py` (Pillow) to regenerate measured `regions.json` and `regions.gd`, inspect the images, then run the art test and Web export. The measurement script reads alpha only and does not alter source raster pixels.
 
 戰前準備回歸：`tests/action_battle_ui_test.gd` 驗證確認前凍結與快捷鍵防繞過；`tests/action_auto_battle_test.gd` 驗證技能關閉、手動技能、藥水門檻、庫存扣除、冷卻、暫停、手動接管與結束後不扣藥。
+
+## 星灣城與商道
+
+```bash
+godot --headless --path . --rendering-method forward_plus --script tests/starbay_test.gd
+godot --headless --path . --rendering-method gl_compatibility --script tests/starbay_test.gd
+```
+
+成功標記：`STARBAY_TEST_PASS walking_roundtrip streets floor rest save minimap`。檢查暮光村→東行舊道→風丘商道→星灣城的實際出口感應與回程、抵達後不反覆傳送、所有主街的角色膠囊通行與地板射線、茶棚恢復、城內存讀檔、地圖標題與主線隔離。測試只使用並清除 `user://starbay_test_<process-id>.json`。
+
+移除 `--headless` 並附加 `-- --capture` 可擷取 `/tmp/starbay_market.png`、`/tmp/starbay_belfry.png`、`/tmp/starbay_map.png`、`/tmp/starbay_road.png`；需可用的圖形顯示。
+
+## 星灣城房屋
+
+新增角色驗證：`godot --headless --path . --script tests/city_resident_art_test.gd`。檢查 26 間住家涵蓋全部 16 種新造型、透明圖集載入、人物高度、最近鄰採樣與交談。成功標記：`CITY_RESIDENT_ART_TEST_PASS 16 designs 26 homes dialogue scale`。移除 `--headless` 並附加 `-- --capture` 可將茶師室內畫面存至 `/tmp/city-npc-<rendering_method>.png`，不寫入一般存檔。
+
+`godot --headless --path . --script tests/city_house_test.gd` 實際逐一操作 26 個門口，檢查開門進屋、六種格局、中央通道膠囊碰撞、地板、屋主／陳設互動、各房型存讀檔，以及出屋返回正確的星灣城門前。使用獨立 `user://city_house_test_<process-id>.json`，成功後清除。
+
+成功標記：`CITY_HOUSE_TEST_PASS 26_doors six_layouts collisions dialogue save return`。移除 `--headless`、加入 `--rendering-method gl_compatibility` 或 `forward_plus`，附加 `-- --capture` 可擷取六房型的 `/tmp/city-house-<kind>.png`。村莊原有八棟住宅另以 `tests/house_door_test.gd` 回歸。

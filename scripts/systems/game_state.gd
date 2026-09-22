@@ -310,6 +310,12 @@ func complete_quest() -> void:
 
 
 func get_quest_text() -> String:
+	if current_map.begins_with("house_city_"):
+		return "拜訪屋主、查看屋內陳設；南側門口可返回星灣城。"
+	if current_map == "caravan_road":
+		return "沿商道北行抵達星灣城；南端可返回東行舊道。"
+	if current_map == "starbay":
+		return "探索星灣城・市集茶棚可休息，南門通往暮光村。"
 	if current_map in ["east_road", "firefly_forest"]:
 		return "支線：在森林找回包裹，交給舊道旅人" if bool(flags.get("parcel_requested", false)) and not bool(flags.get("road_traveler", false)) else "探索：藍色記號是小事件；沿路標可返回暮光村繼續主線"
 	if current_map.begins_with("house_") and quest_state != QuestState.COMPLETE:
@@ -491,7 +497,7 @@ func resolve_outskirts_event(event_id: String) -> String:
 	var message := ""
 	match event_id:
 		"road_sign":
-			message = "你扶正了鬆動的路標：西往暮光村，北入螢光森林。底座旁留著一瓶給過路人的藥水。獲得藥水 ×1。"
+			message = "你扶正了鬆動的路標：西往暮光村，北入螢光森林，東經風丘商道通往星灣城。底座旁留著一瓶給過路人的藥水。獲得藥水 ×1。"
 			inventory["potion"] = int(inventory.get("potion", 0)) + 1
 		"road_traveler":
 			if int(inventory.get("lost_parcel", 0)) == 0:

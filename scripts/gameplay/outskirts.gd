@@ -1,8 +1,12 @@
 extends RefCounted
 ## Connected optional exploration maps; persistent event mutations live in GameState.
 
-const NAMES := {"east_road": "東行舊道", "firefly_forest": "螢光森林"}
+const NAMES := {"east_road": "東行舊道", "firefly_forest": "螢光森林", "caravan_road": "風丘商道", "starbay": "星灣城"}
 const EXITS := {
+	"travel_caravan": ["east_road", "caravan_road", "from_road"],
+	"travel_caravan_back": ["caravan_road", "east_road", "from_caravan"],
+	"travel_city": ["caravan_road", "starbay", "from_road"],
+	"travel_city_home": ["starbay", "caravan_road", "from_city"],
 	"travel_east": ["village", "east_road", "from_village"],
 	"travel_home": ["east_road", "village", "from_east_road"],
 	"travel_forest": ["east_road", "firefly_forest", "from_road"],
@@ -17,7 +21,11 @@ const EVENTS := {
 }
 
 static func spawn(map_id: String, spawn_id: String) -> Vector3:
+	if map_id in ["caravan_road", "starbay"]:
+		return load("res://scripts/gameplay/starbay.gd").spawn(map_id, spawn_id)
 	if map_id == "east_road":
+		if spawn_id == "from_caravan":
+			return Vector3(12, 0.1, 5)
 		return Vector3(0, 0.1, -10) if spawn_id == "from_forest" else Vector3(-12, 0.1, 5)
 	return Vector3(0, 0.1, 11)
 
@@ -37,7 +45,11 @@ static func add_interaction(world: Node3D, id: String, prompt: String, at: Vecto
 	var collider := CollisionShape3D.new()
 	if exit:
 		var threshold := BoxShape3D.new()
-		threshold.size = Vector3(0.8, 2.0, 3.6) if id in ["travel_east", "travel_home"] else Vector3(3.6, 2.0, 0.8)
+		threshold.size = Vector3(0.8, 2.0, 3.6) if id in ["travel_east", "travel_home", "travel_caravan"] else Vector3(3.6, 2.0, 0.8)
+		if id in ["travel_caravan_back", "travel_city"]:
+			threshold.size.x = 24.0
+		elif id == "travel_city_home":
+			threshold.size.x = 8.5
 		collider.shape = threshold
 	else:
 		var shape := SphereShape3D.new()
@@ -49,7 +61,7 @@ static func add_interaction(world: Node3D, id: String, prompt: String, at: Vecto
 	world.get("_map_root").add_child(area)
 	if exit:
 		# Route mouths use scenery, not floating destination labels.
-		var side := Vector3(0, 0, 2.15) if id in ["travel_east", "travel_home"] else Vector3(2.15, 0, 0)
+		var side := Vector3(0, 0, 2.15) if id in ["travel_east", "travel_home", "travel_caravan"] else Vector3(2.15, 0, 0)
 		world._add_lamp(at + side)
 		world._add_lamp(at - side)
 		return
@@ -65,10 +77,17 @@ static func add_interaction(world: Node3D, id: String, prompt: String, at: Vecto
 
 
 static func build(world: Node3D, map_id: String) -> void:
+	if map_id in ["caravan_road", "starbay"]:
+		load("res://scripts/gameplay/starbay.gd").build(world, map_id)
+		return
 	var forest := map_id == "firefly_forest"
 	world._add_box("Ground", Vector3(0, -0.35, 0), Vector3(34, 0.7, 30), Color("304b48"), true)
 	# Banks leave real road mouths; the walking thresholds sit safely inside them.
-	world._add_box("WoodlandBank", Vector3(16.5, 0.4, 0), Vector3(1, 1.5, 30), Color("354840"), true)
+	if forest:
+		world._add_box("WoodlandBank", Vector3(16.5, 0.4, 0), Vector3(1, 1.5, 30), Color("354840"), true)
+	else:
+		for segment: Vector2 in [Vector2(-5.9, 18.2), Vector2(10.9, 8.2)]:
+			world._add_box("WoodlandBank", Vector3(16.5, 0.4, segment.x), Vector3(1, 1.5, segment.y), Color("354840"), true)
 	if forest:
 		world._add_box("WoodlandBank", Vector3(-16.5, 0.4, 0), Vector3(1, 1.5, 30), Color("354840"), true)
 	else:
@@ -82,7 +101,7 @@ static func build(world: Node3D, map_id: String) -> void:
 			world._add_box("WoodlandBank", Vector3(0, 0.4, z), Vector3(34, 1.5, 1), Color("354840"), true)
 	world._add_cobble_box("WoodlandTrail", Vector3(0, 0.025, 0), Vector3(3.6, 0.07, 30), false)
 	if not forest:
-		world._add_cobble_box("CaravanRoad", Vector3(-5, 0.026, 5), Vector3(24, 0.07, 3.6), false)
+		world._add_cobble_box("CaravanRoad", Vector3(0, 0.026, 5), Vector3(34, 0.07, 3.6), false)
 		world._add_cobble_box("RestStop", Vector3(4, 0.025, 2), Vector3(7, 0.07, 7), false)
 	else:
 		world._add_cobble_box("ForagerTrail", Vector3(0, 0.026, -3), Vector3(18, 0.07, 1.6), false)
@@ -119,6 +138,7 @@ static func build(world: Node3D, map_id: String) -> void:
 		world._add_actor_interactable("road_traveler", "與驛路旅人交談", Vector3(5, 0, 2), "res://assets/generated/noah.tres", 1.6 / 724.0, Color("d3c5ac"), false, &"side")
 		world._add_box("FallenSignPost", Vector3(-6, 0.4, 2), Vector3(0.18, 0.8, 0.18), Color("806247"), false)
 		world._add_box("RoadSign", Vector3(-6, 0.9, 2), Vector3(1.5, 0.4, 0.15), Color("a88b60"), false)
+		add_interaction(world, "travel_caravan", "東行・風丘商道／星灣城", Vector3(14, 0, 5), true)
 		add_interaction(world, "travel_home", "西行・返回暮光村", Vector3(-14, 0, 5), true)
 		add_interaction(world, "travel_forest", "北行・螢光森林", Vector3(0, 0, -12), true)
 	for id: String in EVENTS:
