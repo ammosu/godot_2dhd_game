@@ -287,6 +287,7 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 	player.global_position = target_position
 	player.velocity = Vector3.ZERO
 	player.release_door_facing()
+	player.reset_automatic_interaction()
 	($CameraRig as Hd2dCameraRig).snap_to_target()
 	($CameraRig as Hd2dCameraRig).configure_dialogue_scenery(_map_root)
 	if HouseCatalog.is_interior(map_id) and spawn_id == "entry":
@@ -1613,6 +1614,8 @@ func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, r
 	house.add_child(collision_shape)
 	var entrance := Interactable3D.new()
 	entrance.name = "HouseEntrance"
+	entrance.facing_direction = Vector3.BACK
+	entrance.automatic_distance = 0.65
 	entrance.interaction_id = "enter_" + house_id
 	entrance.prompt_text = "進入" + str(HouseCatalog.find_home(house_id).name)
 	entrance.position = Vector3(0, 0.7, -2.1) * HouseCatalog.EXTERIOR_SCALE

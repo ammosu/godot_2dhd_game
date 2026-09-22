@@ -249,6 +249,9 @@ func _interaction(id: String, prompt: String, origin: Vector3) -> void:
 	var area := Interactable3D.new()
 	area.name = id
 	area.interaction_id = id
+	if id == "leave_house":
+		area.facing_direction = Vector3.BACK
+		area.automatic_distance = 0.65
 	area.prompt_text = prompt
 	area.position = origin
 	area.collision_layer = 8

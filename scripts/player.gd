@@ -25,6 +25,7 @@ var _last_step_position: Vector3
 var _footstep_map: String = ""
 var _door_facing_locked: bool = false
 var _door_facing_target: Vector3 = Vector3.ZERO
+var _automatic_interaction_armed: bool = false
 
 
 func _ready() -> void:
@@ -92,6 +93,39 @@ func _physics_process(delta: float) -> void:
 		GameAudio.play_cue(_footsteps.next_cue(Footsteps.surface_at(get_tree(), global_position)))
 	_last_step_position = global_position
 	_update_sprite(input_vector, move_direction, delta)
+	_update_automatic_interaction()
+
+
+func reset_automatic_interaction() -> void:
+	# Arriving or loading beside a door requires leaving its near zone first.
+	_automatic_interaction_armed = false
+
+
+func _update_automatic_interaction() -> void:
+	if GameState.is_input_locked():
+		return
+	var nearest: Interactable3D
+	var nearest_distance: float = INF
+	var inside_release_zone: bool = false
+	for node: Node in get_tree().get_nodes_in_group("proximity_interactables"):
+		var area := node as Interactable3D
+		var offset := area.global_position - global_position
+		var distance := Vector2(offset.x, offset.z).length()
+		if absf(offset.y) > 1.5:
+			continue
+		if distance <= area.automatic_distance + 0.2:
+			inside_release_zone = true
+		if distance > area.automatic_distance or distance >= nearest_distance:
+			continue
+		if not area.facing_direction.is_zero_approx() and not is_facing_direction(area.global_basis * area.facing_direction):
+			continue
+		nearest = area
+		nearest_distance = distance
+	if not inside_release_zone:
+		_automatic_interaction_armed = true
+	if _automatic_interaction_armed and nearest != null:
+		_automatic_interaction_armed = false
+		nearest.interact()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -111,8 +145,8 @@ func get_nearest_interactable() -> Interactable3D:
 	var nearest_distance := INF
 	for area in _interaction_area.get_overlapping_areas():
 		if area is Interactable3D:
-			if area.interaction_id.begins_with("enter_house_") or area.interaction_id == "leave_house":
-				if not is_facing_position(area.global_position):
+			if not area.facing_direction.is_zero_approx():
+				if not is_facing_direction(area.global_basis * area.facing_direction):
 					continue
 			var distance := global_position.distance_squared_to(area.global_position)
 			if distance < nearest_distance:
@@ -121,8 +155,8 @@ func get_nearest_interactable() -> Interactable3D:
 	return nearest
 
 
-func is_facing_position(target: Vector3) -> bool:
-	var direction := EightWayFacing.screen_direction(target - global_position, get_viewport().get_camera_3d())
+func is_facing_direction(world_direction: Vector3) -> bool:
+	var direction := EightWayFacing.screen_direction(world_direction, get_viewport().get_camera_3d())
 	if direction.is_zero_approx():
 		return false
 	# Match the visible eight-way facing, including after the camera orbits.
