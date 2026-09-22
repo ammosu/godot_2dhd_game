@@ -114,7 +114,9 @@ static func build(world: Node3D, map_id: String) -> void:
 	for index: int in range(HOMES.size()):
 		var home: Vector3 = HOMES[index]
 		var catalog: Dictionary = preload("res://scripts/gameplay/house_catalog.gd").HOMES[index % 8]
-		world._add_house(Vector3(home.x, 0, home.y), catalog.wall, catalog.roof, home.z, catalog.id)
+		var address: String = preload("res://scripts/gameplay/city_house_catalog.gd").address(index)
+		var japanese: bool = address in preload("res://scripts/gameplay/japanese_house.gd").ADDRESSES
+		world._add_house(Vector3(home.x, 0, home.y), catalog.wall, catalog.roof, home.z, catalog.id, index if japanese else -1)
 		var building: Node3D = world.get("_map_root").get_child(-1)
 		building.name = "CityHouse%d" % index
 		var id: String = preload("res://scripts/gameplay/city_house_catalog.gd").address(index)

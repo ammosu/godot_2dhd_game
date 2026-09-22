@@ -98,6 +98,13 @@ func _ready() -> void:
 		player.global_position = Vector3(0, 0.1, -5.5)
 		($CameraRig as Hd2dCameraRig).snap_to_target()
 		_start_guardian_battle.call_deferred()
+	elif "--japanese-preview" in OS.get_cmdline_user_args():
+		_test_mode = true
+		GameState.flags["intro_seen"] = true
+		_load_map("starbay", "from_house_city_01")
+		$CameraRig.set("_target_yaw", -0.6 + atan2(6.0, -8.0))
+		$CameraRig.set("_distance", 14.0)
+		($CameraRig as Hd2dCameraRig).snap_to_target()
 	elif "--city-house-preview" in OS.get_cmdline_user_args():
 		_test_mode = true
 		GameState.flags["intro_seen"] = true
@@ -1523,7 +1530,7 @@ func _add_cobble_box(node_name: String, world_position: Vector3, size: Vector3, 
 		root.add_child(collision_shape)
 
 
-func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, rotation_y: float, house_id: String) -> void:
+func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, rotation_y: float, house_id: String, japanese_variant: int = -1) -> void:
 	var house := StaticBody3D.new()
 	house.name = "VillageHouse"
 	house.set_meta("house_id", house_id)
@@ -1547,35 +1554,38 @@ func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, r
 	var foundation_material := _make_material(Color("aaa6af"), 0.96)
 	foundation_material.albedo_texture = _art_texture("res://assets/generated/ruin_flagstone.png")
 	foundation_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	_add_portal_box(house, Vector3(0.0, 0.18, 0.0), Vector3(4.16, 0.35, 3.36), foundation_material)
-	# Leave an actual doorway recess so the inward swing does not enter plaster.
-	for side: float in [-1.0, 1.0]:
-		_add_portal_box(house, Vector3(side * 1.205, 1.15, 0.0), Vector3(1.59, 1.9, 3.2), wall_material)
-	_add_portal_box(house, Vector3(0.0, 1.86, 0.0), Vector3(0.82, 0.48, 3.2), wall_material)
-	_add_portal_box(house, Vector3(0.0, 0.91, 0.41), Vector3(0.82, 1.42, 2.38), wall_material)
-	for post_x: float in [-1.98, 1.98]:
-		for post_z: float in [-1.60, 0.0, 1.60]:
-			_add_portal_box(house, Vector3(post_x, 1.18, post_z), Vector3(0.16, 1.75, 0.16), timber_material)
-	_add_portal_box(house, Vector3(0.0, 1.7, -1.64), Vector3(3.85, 0.13, 0.12), timber_material)
+	if japanese_variant >= 0:
+		preload("res://scripts/gameplay/japanese_house.gd").build(house, japanese_variant)
+	else:
+		_add_portal_box(house, Vector3(0.0, 0.18, 0.0), Vector3(4.16, 0.35, 3.36), foundation_material)
+		# Leave an actual doorway recess so the inward swing does not enter plaster.
+		for side: float in [-1.0, 1.0]:
+			_add_portal_box(house, Vector3(side * 1.205, 1.15, 0.0), Vector3(1.59, 1.9, 3.2), wall_material)
+		_add_portal_box(house, Vector3(0.0, 1.86, 0.0), Vector3(0.82, 0.48, 3.2), wall_material)
+		_add_portal_box(house, Vector3(0.0, 0.91, 0.41), Vector3(0.82, 1.42, 2.38), wall_material)
+		for post_x: float in [-1.98, 1.98]:
+			for post_z: float in [-1.60, 0.0, 1.60]:
+				_add_portal_box(house, Vector3(post_x, 1.18, post_z), Vector3(0.16, 1.75, 0.16), timber_material)
+		_add_portal_box(house, Vector3(0.0, 1.7, -1.64), Vector3(3.85, 0.13, 0.12), timber_material)
 
-	_add_portal_box(house, Vector3(-1.25, 1.18, -1.67), Vector3(0.62, 0.62, 0.11), window_material)
-	_add_portal_box(house, Vector3(1.25, 1.18, -1.67), Vector3(0.62, 0.62, 0.11), window_material)
-	_add_portal_box(house, Vector3(0.0, 0.12, -2.0), Vector3(1.35, 0.24, 0.72), timber_material)
-	_add_portal_box(house, Vector3(0.0, 1.55, -1.9), Vector3(1.3, 0.14, 0.62), roof_material)
-	_add_portal_box(house, Vector3(-1.15, 1.18, 1.67), Vector3(0.66, 0.62, 0.11), window_material)
-	_add_portal_box(house, Vector3(1.15, 1.18, 1.67), Vector3(0.66, 0.62, 0.11), window_material)
-	_add_portal_box(house, Vector3(-2.01, 1.18, -0.72), Vector3(0.11, 0.6, 0.62), window_material)
-	_add_portal_box(house, Vector3(-2.01, 1.18, 0.72), Vector3(0.11, 0.6, 0.62), window_material)
-	_add_portal_box(house, Vector3(2.01, 1.18, -0.72), Vector3(0.11, 0.6, 0.62), window_material)
-	_add_portal_box(house, Vector3(2.01, 1.18, 0.72), Vector3(0.11, 0.6, 0.62), window_material)
-	_add_portal_box(house, Vector3(1.15, 2.94, 0.72), Vector3(0.46, 0.99, 0.56), foundation_material)
-	# Four separate cap stones leave a real dark opening rather than a solid lid.
-	for cap_x: float in [-0.255, 0.255]:
-		_add_portal_box(house, Vector3(1.15 + cap_x, 3.49, 0.72), Vector3(0.13, 0.13, 0.70), foundation_material)
-	for cap_z: float in [-0.285, 0.285]:
-		_add_portal_box(house, Vector3(1.15, 3.49, 0.72 + cap_z), Vector3(0.38, 0.13, 0.13), foundation_material)
-	HouseDetails.build(house, timber_material, roof_material, wall_material)
-	HouseExterior.build(house, house_id, timber_material)
+		_add_portal_box(house, Vector3(-1.25, 1.18, -1.67), Vector3(0.62, 0.62, 0.11), window_material)
+		_add_portal_box(house, Vector3(1.25, 1.18, -1.67), Vector3(0.62, 0.62, 0.11), window_material)
+		_add_portal_box(house, Vector3(0.0, 0.12, -2.0), Vector3(1.35, 0.24, 0.72), timber_material)
+		_add_portal_box(house, Vector3(0.0, 1.55, -1.9), Vector3(1.3, 0.14, 0.62), roof_material)
+		_add_portal_box(house, Vector3(-1.15, 1.18, 1.67), Vector3(0.66, 0.62, 0.11), window_material)
+		_add_portal_box(house, Vector3(1.15, 1.18, 1.67), Vector3(0.66, 0.62, 0.11), window_material)
+		_add_portal_box(house, Vector3(-2.01, 1.18, -0.72), Vector3(0.11, 0.6, 0.62), window_material)
+		_add_portal_box(house, Vector3(-2.01, 1.18, 0.72), Vector3(0.11, 0.6, 0.62), window_material)
+		_add_portal_box(house, Vector3(2.01, 1.18, -0.72), Vector3(0.11, 0.6, 0.62), window_material)
+		_add_portal_box(house, Vector3(2.01, 1.18, 0.72), Vector3(0.11, 0.6, 0.62), window_material)
+		_add_portal_box(house, Vector3(1.15, 2.94, 0.72), Vector3(0.46, 0.99, 0.56), foundation_material)
+		# Four separate cap stones leave a real dark opening rather than a solid lid.
+		for cap_x: float in [-0.255, 0.255]:
+			_add_portal_box(house, Vector3(1.15 + cap_x, 3.49, 0.72), Vector3(0.13, 0.13, 0.70), foundation_material)
+		for cap_z: float in [-0.285, 0.285]:
+			_add_portal_box(house, Vector3(1.15, 3.49, 0.72 + cap_z), Vector3(0.38, 0.13, 0.13), foundation_material)
+		HouseDetails.build(house, timber_material, roof_material, wall_material)
+		HouseExterior.build(house, house_id, timber_material)
 	# Scale visual roots together, but resize physics shapes explicitly: a
 	# non-uniformly scaled StaticBody3D would give unreliable collisions.
 	var exterior_transform := Transform3D(Basis.from_scale(HouseCatalog.EXTERIOR_SCALE), Vector3.ZERO)
@@ -1583,7 +1593,8 @@ func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, r
 		if child is Node3D:
 			(child as Node3D).transform = exterior_transform * (child as Node3D).transform
 
-	HouseExterior.build_collision(house, house_id)
+	if japanese_variant < 0:
+		HouseExterior.build_collision(house, house_id)
 	var collision_shape := CollisionShape3D.new()
 	collision_shape.position.y = 1.15 * HouseCatalog.EXTERIOR_SCALE.y
 	var shape := BoxShape3D.new()

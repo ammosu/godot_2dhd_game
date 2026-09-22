@@ -609,3 +609,7 @@ godot --headless --path . --rendering-method gl_compatibility --script tests/sta
 `godot --headless --path . --script tests/city_house_test.gd` 實際逐一操作 26 個門口，檢查開門進屋、六種格局、中央通道膠囊碰撞、地板、屋主／陳設互動、各房型存讀檔，以及出屋返回正確的星灣城門前。使用獨立 `user://city_house_test_<process-id>.json`，成功後清除。
 
 成功標記：`CITY_HOUSE_TEST_PASS 26_doors six_layouts collisions dialogue save return`。移除 `--headless`、加入 `--rendering-method gl_compatibility` 或 `forward_plus`，附加 `-- --capture` 可擷取六房型的 `/tmp/city-house-<kind>.png`。村莊原有八棟住宅另以 `tests/house_door_test.gd` 回歸。
+
+## 町屋風格外觀
+
+`godot --path . --rendering-method forward_plus --script tests/japanese_house_capture.gd` 擷取南門旅舍、溪風茶室及守鐘人之家的正側面；改為 `gl_compatibility` 可檢查 Web 相容渲染。輸出 `/tmp/japanese-house-<index>-<renderer>.png`，成功標記 `JAPANESE_HOUSE_CAPTURE_PASS`。此工具只作畫面檢查、不寫存檔；進出功能使用 `tests/city_house_test.gd` 的 26 棟門口回歸，街道通行使用 `tests/starbay_test.gd`。
