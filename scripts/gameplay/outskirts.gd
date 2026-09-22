@@ -126,6 +126,12 @@ static func build(world: Node3D, map_id: String) -> void:
 		if event[0] == map_id and id != "road_traveler":
 			add_interaction(world, id, event[2], event[1])
 
+	var water := preload("res://scripts/gameplay/natural_water.gd")
+	if forest:
+		water.pond(world.get("_map_root"), Vector3(10, 0.085, 4), Vector2(7, 5))
+	else:
+		water.creek(world.get("_map_root"), Vector3(0, 0.085, -5))
+		preload("res://scripts/gameplay/creek_bridge.gd").build(world.get("_map_root"), Vector3(0, 0, -5))
 	configure_surfaces(world)
 
 

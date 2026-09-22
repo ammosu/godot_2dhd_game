@@ -554,3 +554,7 @@ godot --headless --path . --script tests/dialogue_occlusion_test.gd
 
 Expected: `MAP_UI_TEST_PASS five_regions input_lock modal_guards keyboard button north_up targets`.
 Checks G/Esc and the map button, five region types, objective synchronization, north-up orientation, movement lock, and opening guards during dialogue/battle/equipment/transitions. Uses test-mode save isolation. Run with an actual renderer to also capture `/tmp/wanderlight-large-map.png` for visual review; append `-- --mobile-controls` to inspect the touch layout.
+
+自然水域：`godot --headless --path . --script tests/natural_water_test.gd`。驗證玩家尺寸膠囊可走池塘淺岸、穿越舊道中央淺灘，且無法穿入溪流／池塘深水。成功標記 `NATURAL_WATER_TEST_PASS`。去掉 `--headless` 並分別指定 `--rendering-method forward_plus` 與 `gl_compatibility`，亦檢查水面動畫並輸出 `/tmp/natural-water.png`。
+
+木橋通行：`godot --headless --path . --script tests/creek_bridge_test.gd`。使用實際玩家碰撞體驗證雙向上下橋、橋面高度、側欄阻擋與木質腳步聲；成功標記 `CREEK_BRIDGE_TEST_PASS`。以圖形模式執行可擷取 `/tmp/creek-bridge.png`。

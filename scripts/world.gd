@@ -344,7 +344,7 @@ func _build_village() -> void:
 	var stamp: int = Time.get_ticks_usec()
 	_add_box("Ground", Vector3(0.0, -0.35, 0.0), Vector3(46.0, 0.7, 40.0), Color("304b48"), true)
 	_add_cobble_box("CentralPlaza", Vector3(0.0, -0.02, 0.0), Vector3(7.8, 0.12, 8.0), true)
-	WaterFeature.build(_map_root, Vector3(11.5, 0.02, -10.0), Vector2(9.0, 5.0))
+	preload("res://scripts/gameplay/natural_water.gd").pond(_map_root, Vector3(11.5, 0.085, -10.0), Vector2(9.0, 5.0))
 
 	_add_cobble_box("NorthRoad", Vector3(0.0, 0.025, -3.75), Vector3(2.35, 0.08, 32.5), false)
 	_add_cobble_box("MarketRoad", Vector3(0.0, 0.023, 4.6), Vector3(29.0, 0.075, 2.25), false)
