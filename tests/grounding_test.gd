@@ -42,7 +42,7 @@ func _run() -> void:
 	for step: int in range(16):
 		player.call("_update_sprite", Vector2.RIGHT, Vector3.RIGHT, 0.1)
 		_check(is_equal_approx(sprite.position.y, 0.012), "Walking must not lift foot pivot")
-	_check(get_nodes_in_group("grounded_character_art").size() == 4, "Village requires player plus three grounded NPCs")
+	_check(get_nodes_in_group("grounded_character_art").size() == 4 + get_nodes_in_group("wandering_villagers").size(), "Village requires player, three named NPCs and every roaming villager grounded")
 	for node: Node in get_nodes_in_group("grounded_character_art"):
 		if node is Sprite3D:
 			_check_pivot(node as Sprite3D, (node as Sprite3D).texture)

@@ -558,3 +558,33 @@ Checks G/Esc and the map button, five region types, objective synchronization, n
 自然水域：`godot --headless --path . --script tests/natural_water_test.gd`。驗證玩家尺寸膠囊可走池塘淺岸、穿越舊道中央淺灘，且無法穿入溪流／池塘深水。成功標記 `NATURAL_WATER_TEST_PASS`。去掉 `--headless` 並分別指定 `--rendering-method forward_plus` 與 `gl_compatibility`，亦檢查水面動畫並輸出 `/tmp/natural-water.png`。
 
 木橋通行：`godot --headless --path . --script tests/creek_bridge_test.gd`。使用實際玩家碰撞體驗證雙向上下橋、橋面高度、側欄阻擋與木質腳步聲；成功標記 `CREEK_BRIDGE_TEST_PASS`。以圖形模式執行可擷取 `/tmp/creek-bridge.png`。
+
+
+## 動作戰鬥
+
+主場景使用 `action_battle_ui.gd`，由 GameState 持有 `action_battle.gd`，每個物理更新執行空間戰鬥。`world_action_battle.gd` 將模型的移動／尋路／視線查詢接到原地 3D 場景與實際碰撞體，HUD 不使用 SubViewport。存檔結構不變，不保存戰鬥中途狀態。
+
+```bash
+godot --headless --path . --script tests/action_battle_test.gd
+godot --headless --path . --script tests/action_battle_ui_test.gd
+godot --headless --path . --rendering-method forward_plus -- --playthrough-test
+godot --headless --path . --rendering-method gl_compatibility -- --playthrough-test
+```
+
+模型測試涵蓋移動邊界、攻擊距離與方向、前搖、預警鎖定、走位避招、閃避、暫停、冷卻、資源、換人及勝負後停止。UI／場景測試涵蓋保留地圖與鏡頭、原地開戰、石柱碰撞與閃避掃掠、隔牆攻擊阻擋、敵人繞路、暫停與換人鏡頭、多指觸控、勝利後自動離場、位置保留及場景清理；非 headless 執行時另存 `/tmp/wanderlight-world-battle.png` 供畫面檢查。完整主線測試以固定步進操作真實模型，驗證戰敗恢復、重試與勝利交任務。
+
+既有 `party_*` 回合測試保留為舊系統回歸測試，不代表主場景目前的操作。戰場圖庫仍使用原本靜態展示介面。
+
+直接試玩：`godot --path . -- --battle-preview`，以暫停狀態開啟，按 Esc 開始，不寫入正常自動存檔。
+
+
+自動動作戰鬥：`godot --headless --path . --script tests/action_auto_battle_test.gd`。
+涵蓋預設關閉、自動追擊／技能／閃避、暫停、手動接管、換人、無 MP 戰鬥與勝敗後停止。`action_battle_ui_test.gd` 另驗證 B 鍵、觸控開關、手動接管及完整原地自動戰鬥獲勝，而且不消耗共享藥水。
+
+### Action combat artwork
+
+`godot --headless --path . --script tests/action_art_test.gd` checks alpha, measured atlas bounds, cardinal selection, windup/contact/recovery/death priority, single damage resolution, and effect pause/cleanup.
+
+`godot --path . --rendering-method gl_compatibility --script tests/action_art_world_test.gd` renders a deterministic original-map fixture with casting, moon slash, frost, heal and ward effects; saves `/tmp/wanderlight-action-art-world.png`. Repeat with `forward_plus` for desktop visual QA. These fixtures use new-game test state and never save over player data.
+
+After changing action PNGs, run `python3 tools/art/inspect_action_atlases.py` (Pillow) to regenerate measured `regions.json` and `regions.gd`, inspect the images, then run the art test and Web export. The measurement script reads alpha only and does not alter source raster pixels.

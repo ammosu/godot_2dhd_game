@@ -20,6 +20,26 @@ var _dialogue_blend: float = 0.0
 var _dialogue_focus: Vector3
 var _dialogue_yaw: float = 0.0
 var _dialogue_distance: float = 6.2
+var _combat_target: Node3D
+var _combat_blend: float = 0.0
+var _combat_distance: float = 21.0
+
+
+func begin_combat_shot(target: Node3D) -> void:
+	_combat_target = target
+	_combat_distance = 21.0
+	_dialogue_active = false
+	camera.attributes = null
+
+
+func set_combat_target(target: Node3D) -> void:
+	_combat_target = target
+
+
+func end_combat_shot() -> void:
+	_combat_target = null
+	_configure_camera_attributes()
+
 
 
 func begin_dialogue_shot(partner: Node3D) -> void:
@@ -107,19 +127,30 @@ func _process(delta: float) -> void:
 	if _target == null:
 		return
 
-	if not GameState.is_input_locked():
+	var fighting: bool = is_instance_valid(_combat_target) and GameState.mode == GameState.Mode.BATTLE
+	var combat_paused: bool = fighting and GameState.battle_session != null and bool(GameState.battle_session.paused)
+	if not GameState.is_input_locked() or (fighting and not combat_paused):
 		if Input.is_action_just_pressed("camera_rotate_left"):
 			_target_yaw += deg_to_rad(orbit_step_degrees)
 		if Input.is_action_just_pressed("camera_rotate_right"):
 			_target_yaw -= deg_to_rad(orbit_step_degrees)
 		if Input.is_action_just_pressed("camera_zoom_in"):
-			_distance = maxf(7.0, _distance - 1.25)
+			if fighting:
+				_combat_distance = maxf(17.0, _combat_distance - 1.25)
+			else:
+				_distance = maxf(7.0, _distance - 1.25)
 		if Input.is_action_just_pressed("camera_zoom_out"):
-			_distance = minf(15.0, _distance + 1.25)
+			if fighting:
+				_combat_distance = minf(26.0, _combat_distance + 1.25)
+			else:
+				_distance = minf(15.0, _distance + 1.25)
 
 	_dialogue_blend = move_toward(_dialogue_blend, 1.0 if _dialogue_active else 0.0, delta / 0.85)
 	var shot_weight: float = smoothstep(0.0, 1.0, _dialogue_blend)
+	_combat_blend = move_toward(_combat_blend, 1.0 if fighting else 0.0, delta / 0.65)
 	var exploration_focus: Vector3 = Vector3.ZERO if _indoors else _target.global_position
+	if fighting:
+		exploration_focus = exploration_focus.lerp(_combat_target.global_position, _combat_blend)
 	var follow_weight := 1.0 - exp(-delta * 7.5)
 	global_position = global_position.lerp(exploration_focus.lerp(_dialogue_focus, shot_weight), follow_weight)
 	var desired_yaw: float = lerp_angle(_target_yaw, _dialogue_yaw, shot_weight)
@@ -134,7 +165,8 @@ func _process(delta: float) -> void:
 
 func _update_camera_local_position() -> void:
 	var shot_weight: float = smoothstep(0.0, 1.0, _dialogue_blend)
-	var shot_distance: float = lerpf(_distance, _dialogue_distance, shot_weight)
+	var exploration_distance: float = lerpf(_distance, _combat_distance, smoothstep(0.0, 1.0, _combat_blend))
+	var shot_distance: float = lerpf(exploration_distance, _dialogue_distance, shot_weight)
 	if _indoors:
 		# Preserve zoom and dialogue framing without shrinking distant people.
 		camera.size = shot_distance * 0.64

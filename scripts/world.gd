@@ -35,7 +35,7 @@ const SIDE_CONTENT_MARKER_COLOR := Color("64e6ff")
 
 @onready var player: Wanderer = $Player
 @onready var dialogue_ui: DialogueUI = $DialogueUI
-@onready var battle_ui: PartyBattleUI = $BattleUI
+@onready var battle_ui: ActionBattleUI = $BattleUI
 
 var _map_root: Node3D
 # Keep immutable art resident while this world exists; map teardown must not
@@ -91,8 +91,11 @@ func _ready() -> void:
 		GameState.flags["intro_seen"] = true
 		$EquipmentUI.open.call_deferred()
 	elif "--battle-preview" in OS.get_cmdline_user_args():
+		_test_mode = true # Preview never writes normal autosaves.
 		GameState.flags["intro_seen"] = true
 		_load_map("ruins", "from_village")
+		player.global_position = Vector3(0, 0.1, -5.5)
+		($CameraRig as Hd2dCameraRig).snap_to_target()
 		_start_guardian_battle.call_deferred()
 	elif "--outskirts-preview" in OS.get_cmdline_user_args():
 		_test_mode = true
@@ -129,7 +132,10 @@ func _process(delta: float) -> void:
 		var pulse_strength := 0.45 if lamp_is_restored else 0.08
 		_moon_lamp_light.light_energy = base_energy + sin(_ambient_time * 2.2) * pulse_strength
 	if is_instance_valid(_mini_map):
-		_mini_map.set_player_state(player.global_position, player.velocity)
+		var tracked: CharacterBody3D = player
+		if battle_ui.is_active() and is_instance_valid(battle_ui.encounter):
+			tracked = battle_ui.encounter.bodies[int(battle_ui.session.controlled)]
+		_mini_map.set_player_state(tracked.global_position, tracked.velocity)
 	if _prompt_label != null:
 		var prompt := player.get_interaction_prompt() if GameState.mode == GameState.Mode.EXPLORE else ""
 		var prompt_prefix := "互動：" if MobileControls.is_mobile_device() else "Space："
@@ -754,7 +760,7 @@ func _talk_to_noah() -> void:
 		GameState.QuestState.ACTIVE:
 			dialogue_ui.show_dialogue([
 				{"speaker": "守門人・諾亞", "text": "月印已經生效。門後就是北境遺跡。"},
-				{"speaker": "守門人・諾亞", "text": "戰鬥時依按鈕上的數字選擇指令，再確認。每個人的技能不同，我能守護同伴。"},
+				{"speaker": "守門人・諾亞", "text": "戰鬥時用方向鍵移動，J 攻擊、K 技能、空白鍵閃避。Tab 可切換隊員，我能用技能守護全隊。"},
 			])
 		GameState.QuestState.READY_TO_TURN_IN:
 			dialogue_ui.show_dialogue([{"speaker": "守門人・諾亞", "text": "我看見門扉重新亮起，就知道你成功了。長老正在月燈旁等你。"}])
@@ -800,7 +806,7 @@ func _rest_at_moon_spring() -> void:
 	else:
 		lines.append({"speaker": "旅人", "text": "HP 與 MP 都很充足。但這段被截斷歸途的記憶，為什麼要讓我看見？"})
 	if GameState.quest_state == GameState.QuestState.ACTIVE:
-		lines.append({"speaker": "系統", "text": "先點技能，再點目標卡片，確認每位同伴的指令，再按開始回合。雙方依速度由快到慢出手；敵方三人全倒下才算通過試煉。"})
+		lines.append({"speaker": "系統", "text": "試煉就在遺跡原地進行。WASD 移動，J 攻擊、K 技能、空白鍵閃避；確認紅色預警後離開危險區。Tab 換人、Q/E 轉鏡頭，石柱能擋住攻擊。"})
 		lines.append({"speaker": "系統", "text": "諾亞的守護、艾爾的療癒要選存活同伴；療癒不能復活。霜星爆選中央敵人可波及三人，普通攻擊不耗 MP。"})
 		lines.append({"speaker": "系統", "text": "挑戰前可開啟裝備調整三人的武器與防具，並在探索時存檔。全隊倒下會回村恢復，任務仍可重試。"})
 	dialogue_ui.show_dialogue(lines)
@@ -817,7 +823,7 @@ func _talk_to_guardian() -> void:
 	lines.append({"speaker": "遺跡守衛", "text": "每當引路之光被鎖在一地，霧中的道路便更加黯淡。證明你帶回村莊的是希望，而不是另一道只保護少數人的牆。"})
 	lines.append({"speaker": "遺跡守衛", "text": "苔背狼是只求存活的恐懼，月蝕術士是占有月光的執念。這兩段失敗的記憶，將與我一同試問你們的決心。"})
 	lines.append({"speaker": "旅人", "text": "我要讓村民活過今晚，也不會忘記仍在霧中尋路的人。那就開始吧。"})
-	lines.append({"speaker": "諾亞", "text": "我和長老會助你完成試煉。先替全隊確認技能與目標，再開始回合。"})
+	lines.append({"speaker": "諾亞", "text": "我和長老會自動助戰，你可以用 Tab 換人。確認站位、閃開紅色預警，再趁敵人收招攻擊。"})
 	lines.append({"speaker": "長老", "text": "霜星爆能波及附近的敵人。注意範圍圈和命中標記，不必只盯著守衛。"})
 	dialogue_ui.show_dialogue(lines, _start_guardian_battle)
 
@@ -854,6 +860,7 @@ func _complete_main_quest() -> void:
 
 
 func _start_guardian_battle() -> void:
+	battle_ui.configure_world(_map_root, player, $CameraRig, _map_root.get_node_or_null("Guardian"))
 	battle_ui.start_battle({
 		"name": "遺跡守衛",
 		"max_hp": 64,
@@ -864,13 +871,19 @@ func _start_guardian_battle() -> void:
 
 func _on_battle_finished(victory: bool) -> void:
 	if victory:
-		_load_map("ruins", "after_battle")
+		# Keep the actual map and traveler position after an in-world encounter.
+		if GameState.current_map != "ruins":
+			_load_map("ruins", "after_battle") # Story preview only.
+		var guardian := _map_root.get_node_or_null("Guardian")
+		if guardian != null:
+			guardian.queue_free()
+		_quest_markers.erase("guardian")
 		GameState.remember_player_position(player.global_position)
 		if not _test_mode:
 			GameState.save_game(GameState.SAVE_PATH, false)
 		var shard := MoonShard.new()
 		shard.name = "MoonShardReward"
-		shard.position = Vector3(0.0, 1.5, -8.2)
+		shard.position = (battle_ui.reward_position if battle_ui.reward_position != Vector3.ZERO else Vector3(0, 0, -8.2)) + Vector3.UP * 1.5
 		shard.rotation.y = ($CameraRig/Camera3D as Camera3D).global_rotation.y + PI
 		shard.scale = Vector3.ONE * 1.3
 		_map_root.add_child(shard)
@@ -888,7 +901,7 @@ func _on_battle_finished(victory: bool) -> void:
 		GameState.restore_after_defeat()
 		dialogue_ui.show_dialogue([
 			{"speaker": "旁白", "text": "村民在遺跡入口發現了你，並將你送回暮光村。"},
-			{"speaker": "系統", "text": "HP 與 MP 已恢復，北門仍然開啟。調整裝備後可再次挑戰；已使用的藥水不會補回，普通攻擊與防禦可免費使用。"},
+			{"speaker": "系統", "text": "HP 與 MP 已恢復，北門仍然開啟。調整裝備後可再次挑戰；已使用的藥水不會補回，普通攻擊與閃避可免費使用。"},
 		], func() -> void: GameState.request_map("village", "default"))
 
 
@@ -1978,6 +1991,10 @@ func _build_hud() -> void:
 func _refresh_hud() -> void:
 	if _map_label == null:
 		return
+	var fighting: bool = GameState.mode == GameState.Mode.BATTLE
+	_controls_label.visible = not fighting
+	_quest_label.visible = not fighting
+	(_map_label.get_parent().get_parent() as Control).custom_minimum_size.x = 280.0 if fighting else 530.0
 	_update_village_gate_state()
 	_update_quest_markers()
 	if GameState.current_map == "east_road" and is_instance_valid(_map_root):
@@ -2159,17 +2176,16 @@ func _run_playthrough_test() -> void:
 		spring_dialogue_safety += 1
 
 	GameState.player_hp = 1
+	player.global_position = Vector3(0, 0.1, -5.5)
 	_start_guardian_battle()
 	for ally: Dictionary in GameState.battle_session.actors:
 		if int(ally.team) == 0:
 			ally.hp = 1
-	for turn_index: int in range(3):
-		if not await _test_wait_for_battle(false):
-			return
-		battle_ui.choose_action("guard")
-	battle_ui._run_round()
-	if not await _test_wait_for_battle(true):
-		return
+	battle_ui.set_physics_process(false)
+	for step_index: int in range(3600):
+		battle_ui.advance_combat(1.0 / 60.0, Vector2.ZERO)
+		if battle_ui.is_resolved():
+			break
 	if not _test_require(battle_ui.is_resolved() and not battle_ui.did_player_win(), "battle defeat state"):
 		return
 	battle_ui._finish_battle()
@@ -2198,6 +2214,7 @@ func _run_playthrough_test() -> void:
 		return
 	await get_tree().process_frame
 	await get_tree().process_frame
+	player.global_position = Vector3(0, 0.1, -5.5)
 	_handle_interaction("guardian")
 	if not _test_require(dialogue_ui.is_open() and str(dialogue_ui._lines[0].text).contains("誓言") == read_tablet, "guardian acknowledges optional lore route"):
 		return
@@ -2205,17 +2222,24 @@ func _run_playthrough_test() -> void:
 		dialogue_ui.advance()
 	if not _test_require(battle_ui.is_active() and GameState.mode == GameState.Mode.BATTLE, "battle start"):
 		return
-	for turn_index in range(80):
+	battle_ui.set_physics_process(false)
+	for step_index: int in range(7200):
 		if battle_ui.is_resolved():
 			break
-		if not await _test_wait_for_battle(false):
-			return
-		if battle_ui.is_resolved():
-			break
-		battle_ui.choose_action("attack")
-		if GameState.battle_session.ready_to_resolve():
-			battle_ui._run_round()
-	if not await _test_wait_for_battle(true):
+		var combat: RefCounted = GameState.battle_session
+		var controlled: int = combat.controlled
+		var target: int = combat.nearest_enemy(controlled)
+		var direction := Vector2.ZERO
+		if target >= 0:
+			var difference: Vector2 = combat.actors[target].position - combat.actors[controlled].position
+			direction = difference.normalized()
+			combat.actors[controlled].facing = direction
+			if difference.length() < 1.6:
+				battle_ui.choose_action("skill")
+				battle_ui.choose_action("attack")
+				direction = Vector2.ZERO
+		battle_ui.advance_combat(1.0 / 60.0, direction)
+	if not _test_require(battle_ui.is_resolved() and battle_ui.did_player_win(), "action battle spatial victory"):
 		return
 	if not _test_require(bool(GameState.flags.get("guardian_defeated", false)), "battle victory flag"):
 		return

@@ -41,6 +41,7 @@ var player_mp: int = 20
 var player_attack: int = 18
 var player_defense: int = 4
 var ui_theme: Theme
+const ActionBattle = preload("res://scripts/systems/action_battle.gd")
 const PartyBattle = preload("res://scripts/systems/party_battle.gd")
 const BattleArenaLayout = preload("res://scripts/systems/battle_arena_layout.gd")
 var battle_session: RefCounted
@@ -63,6 +64,27 @@ func begin_party_battle(enemy: Dictionary) -> RefCounted:
 	battle_session.actors[0].max_mp = player_max_mp
 	set_mode(Mode.BATTLE)
 	return battle_session
+
+
+func begin_action_battle(enemy: Dictionary) -> RefCounted:
+	begin_party_battle(enemy)
+	var initial: Array[Dictionary] = battle_session.actors
+	battle_session = ActionBattle.new()
+	battle_session.setup(player_hp, player_mp, player_attack, player_defense, enemy)
+	for index: int in range(3):
+		for stat: String in ["attack", "defense", "max_hp", "max_mp"]:
+			battle_session.actors[index][stat] = initial[index][stat]
+	return battle_session
+
+
+func use_action_potion() -> bool:
+	if not battle_session is ActionBattle or int(inventory.get("potion", 0)) <= 0:
+		return false
+	if not battle_session.use_potion():
+		return false
+	inventory["potion"] = int(inventory.get("potion", 0)) - 1
+	sync_party_battle()
+	return true
 
 
 func _prepare_battle_visual(enemy: Dictionary) -> void:

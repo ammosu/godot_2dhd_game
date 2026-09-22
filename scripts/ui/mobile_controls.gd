@@ -94,7 +94,7 @@ func _input(event: InputEvent) -> void:
 		if pressed_touch or pressed_click:
 			accept_event()
 		return
-	if GameState.mode != GameState.Mode.EXPLORE:
+	if GameState.mode not in [GameState.Mode.EXPLORE, GameState.Mode.BATTLE]:
 		return
 	if event is InputEventScreenTouch:
 		_handle_touch(event as InputEventScreenTouch)
@@ -108,7 +108,7 @@ func _draw() -> void:
 	if not _landscape:
 		_draw_portrait_notice()
 		return
-	if GameState.mode != GameState.Mode.EXPLORE:
+	if GameState.mode not in [GameState.Mode.EXPLORE, GameState.Mode.BATTLE]:
 		return
 
 	var base := _joystick_center()
@@ -120,6 +120,8 @@ func _draw() -> void:
 
 	_draw_round_button(_camera_left_center(), CAMERA_RADIUS, "", &"camera_rotate_left", Color(0.11, 0.09, 0.18, 0.78))
 	_draw_round_button(_camera_right_center(), CAMERA_RADIUS, "", &"camera_rotate_right", Color(0.11, 0.09, 0.18, 0.78))
+	if GameState.mode == GameState.Mode.BATTLE:
+		return
 	_draw_round_button(_action_center(), ACTION_RADIUS, "互動", &"interact", Color(0.16, 0.62, 0.59, 0.88))
 	_draw_pill_button(_equipment_rect(), "裝備", &"equipment_menu")
 	_draw_pill_button(_save_rect(), "存檔", &"save_game")
@@ -198,12 +200,14 @@ func _set_button_action(action: StringName, pressed: bool) -> void:
 
 
 func _action_at(position: Vector2) -> StringName:
-	if position.distance_to(_action_center()) <= ACTION_RADIUS * 1.2:
+	if GameState.mode == GameState.Mode.EXPLORE and position.distance_to(_action_center()) <= ACTION_RADIUS * 1.2:
 		return &"interact"
 	if position.distance_to(_camera_left_center()) <= CAMERA_RADIUS * 1.25:
 		return &"camera_rotate_left"
 	if position.distance_to(_camera_right_center()) <= CAMERA_RADIUS * 1.25:
 		return &"camera_rotate_right"
+	if GameState.mode == GameState.Mode.BATTLE:
+		return &""
 	if _save_rect().grow(8.0).has_point(position):
 		return &"save_game"
 	if _load_rect().grow(8.0).has_point(position):
@@ -290,7 +294,7 @@ func _install_web_landscape_listener() -> void:
 
 func _refresh_visibility() -> void:
 	_landscape = _is_window_landscape()
-	if GameState.mode != GameState.Mode.EXPLORE:
+	if GameState.mode not in [GameState.Mode.EXPLORE, GameState.Mode.BATTLE]:
 		_release_all_actions()
 	queue_redraw()
 
@@ -332,11 +336,11 @@ func _action_center() -> Vector2:
 
 
 func _camera_left_center() -> Vector2:
-	return Vector2(size.x - 272.0, size.y - 82.0)
+	return Vector2(94, size.y - 252) if GameState.mode == GameState.Mode.BATTLE else Vector2(size.x - 272.0, size.y - 82.0)
 
 
 func _camera_right_center() -> Vector2:
-	return Vector2(size.x - 196.0, size.y - 82.0)
+	return Vector2(170, size.y - 252) if GameState.mode == GameState.Mode.BATTLE else Vector2(size.x - 196.0, size.y - 82.0)
 
 
 func _save_rect() -> Rect2:

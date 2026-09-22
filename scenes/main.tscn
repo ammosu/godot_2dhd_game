@@ -4,7 +4,7 @@
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="2_player"]
 [ext_resource type="Script" path="res://scripts/camera_rig.gd" id="3_camera"]
 [ext_resource type="Script" path="res://scripts/ui/dialogue_ui.gd" id="4_dialogue"]
-[ext_resource type="Script" path="res://scripts/ui/party_battle_ui.gd" id="5_battle"]
+[ext_resource type="Script" path="res://scripts/ui/action_battle_ui.gd" id="5_battle"]
 [ext_resource type="Script" path="res://scripts/ui/mobile_controls.gd" id="6_mobile"]
 [ext_resource type="Script" path="res://scripts/ui/equipment_ui.gd" id="7_equipment"]
 
