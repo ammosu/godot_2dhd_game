@@ -1,6 +1,6 @@
 extends Node2D
 const Actor = preload("res://scripts/gameplay/layered_combat_actor.gd")
-const FONT: Font = preload("res://assets/fonts/Cubic_11.ttf")
+const FONT: Font = preload("res://assets/fonts/SourceHanSansTW-Regular.otf")
 var actors: Array[Node2D] = []
 var separated: bool = false
 var bare: bool = false

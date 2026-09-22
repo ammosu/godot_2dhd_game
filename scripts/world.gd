@@ -1940,6 +1940,7 @@ func _build_hud() -> void:
 	info.add_theme_constant_override("separation", 5)
 	panel.add_child(info)
 	_map_label = Label.new()
+	_map_label.theme_type_variation = &"TitleLabel"
 	_map_label.add_theme_color_override("font_color", Color("f3c77f"))
 	_map_label.add_theme_font_size_override("font_size", 18)
 	info.add_child(_map_label)
@@ -1948,7 +1949,7 @@ func _build_hud() -> void:
 	_quest_label.add_theme_font_size_override("font_size", 17)
 	info.add_child(_quest_label)
 	_controls_label = Label.new()
-	_controls_label.text = "左側移動｜右側互動｜↶/↷ 鏡頭｜右上裝備／存讀檔" if MobileControls.is_mobile_device() else "WASD 移動｜Space 互動｜I 裝備｜F5 存檔｜F9 讀檔"
+	_controls_label.text = "左側移動｜右側互動｜左右轉鏡頭｜右上裝備／存讀檔" if MobileControls.is_mobile_device() else "WASD 移動｜Space 互動｜I 裝備｜F5 存檔｜F9 讀檔"
 	_controls_label.add_theme_color_override("font_color", Color("b8a9bc"))
 	info.add_child(_controls_label)
 

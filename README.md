@@ -228,3 +228,7 @@ godot --path . -- --outskirts-preview
 地圖戰鬥使用六位角色的四方向動作圖集，涵蓋走路、蓄力、出手、收招、施法、閃避、受傷與倒地；支援目前旅人、諾亞和長老的武器／服裝組合。方向依實際相機計算，手動與自動戰鬥共用同一套動畫。月影斬、月光彈、冰霜新星、治療與守護會在地圖內播放原創特效，暫停時一併停止。素材清單、逐格裁切資料與生成提示見 [action art](assets/generated/action/README.md)。
 
 星灣城公共空間依照[城市配置圖](docs/design/starbay-civic-plan-v1.png)補入月儀庭、樹蔭庭園與水岸六角涼亭，搭配花壇、長椅、街角樹木及串接小徑；按 G 可查看三處地標，在附近按 Space 閱讀介紹。配置保留既有曲線街道、26 棟住宅及出入口，詳見[配置對照](docs/design/starbay-civic-layout.md)。`godot --path . -- --civic-preview` 可從月儀庭旁開始試玩，不寫入正常自動存檔。
+
+## 介面字體
+
+一般介面、對話與場景招牌採用內嵌的思源黑體台灣繁中 Regular；地圖、裝備與戰鬥標題以思源宋體台灣繁中 SemiBold 點綴。標題 Label 使用共用 Theme 的 `TitleLabel` variation，對話正文加大行距。兩款字體採 SIL OFL 1.1，可免費商用，桌面與 Web 均不依賴系統字體；來源與完整授權見 `THIRD_PARTY_ASSETS.md`。像素美術維持 nearest-neighbor 過濾。

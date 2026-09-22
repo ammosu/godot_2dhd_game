@@ -29,8 +29,34 @@
 - **來源 commit**：`4c566f7d6cc5c05ee360fe9cff56b5da1fcafd4d`
 - **取得日期**：2026-08-13
 - **授權**：SIL Open Font License 1.1
-- **用途**：提供桌面與 Web 版一致的繁體中文 UI 字形
+- **用途**：保留的舊版點陣字體；目前 UI 已改用下列思源字體
 - **實際檔案**：`assets/fonts/Cubic_11.ttf`
 - **SHA-256**：`0193f5f033612496df6b45ee92ac3b335bc6a5a24ff95da55ca87b33e57dcf62`
 
 完整授權說明見 [assets/fonts/CUBIC_11_LICENSE.txt](assets/fonts/CUBIC_11_LICENSE.txt)。
+
+## 思源黑體（台灣繁中 Regular）
+
+- **作者／專案**：Adobe，Source Han（與 Google 合作）
+- **官方來源**：<https://github.com/adobe-fonts/source-han-sans>
+- **來源 commit**：`a4f7cf94edfb9d7ffbdfc4841de276358bd7e0f2`，`SubsetOTF/TW/SourceHanSansTW-Regular.otf`
+- **取得日期**：2026-09-22
+- **授權**：SIL Open Font License 1.1；可免費商用及隨遊戲散布
+- **署名要求**：散布時保留原始版權聲明與 OFL 授權文件；不得單獨販售字體
+- **用途**：一般 UI、對話、數值與場景招牌；桌面與 Web 共用內嵌字體
+- **實際檔案**：`assets/fonts/SourceHanSansTW-Regular.otf`（上游原始檔，未修改）
+- **SHA-256**：`5034bc32aa64bc93ce673fe05752724bb31fc6757c6bc1d23e925052c54fd2ac`
+- **授權文件**：[assets/fonts/SOURCE_HAN_SANS_LICENSE.txt](assets/fonts/SOURCE_HAN_SANS_LICENSE.txt)
+
+## 思源宋體（台灣繁中 SemiBold）
+
+- **作者／專案**：Adobe，Source Han（與 Google 合作）
+- **官方來源**：<https://github.com/adobe-fonts/source-han-serif>
+- **來源 commit**：`7889f11bf31170b5d092a083b357c8c8130f89e0`，`SubsetOTF/TW/SourceHanSerifTW-SemiBold.otf`
+- **取得日期**：2026-09-22
+- **授權**：SIL Open Font License 1.1；可免費商用及隨遊戲散布
+- **署名要求**：散布時保留原始版權聲明與 OFL 授權文件；不得單獨販售字體
+- **用途**：地圖、裝備與戰鬥標題；桌面與 Web 共用內嵌字體
+- **實際檔案**：`assets/fonts/SourceHanSerifTW-SemiBold.otf`（上游原始檔，未修改）
+- **SHA-256**：`089660b2a0123885b3157bba02963e867eb9109fe2f5b1c30aa68db158a17702`
+- **授權文件**：[assets/fonts/SOURCE_HAN_SERIF_LICENSE.txt](assets/fonts/SOURCE_HAN_SERIF_LICENSE.txt)

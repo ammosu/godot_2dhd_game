@@ -495,6 +495,7 @@ func _build_ui() -> void:
 	content.add_theme_constant_override("separation", 8)
 	_battle_panel.add_child(content)
 	_title_label = Label.new()
+	_title_label.theme_type_variation = &"TitleLabel"
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title_label.add_theme_color_override("font_color", Color("f5c36e"))
 	_title_label.add_theme_font_size_override("font_size", 25)

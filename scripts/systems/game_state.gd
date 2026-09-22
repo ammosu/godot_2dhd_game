@@ -41,6 +41,7 @@ var player_mp: int = 20
 var player_attack: int = 18
 var player_defense: int = 4
 var ui_theme: Theme
+var title_font: Font = preload("res://assets/fonts/SourceHanSerifTW-SemiBold.otf")
 const ActionBattle = preload("res://scripts/systems/action_battle.gd")
 const PartyBattle = preload("res://scripts/systems/party_battle.gd")
 const BattleArenaLayout = preload("res://scripts/systems/battle_arena_layout.gd")
@@ -141,10 +142,13 @@ func resolve_party_action(action: String, target: int) -> Dictionary:
 
 func _ready() -> void:
 	_battle_visual_rng.randomize()
-	var ui_font := load("res://assets/fonts/Cubic_11.ttf") as Font
+	var ui_font := load("res://assets/fonts/SourceHanSansTW-Regular.otf") as Font
 	if ui_font != null:
 		ui_theme = Theme.new()
 		ui_theme.default_font = ui_font
+		ui_theme.default_font_size = 16
+		ui_theme.set_type_variation("TitleLabel", "Label")
+		ui_theme.set_font("font", "TitleLabel", title_font)
 		ThemeDB.fallback_font = ui_font
 
 

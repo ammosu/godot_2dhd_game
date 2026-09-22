@@ -168,6 +168,7 @@ func _build_ui() -> void:
 	_body_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_body_label.add_theme_color_override("font_color", Color("fff2d2"))
 	_body_label.add_theme_font_size_override("font_size", 20)
+	_body_label.add_theme_constant_override("line_spacing", 5)
 	content.add_child(_body_label)
 
 	_hint_label = Label.new()

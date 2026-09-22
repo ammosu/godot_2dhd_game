@@ -35,6 +35,7 @@ func _ready() -> void:
 	list.add_theme_constant_override("separation", 10)
 	add_child(list)
 	var heading := Label.new()
+	heading.theme_type_variation = &"TitleLabel"
 	heading.text = "戰鬥準備"
 	heading.add_theme_font_size_override("font_size", 26)
 	list.add_child(heading)

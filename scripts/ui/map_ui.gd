@@ -103,6 +103,7 @@ func _build_ui() -> void:
 	var header := HBoxContainer.new()
 	column.add_child(header)
 	var title := Label.new()
+	title.theme_type_variation = &"TitleLabel"
 	title.text = "區域地圖　／　點擊圖示自動前往"
 	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", Color("ffe29a"))

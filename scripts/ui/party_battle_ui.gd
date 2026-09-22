@@ -668,6 +668,7 @@ func _build() -> void:
 	box.add_theme_constant_override("separation", 8)
 	center.add_child(box)
 	_title = Label.new()
+	_title.theme_type_variation = &"TitleLabel"
 	_title.add_theme_font_size_override("font_size", 18)
 	box.add_child(_title)
 	_stage = Control.new()

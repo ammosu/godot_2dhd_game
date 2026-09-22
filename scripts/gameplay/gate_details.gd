@@ -68,7 +68,7 @@ static func build_road_end(root: Node3D, timber: Material) -> void:
 	for side: float in [-1.0, 1.0]:
 		var text := Label3D.new()
 		text.text = "東行舊道\n前路修復中"
-		text.font = preload("res://assets/fonts/Cubic_11.ttf")
+		text.font = preload("res://assets/fonts/SourceHanSansTW-Regular.otf")
 		text.font_size = 40
 		text.pixel_size = 0.006
 		text.outline_size = 3

@@ -240,7 +240,7 @@ func _build_ui() -> void:
 	_panel.theme = GameState.ui_theme
 	_panel.add_theme_stylebox_override("panel", _style(INK, GOLD))
 	add_child(_panel)
-	_label("隊伍的行裝", Vector2(32, 22), 32, GOLD)
+	_label("隊伍的行裝", Vector2(32, 22), 32, GOLD).theme_type_variation = &"TitleLabel"
 	_label("月光之下，整裝再出發。", Vector2(34, 65), 18, Color("9eafba"))
 	for index: int in range(PartyEquipment.ACTORS.size()):
 		var actor := PartyEquipment.ACTORS[index]
