@@ -109,6 +109,8 @@ static func build(world: Node3D, map_id: String) -> void:
 		world._add_cobble_box("MoonClearing", Vector3(0, 0.024, -10), Vector3(6, 0.07, 5), false)
 	for x: float in [-14, -10, -5, 5, 10, 14]:
 		for z: float in [-12, -8, 0, 9, 12]:
+			if not forest and z >= 9 and x >= -5 and x <= 10:
+				continue
 			if not forest and absf(x) < 12 and z == 0:
 				continue
 			world._add_tree(Vector3(x, 0, z))
@@ -152,6 +154,11 @@ static func build(world: Node3D, map_id: String) -> void:
 	else:
 		water.creek(world.get("_map_root"), Vector3(0, 0.085, -5))
 		preload("res://scripts/gameplay/creek_bridge.gd").build(world.get("_map_root"), Vector3(0, 0, -5))
+	if not forest:
+		var field: Node3D = load("res://scripts/gameplay/field_combat.gd").new()
+		field.name = "FieldCombat"
+		field.player = world.get_node("Player")
+		world.get("_map_root").add_child(field)
 	configure_surfaces(world)
 
 

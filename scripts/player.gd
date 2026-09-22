@@ -11,6 +11,7 @@ const Footsteps = preload("res://scripts/gameplay/footsteps.gd")
 const EquipmentAppearance = preload("res://scripts/gameplay/equipment_appearance.gd")
 const CONVERSATION_DISTANCE: float = 1.35
 var auto_walk := preload("res://scripts/gameplay/map_navigation.gd").new()
+var field_combat: Node
 var _appearance_key: String = ""
 
 @onready var sprite: AnimatedSprite3D = $Sprite3D
@@ -86,9 +87,14 @@ func _physics_process(delta: float) -> void:
 		move_direction = auto_walk.direction(delta)
 		input_vector = EightWayFacing.screen_direction(move_direction, get_viewport().get_camera_3d())
 	var target_velocity := move_direction * move_speed
+	if is_instance_valid(field_combat):
+		target_velocity = field_combat.movement_velocity(target_velocity)
 
 	velocity.x = move_toward(velocity.x, target_velocity.x, acceleration * delta)
 	velocity.z = move_toward(velocity.z, target_velocity.z, acceleration * delta)
+	if is_instance_valid(field_combat) and float(field_combat.get("dodge_time")) > 0.0:
+		velocity.x = target_velocity.x
+		velocity.z = target_velocity.z
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
 	else:

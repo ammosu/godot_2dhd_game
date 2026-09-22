@@ -7,7 +7,7 @@ signal notification_requested(message: String)
 enum Mode { EXPLORE, DIALOGUE, BATTLE, EQUIPMENT, TRANSITION, MAP }
 enum QuestState { NOT_STARTED, ACTIVE, READY_TO_TURN_IN, COMPLETE }
 
-const SAVE_VERSION := 3
+const SAVE_VERSION := 4
 const PartyEquipment = preload("res://scripts/systems/party_equipment.gd")
 const SAVE_PATH := "user://wanderlight_save.json"
 const BASE_ATTACK := 14
@@ -33,6 +33,11 @@ var owned_equipment: Array[String] = _starter_equipment()
 var equipped: Dictionary = {"weapon": "traveler_blade", "armor": "traveler_coat"}
 var companion_equipped: Dictionary = {"noah": PartyEquipment.defaults("noah"), "elder": PartyEquipment.defaults("elder")}
 var flags: Dictionary = {}
+
+var player_level: int = 1
+var player_xp: int = 0
+var field_defeated: Dictionary = {}
+var field_loot: Dictionary = {}
 
 var player_max_hp: int = 100
 var player_hp: int = 100
@@ -162,6 +167,10 @@ func reset_new_game(announce: bool = true) -> void:
 	has_saved_position = false
 	quest_state = QuestState.NOT_STARTED
 	inventory = {"potion": 2}
+	player_level = 1
+	player_xp = 0
+	field_defeated = {}
+	field_loot = {}
 	owned_equipment = _starter_equipment()
 	equipped = {"weapon": "traveler_blade", "armor": "traveler_coat"}
 	companion_equipped = {"noah": PartyEquipment.defaults("noah"), "elder": PartyEquipment.defaults("elder")}
@@ -258,8 +267,10 @@ func equip_loadout(loadout: Dictionary, actor: String = "wanderer") -> bool:
 
 
 func _refresh_equipment_stats() -> void:
-	player_attack = BASE_ATTACK
-	player_defense = BASE_DEFENSE
+	player_max_hp = 100 + (player_level - 1) * 12
+	player_max_mp = 20 + (player_level - 1) * 3
+	player_attack = BASE_ATTACK + (player_level - 1) * 2
+	player_defense = BASE_DEFENSE + (player_level - 1)
 	for slot: String in EQUIPMENT_SLOTS:
 		var item_id := str(equipped.get(slot, ""))
 		var item: Dictionary = EQUIPMENT_CATALOG.get(item_id, {})
@@ -404,7 +415,7 @@ func load_game(path: String = SAVE_PATH, announce: bool = true) -> bool:
 		return false
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	file.close()
-	if not parsed is Dictionary or int(parsed.get("version", 0)) not in [1, 2, SAVE_VERSION]:
+	if not parsed is Dictionary or int(parsed.get("version", 0)) not in [1, 2, 3, SAVE_VERSION]:
 		if announce:
 			notification_requested.emit("存檔格式不相容")
 		return false
@@ -417,6 +428,17 @@ func load_game(path: String = SAVE_PATH, announce: bool = true) -> bool:
 	for actor: String in ["noah", "elder"]:
 		if not Dictionary(parsed.get("companion_equipped", {})).get(actor, {}) is Dictionary:
 			return false
+	if not parsed.get("field_defeated", {}) is Dictionary or not parsed.get("field_loot", {}) is Dictionary:
+		return false
+	for entry: Variant in parsed.get("field_loot", {}).values():
+		if not entry is Dictionary or str(entry.get("item", "")) not in ["potion", "moon_moss"]:
+			return false
+		var at: Variant = entry.get("position")
+		if not at is Array or at.size() != 3:
+			return false
+		for coordinate: Variant in at:
+			if not (coordinate is float or coordinate is int) or not is_finite(float(coordinate)):
+				return false
 	_apply_save(parsed)
 	state_changed.emit()
 	map_change_requested.emit(current_map, "saved_position" if has_saved_position else spawn_id)
@@ -428,6 +450,10 @@ func load_game(path: String = SAVE_PATH, announce: bool = true) -> bool:
 func _serialize() -> Dictionary:
 	return {
 		"version": SAVE_VERSION,
+		"player_level": player_level,
+		"player_xp": player_xp,
+		"field_defeated": field_defeated.duplicate(true),
+		"field_loot": field_loot.duplicate(true),
 		"current_map": current_map,
 		"spawn_id": spawn_id,
 		"saved_position": [saved_position.x, saved_position.y, saved_position.z],
@@ -449,6 +475,11 @@ func _apply_save(data: Dictionary) -> void:
 	mode = Mode.EXPLORE
 	current_map = str(data.get("current_map", "village"))
 	spawn_id = str(data.get("spawn_id", "default"))
+	# v1–v3 migrate to level 1 and an untouched field encounter.
+	player_level = clampi(int(data.get("player_level", 1)), 1, 99)
+	player_xp = clampi(int(data.get("player_xp", 0)), 0, xp_to_next_level() - 1)
+	field_defeated = Dictionary(data.get("field_defeated", {})).duplicate(true)
+	field_loot = Dictionary(data.get("field_loot", {})).duplicate(true)
 	quest_state = clampi(int(data.get("quest_state", 0)), QuestState.NOT_STARTED, QuestState.COMPLETE) as QuestState
 	inventory = Dictionary(data.get("inventory", {"potion": 2})).duplicate(true)
 	var saved_owned: Array = data.get("owned_equipment", ["traveler_blade", "moonsteel_saber", "traveler_coat", "moonward_cloak"])
@@ -525,3 +556,40 @@ func resolve_outskirts_event(event_id: String) -> String:
 	flags[event_id] = true
 	state_changed.emit()
 	return message
+
+
+func xp_to_next_level() -> int:
+	return 30 + (player_level - 1) * 20
+
+
+func defeat_field_enemy(id: String, at: Vector3, caster: bool) -> bool:
+	if field_defeated.has(id):
+		return false
+	field_defeated[id] = true
+	var reward: int = 24 if caster else 18
+	player_xp += reward
+	var levels: int = 0
+	while player_level < 99 and player_xp >= xp_to_next_level():
+		player_xp -= xp_to_next_level()
+		player_level += 1
+		levels += 1
+	player_xp = mini(player_xp, xp_to_next_level() - 1)
+	_refresh_equipment_stats()
+	if levels > 0:
+		player_hp = mini(player_max_hp, player_hp + levels * 12)
+		player_mp = mini(player_max_mp, player_mp + levels * 3)
+	field_loot[id] = {"position": [at.x, at.y, at.z], "item": "moon_moss" if caster else "potion"}
+	state_changed.emit()
+	notification_requested.emit("經驗 +%d%s" % [reward, "・升至 Lv.%d！" % player_level if levels > 0 else ""])
+	return true
+
+
+func collect_field_loot(id: String) -> bool:
+	if not field_loot.has(id):
+		return false
+	var item: String = str(field_loot[id].item)
+	inventory[item] = int(inventory.get(item, 0)) + 1
+	field_loot.erase(id)
+	state_changed.emit()
+	notification_requested.emit("拾取・%s ×1" % ("月苔" if item == "moon_moss" else "藥水"))
+	return true

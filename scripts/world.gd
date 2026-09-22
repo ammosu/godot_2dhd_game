@@ -123,6 +123,14 @@ func _ready() -> void:
 		_test_mode = true
 		GameState.flags["intro_seen"] = true
 		_load_map("caravan_road", "from_road")
+	elif "--field-preview" in OS.get_cmdline_user_args():
+		_test_mode = true
+		GameState.flags["intro_seen"] = true
+		_load_map("east_road", "from_village")
+		player.global_position = Vector3(-1, 0.1, 6)
+		$CameraRig.set("_distance", 15.0)
+		$CameraRig.set("_target_yaw", deg_to_rad(-35.0))
+		($CameraRig as Hd2dCameraRig).snap_to_target()
 	elif "--outskirts-preview" in OS.get_cmdline_user_args():
 		_test_mode = true
 		GameState.flags["intro_seen"] = true

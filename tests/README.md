@@ -621,3 +621,7 @@ godot --headless --path . --rendering-method gl_compatibility --script tests/sta
 小地圖自動尋路：`godot --headless --path . --script tests/map_navigation_test.gd`。驗證小地圖不接受點選、放大地圖圖示命中、村莊與遺跡實際行走抵達、障礙繞行、手動／模式／換圖取消、不可達目的地、大地圖點選，以及星灣城與室內路線。成功標記 `MAP_NAVIGATION_TEST_PASS`。
 
 壁爐動態回歸：`godot --path . --rendering-method forward_plus --script tests/hearth_art_test.gd`，另以 `gl_compatibility` 執行。檢查側火舌根部對齊、呼吸縮放後的火焰高度、火星大小與橫樑界線；MultiMesh 位置檢查需要實際 GPU，headless 只執行其他檢查。
+
+野外戰鬥：`godot --headless --path . --script tests/field_combat_test.gd`。驗證玩家膠囊上下坡、怪物追上高台與追下坡、離開追擊範圍後返回、高低差阻擋命中、攻擊起手／打斷／冷卻、閃避與介面暫停、經驗升級、掉落拾取、讀檔不重複獎勵、v3 遷移與倒下回村。獨立使用 `user://field_combat_test.json`，成功標記 `FIELD_COMBAT_TEST_PASS`。
+
+野外戰鬥畫面：`godot --path . --rendering-method forward_plus --script tests/field_render_test.gd`，另以 `gl_compatibility` 執行一次；截圖寫入 `/tmp/field-forward_plus.png`、`/tmp/field-gl_compatibility.png`。成功標記 `FIELD_RENDER_TEST_PASS`。
