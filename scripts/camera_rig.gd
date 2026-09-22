@@ -21,6 +21,8 @@ var _dialogue_focus: Vector3
 var _dialogue_yaw: float = 0.0
 var _dialogue_distance: float = 6.2
 var _combat_target: Node3D
+var _impact_left: float = 0.0
+var _impact_strength: float = 0.0
 var _combat_blend: float = 0.0
 var _combat_distance: float = 21.0
 
@@ -37,6 +39,10 @@ func set_combat_target(target: Node3D) -> void:
 
 
 func end_combat_shot() -> void:
+	_impact_left = 0.0
+	_impact_strength = 0.0
+	camera.h_offset = 0.0
+	camera.v_offset = 0.0
 	_combat_target = null
 	_configure_camera_attributes()
 
@@ -176,3 +182,16 @@ func _update_camera_local_position() -> void:
 
 func configure_dialogue_scenery(scenery: Node3D) -> void:
 	_dialogue_occlusion.configure(scenery, camera)
+
+
+func add_combat_impact(strength: float) -> void:
+	_impact_left = 0.16
+	_impact_strength = maxf(_impact_strength, strength)
+
+func advance_combat_feedback(delta: float) -> void:
+	_impact_left = maxf(0.0, _impact_left - delta)
+	var envelope: float = _impact_left / 0.16
+	camera.h_offset = sin(_impact_left * 95.0) * _impact_strength * envelope
+	camera.v_offset = cos(_impact_left * 75.0) * _impact_strength * envelope * 0.45
+	if _impact_left == 0.0:
+		_impact_strength = 0.0

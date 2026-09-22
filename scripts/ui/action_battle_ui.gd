@@ -12,6 +12,8 @@ var _rig: Node3D
 var _guardian: Node3D
 var reward_position := Vector3.ZERO
 var _result_time: float = 0.0
+var _health: ProgressBar
+var _health_text: Label
 var _status: Label
 var _hint: Label
 var _boss: ProgressBar
@@ -214,7 +216,12 @@ func _refresh() -> void:
 	if not session.auto_enabled and _hint.text.begins_with("自動："):
 		_hint.text = "已切回手動操作。B 可再次開啟自動戰鬥。"
 	var actor: Dictionary = session.actors[int(session.controlled)]
-	_status.text = "%s  ·  %s\nHP %d / %d     MP %d / %d     敵人 %d / 3" % ["已暫停" if session.paused else "戰鬥結束" if _resolved else "自動戰鬥" if session.auto_enabled else "即時戰鬥", actor.name, actor.hp, actor.max_hp, actor.mp, actor.max_mp, session.living(1).size()]
+	_status.text = "%s · %s\nMP %d / %d    敵人 %d / 3" % ["已暫停" if session.paused else "戰鬥結束" if _resolved else "自動戰鬥" if session.auto_enabled else "即時戰鬥", actor.name, actor.mp, actor.max_mp, session.living(1).size()]
+	_health.max_value = actor.max_hp
+	_health.value = actor.hp
+	_health_text.text = "HP %d / %d" % [actor.hp, actor.max_hp]
+	var fill := _health.get_theme_stylebox("fill") as StyleBoxFlat
+	fill.bg_color = Color("ba493f") if _health.ratio <= 0.25 else Color("397e63")
 	_boss.max_value = session.actors[3].max_hp
 	_boss.value = session.actors[3].hp
 	_boss_name.text = "遺跡守衛  %d / %d" % [session.actors[3].hp, session.actors[3].max_hp]
@@ -247,25 +254,38 @@ func _build() -> void:
 	_boss_name.add_theme_font_size_override("font_size", 18)
 	_boss_name.add_theme_constant_override("outline_size", 5)
 	boss_panel.add_child(_boss_name)
-	_boss = ProgressBar.new()
+	_boss = _make_health_bar(Color("ba493f"), 10)
 	_boss.custom_minimum_size = Vector2(360, 10)
 	_boss.show_percentage = false
 	boss_panel.add_child(_boss)
 	var top := PanelContainer.new()
 	top.position = Vector2(24, 150)
 	_root.add_child(top)
+	var stats := VBoxContainer.new()
+	stats.custom_minimum_size.x = 264
+	top.add_child(stats)
 	_status = Label.new()
 	_status.add_theme_font_size_override("font_size", 18)
-	top.add_child(_status)
+	stats.add_child(_status)
+	_health = _make_health_bar(Color("397e63"), 24)
+	stats.add_child(_health)
+	_health_text = Label.new()
+	_health_text.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_health_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_health_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_health_text.add_theme_font_size_override("font_size", 16)
+	_health_text.add_theme_constant_override("outline_size", 4)
+	_health_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_health.add_child(_health_text)
 	_pause = Button.new()
-	_pause.position = Vector2(24, 222)
+	_pause.position = Vector2(24, 260)
 	_pause.size = Vector2(164, 48)
 	_pause.pressed.connect(_toggle_pause)
 	if MobileControls.is_mobile_device():
 		_pause.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_pause)
 	_auto_button = Button.new()
-	_auto_button.position = Vector2(24, 282)
+	_auto_button.position = Vector2(24, 320)
 	_auto_button.size = Vector2(240, 48)
 	_auto_button.toggle_mode = true
 	_auto_button.focus_mode = Control.FOCUS_NONE
@@ -299,3 +319,19 @@ func _build() -> void:
 		button.pressed.connect(choose_action.bind(action))
 		actions.add_child(button)
 		_buttons[action] = button
+
+
+func _make_health_bar(color: Color, height: float) -> ProgressBar:
+	var bar := ProgressBar.new()
+	bar.custom_minimum_size.y = height
+	bar.show_percentage = false
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var background := StyleBoxFlat.new()
+	background.bg_color = Color("141e2b")
+	background.border_color = Color("9aaeb9")
+	background.set_border_width_all(1)
+	bar.add_theme_stylebox_override("background", background)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = color
+	bar.add_theme_stylebox_override("fill", fill)
+	return bar

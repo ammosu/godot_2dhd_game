@@ -4,6 +4,7 @@ const Grounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 const Ring = preload("res://scripts/gameplay/combat_ground_ring.gd")
 const Facing = preload("res://scripts/gameplay/eight_way_facing.gd")
 const Art = preload("res://scripts/gameplay/action_sprite_library.gd")
+const HealthBar = preload("res://scripts/gameplay/world_health_bar.gd")
 const Effects = preload("res://scripts/gameplay/world_combat_effect.gd")
 const COURT := Rect2(-8.0, -13.0, 16.0, 14.0)
 const CELL: float = 0.5
@@ -15,6 +16,7 @@ var reward_position := Vector3.ZERO
 var bodies: Array[CharacterBody3D] = []
 var sprites: Array[Sprite3D] = []
 var labels: Array[Label3D] = []
+var health_bars: Array[Node3D] = []
 var warnings: Array[MeshInstance3D] = []
 var warning_labels: Array[Label3D] = []
 var selections: Array[MeshInstance3D] = []
@@ -109,6 +111,11 @@ func setup(model: RefCounted, traveler: CharacterBody3D, camera_rig: Node3D, ori
 		label.outline_size = 10
 		body.add_child(label)
 		labels.append(label)
+		var health_bar := HealthBar.new()
+		body.add_child(health_bar)
+		health_bar.position.y = label.position.y - 0.24
+		health_bar.configure(index >= 3)
+		health_bars.append(health_bar)
 		var warning := Ring.new()
 		warning.configure(1.0, Color("ff746a"), 0.10)
 		add_child(warning)
@@ -262,10 +269,11 @@ func refresh(delta: float) -> void:
 			sprites[index].offset.x *= -1.0
 		_last_positions[index] = actor.position
 		_update_charge(index, actor, facing)
-		sprites[index].modulate = Color("737a8c") if int(actor.hp) <= 0 else Color("b2efff") if float(actor.invulnerable) > 0 else Color.WHITE
-		labels[index].text = ("▶ " if index == int(session.controlled) else "") + str(actor.name) + "\n%d / %d" % [actor.hp, actor.max_hp]
+		sprites[index].modulate = Color("737a8c") if int(actor.hp) <= 0 else Color(2.2, 2.2, 2.2) if float(actor.hurt) > 0.10 else Color("b2efff") if float(actor.invulnerable) > 0 else Color.WHITE
+		labels[index].text = ("▶ " if index == int(session.controlled) else "") + str(actor.name)
 		labels[index].modulate = Color("a5eaff") if index == int(session.controlled) else Color("ffd4c6") if index >= 3 else Color.WHITE
 		labels[index].visible = int(actor.hp) > 0
+		health_bars[index].set_health(int(actor.hp), int(actor.max_hp))
 		selections[index].visible = int(actor.hp) > 0 and (index == int(session.controlled) or float(actor.ward) > 0.0)
 		warnings[index].visible = int(actor.hp) > 0 and (float(actor.windup) > 0.0 or float(actor.swing) > 0.0)
 		warnings[index].position = Vector3(actor.aim.x, 0.12, actor.aim.y)
@@ -277,10 +285,13 @@ func refresh(delta: float) -> void:
 	reward_position = bodies[3].global_position
 
 func advance_effects(delta: float) -> void:
+	rig.advance_combat_feedback(delta)
 	for entry: Dictionary in _numbers:
 		entry.life = float(entry.life) - delta
 		var label: Label3D = entry.label
-		label.position.y += delta * 0.55
+		label.position.y += delta * 0.75
+		label.modulate.a = clampf(float(entry.life) / 0.22, 0.0, 1.0)
+		label.scale = Vector3.ONE * (1.0 + 0.3 * clampf((float(entry.life) - 0.5) / 0.2, 0.0, 1.0))
 		if float(entry.life) <= 0.0:
 			label.queue_free()
 	_numbers = _numbers.filter(func(entry: Dictionary) -> bool: return float(entry.life) > 0.0)
@@ -310,6 +321,10 @@ func _update_charge(index: int, actor: Dictionary, facing: Vector2) -> void:
 	charge.position = target if frost else source.lerp(target, progress)
 
 func _effect(kind: String, point: Vector2, radius: float = 1.0, direction: Vector2 = Vector2.RIGHT) -> void:
+	if _effects.size() >= 32:
+		var oldest: Node3D = _effects.pop_front()
+		if is_instance_valid(oldest):
+			oldest.queue_free()
 	var effect := Effects.new()
 	add_child(effect)
 	effect.configure(kind, Vector3(point.x, 0.16, point.y), radius, direction, get_viewport().get_camera_3d())
@@ -321,6 +336,10 @@ func show_event(event: Dictionary) -> void:
 		var kind: String = "frost" if index == 2 and event.intent == "skill" else "bolt" if index in [2, 5] else "moon_slash" if index == 0 and event.intent == "skill" else "spear" if index == 1 else "claw" if index == 4 else "slash"
 		_effect(kind, event.aim, float(event.radius), event.facing)
 		return
+	if event.kind == "hit":
+		_effect("impact", session.actors[index].position)
+		if index == int(session.controlled) or index >= 3:
+			rig.add_combat_impact(clampf(float(event.amount) / 140.0, 0.035, 0.12))
 	if event.kind == "ward":
 		for ally: int in session.living(0):
 			_effect("ward", session.actors[ally].position)
@@ -354,6 +373,8 @@ func finish() -> void:
 			sprites[0].queue_free()
 		if not labels.is_empty() and is_instance_valid(labels[0]):
 			labels[0].queue_free()
+		if not health_bars.is_empty() and is_instance_valid(health_bars[0]):
+			health_bars[0].queue_free()
 		if not selections.is_empty() and is_instance_valid(selections[0]):
 			selections[0].queue_free()
 	if is_instance_valid(guardian):
