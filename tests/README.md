@@ -685,3 +685,5 @@ Uses a PID-specific `user://ashen_crypt_test_*.json`, removed on success. Covers
 圓形操作配置：同一 `action_battle_ui_test.gd` 涵蓋外圈交換、防止重複操作、即時草稿／取消／恢復預設、儲存後重載、暫停狀態還原、圓形命中區及最大／最小配置不重疊。設定測試使用並清理獨立 `user://battle_layout_test_<pid>.cfg`；可加入 `-- --mobile-controls` 驗證觸控。視窗模式另輸出 `/tmp/wanderlight-control-settings.png`。
 
 手機鏡頭手勢：`godot --headless --path . --script tests/mobile_camera_gesture_test.gd`，成功標記 `MOBILE_CAMERA_GESTURE_TEST_PASS`。透過實際 viewport 事件分派驗證空白處滑動、水平門檻／垂直排除、搖桿＋鏡頭＋技能多指同時操作、HUD 排除，以及暫停／設定／取消／失焦／方向切換清除舊手勢。`action_battle_ui_test.gd` 另驗證三位頭像來源、HP／MP 同步、操作標示、低血量／守護／倒下狀態；視窗版沿用戰鬥截圖做頭像卡視覺檢查。
+
+手機對話點擊：`godot --headless --path . --script tests/dialogue_touch_test.gd`，成功標記 `DIALOGUE_TOUCH_TEST_PASS`。透過 viewport 實際分派事件，驗證點擊說話者、內文、繼續提示、框內邊距與背景（含底層阻擋 UI）均只前進一頁；放開／取消不翻頁、Space 仍可繼續、最後一頁正常關閉。此為輸入回歸測試，尚不代表手機瀏覽器實機驗收。

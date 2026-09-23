@@ -54,13 +54,22 @@ func is_open() -> bool:
 	return _root.visible
 
 
+func _input(event: InputEvent) -> void:
+	if not is_open() or not event is InputEventScreenTouch:
+		return
+	# Dialogue is modal: panel/HUD hit testing must not swallow taps. Consume
+	# before advancing, since the last page can immediately change game mode.
+	get_viewport().set_input_as_handled()
+	if event.pressed and not event.canceled:
+		advance()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not _root.visible or event.is_echo():
 		return
 	if (
 		event.is_action_pressed("interact")
 		or event.is_action_pressed("ui_accept")
-		or (event is InputEventScreenTouch and event.pressed)
 	):
 		advance()
 		get_viewport().set_input_as_handled()
