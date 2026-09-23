@@ -220,3 +220,10 @@ func advance_combat_feedback(delta: float) -> void:
 	camera.v_offset = cos(_impact_left * 75.0) * _impact_strength * envelope * 0.45
 	if _impact_left == 0.0:
 		_impact_strength = 0.0
+
+
+func rotate_from_touch(radians: float) -> void:
+	var fighting: bool = is_instance_valid(_combat_target) and GameState.mode == GameState.Mode.BATTLE
+	var allowed: bool = not GameState.is_input_locked() or (fighting and GameState.battle_session != null and not bool(GameState.battle_session.paused))
+	if allowed and is_finite(radians):
+		_target_yaw = wrapf(_target_yaw + radians, -PI, PI)

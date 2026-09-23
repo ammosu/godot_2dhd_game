@@ -80,6 +80,7 @@ func _ready() -> void:
 	_build_environment()
 	_build_post_process()
 	_build_hud()
+	$MobileControls/ControlPad.camera_dragged.connect($CameraRig.rotate_from_touch)
 	GameState.map_change_requested.connect(_on_map_change_requested)
 	GameState.state_changed.connect(_refresh_hud)
 	GameState.notification_requested.connect(_show_notice)
@@ -2063,11 +2064,12 @@ func _build_hud() -> void:
 	_quest_label.add_theme_font_size_override("font_size", 17)
 	info.add_child(_quest_label)
 	_controls_label = Label.new()
-	_controls_label.text = "左側移動｜右側互動｜左右轉鏡頭｜右上裝備／存讀檔" if MobileControls.is_mobile_device() else "WASD 移動｜Space 互動｜I 裝備｜F5 存檔｜F9 讀檔"
+	_controls_label.text = "左側移動｜右側互動｜空白處左右滑動轉鏡頭｜右上裝備／存讀檔" if MobileControls.is_mobile_device() else "WASD 移動｜Space 互動｜I 裝備｜F5 存檔｜F9 讀檔"
 	_controls_label.add_theme_color_override("font_color", Color("b8a9bc"))
 	info.add_child(_controls_label)
 
 	var heart_row := HBoxContainer.new()
+	heart_row.name = "ExplorationHearts"
 	heart_row.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	heart_row.position = Vector2(-164.0, 24.0)
 	heart_row.add_theme_constant_override("separation", 4)
@@ -2153,6 +2155,9 @@ func _build_hud() -> void:
 	add_child(notices)
 	_notice_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	notices.add_child(_notice_label)
+	for control: Node in hud.get_children():
+		if control is Control:
+			control.add_to_group("camera_touch_blocker")
 	_refresh_hud()
 
 
@@ -2160,6 +2165,10 @@ func _refresh_hud() -> void:
 	if _map_label == null:
 		return
 	var fighting: bool = GameState.mode == GameState.Mode.BATTLE
+	if is_instance_valid(_mini_map):
+		_mini_map.visible = not fighting
+	get_node("HUD/ExplorationHearts").visible = not fighting
+	get_node("HUD/OpenMap").visible = not fighting
 	_controls_label.visible = not fighting
 	_quest_label.visible = not fighting
 	(_map_label.get_parent().get_parent() as Control).custom_minimum_size.x = 280.0 if fighting else 530.0

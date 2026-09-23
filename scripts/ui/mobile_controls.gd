@@ -1,10 +1,12 @@
 class_name MobileControls
 extends Control
 
+signal camera_dragged(radians: float)
+
 const JOYSTICK_RADIUS: float = 86.0
 const JOYSTICK_KNOB_RADIUS: float = 34.0
 const ACTION_RADIUS: float = 58.0
-const CAMERA_RADIUS: float = 36.0
+const CAMERA_DRAG_DEADZONE: float = 10.0
 const MOVE_DEADZONE: float = 0.22
 const WEB_LANDSCAPE_LISTENER_SCRIPT: String = """
 (() => {
@@ -53,6 +55,10 @@ var _move_touch_index: int = -1
 var _move_vector: Vector2 = Vector2.ZERO
 var _button_touches: Dictionary = {}
 var _pressed_buttons: Dictionary = {}
+var _camera_touch_index: int = -1
+var _camera_pending := Vector2.ZERO
+var _camera_dragging: bool = false
+var _previous_mode: int = -1
 
 
 static func is_mobile_device() -> bool:
@@ -70,6 +76,10 @@ func _ready() -> void:
 	_mobile_device = is_mobile_device()
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_process_input(_mobile_device)
+	set_process_unhandled_input(_mobile_device)
+	set_process(_mobile_device)
+	get_window().focus_exited.connect(_release_all_actions)
+	GameState.map_change_requested.connect(func(_map: String, _spawn: String) -> void: _release_all_actions())
 	_install_web_landscape_listener()
 	GameState.state_changed.connect(_refresh_visibility)
 	get_viewport().size_changed.connect(_on_viewport_size_changed)
@@ -84,6 +94,8 @@ func _exit_tree() -> void:
 func _input(event: InputEvent) -> void:
 	if not _mobile_device:
 		return
+	if not _camera_input_allowed():
+		_cancel_camera_drag()
 	if not _landscape:
 		var pressed_touch := event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed
 		var pressed_click := (
@@ -118,8 +130,6 @@ func _draw() -> void:
 	draw_circle(base + knob_offset, JOYSTICK_KNOB_RADIUS, Color(0.47, 0.84, 0.81, 0.82))
 	draw_arc(base + knob_offset, JOYSTICK_KNOB_RADIUS, 0.0, TAU, 40, Color(0.92, 0.82, 0.56), 3.0, true)
 
-	_draw_round_button(_camera_left_center(), CAMERA_RADIUS, "", &"camera_rotate_left", Color(0.11, 0.09, 0.18, 0.78))
-	_draw_round_button(_camera_right_center(), CAMERA_RADIUS, "", &"camera_rotate_right", Color(0.11, 0.09, 0.18, 0.78))
 	if GameState.mode == GameState.Mode.BATTLE:
 		return
 	_draw_round_button(_action_center(), ACTION_RADIUS, "互動", &"interact", Color(0.16, 0.62, 0.59, 0.88))
@@ -129,6 +139,18 @@ func _draw() -> void:
 
 
 func _handle_touch(event: InputEventScreenTouch) -> void:
+	if event.canceled:
+		if event.index == _camera_touch_index:
+			_cancel_camera_drag()
+		if event.index == _move_touch_index:
+			_move_touch_index = -1
+			_move_vector = Vector2.ZERO
+			_apply_move_actions()
+		if _button_touches.has(event.index):
+			_set_button_action(_button_touches[event.index], false)
+			_button_touches.erase(event.index)
+		queue_redraw()
+		return
 	if event.pressed:
 		if _move_touch_index == -1 and event.position.distance_to(_joystick_center()) <= JOYSTICK_RADIUS * 1.45:
 			_move_touch_index = event.index
@@ -141,6 +163,9 @@ func _handle_touch(event: InputEventScreenTouch) -> void:
 			_set_button_action(action, true)
 			accept_event()
 	else:
+		if event.index == _camera_touch_index:
+			_cancel_camera_drag()
+			accept_event()
 		if event.index == _move_touch_index:
 			_move_touch_index = -1
 			_move_vector = Vector2.ZERO
@@ -155,6 +180,23 @@ func _handle_touch(event: InputEventScreenTouch) -> void:
 
 
 func _handle_drag(event: InputEventScreenDrag) -> void:
+	if event.index == _camera_touch_index:
+		if not _camera_input_allowed():
+			_cancel_camera_drag()
+			return
+		var horizontal: float = event.relative.x
+		if not _camera_dragging:
+			_camera_pending += event.relative
+			if _camera_pending.length() < CAMERA_DRAG_DEADZONE:
+				return
+			if absf(_camera_pending.y) > absf(_camera_pending.x):
+				_cancel_camera_drag()
+				return
+			_camera_dragging = true
+			horizontal = _camera_pending.x - signf(_camera_pending.x) * CAMERA_DRAG_DEADZONE
+		camera_dragged.emit(-horizontal * PI / maxf(size.x, 1.0))
+		accept_event()
+		return
 	if event.index != _move_touch_index:
 		return
 	_update_move_vector(event.position)
@@ -202,10 +244,6 @@ func _set_button_action(action: StringName, pressed: bool) -> void:
 func _action_at(position: Vector2) -> StringName:
 	if GameState.mode == GameState.Mode.EXPLORE and position.distance_to(_action_center()) <= ACTION_RADIUS * 1.2:
 		return &"interact"
-	if position.distance_to(_camera_left_center()) <= CAMERA_RADIUS * 1.25:
-		return &"camera_rotate_left"
-	if position.distance_to(_camera_right_center()) <= CAMERA_RADIUS * 1.25:
-		return &"camera_rotate_right"
 	if GameState.mode == GameState.Mode.BATTLE:
 		return &""
 	if _save_rect().grow(8.0).has_point(position):
@@ -222,41 +260,7 @@ func _draw_round_button(center: Vector2, radius: float, label: String, action: S
 	var button_color := color.lightened(0.16) if is_pressed else color
 	draw_circle(center, radius, button_color)
 	draw_arc(center, radius, 0.0, TAU, 48, Color(0.92, 0.76, 0.42, 0.9), 3.0, true)
-	if action == &"camera_rotate_left":
-		_draw_rotation_icon(center, false)
-	elif action == &"camera_rotate_right":
-		_draw_rotation_icon(center, true)
-	else:
-		_draw_centered_text(center, label, 23 if radius > 40.0 else 28)
-
-
-func _draw_rotation_icon(center: Vector2, clockwise: bool) -> void:
-	const ICON_RADIUS: float = 13.0
-	const ICON_SEGMENTS: int = 20
-	const ICON_SWEEP: float = PI * 1.45
-	const ARROW_LENGTH: float = 8.0
-	const ARROW_HALF_WIDTH: float = 5.0
-	var direction := 1.0 if clockwise else -1.0
-	var start_angle := -PI * 0.85 if clockwise else PI * 0.85
-	var points := PackedVector2Array()
-	for index in range(ICON_SEGMENTS + 1):
-		var progress := float(index) / float(ICON_SEGMENTS)
-		var angle := start_angle + ICON_SWEEP * direction * progress
-		points.append(center + Vector2.from_angle(angle) * ICON_RADIUS)
-	var icon_color := Color("fff2d2")
-	draw_polyline(points, icon_color, 4.0, true)
-
-	var end_angle := start_angle + ICON_SWEEP * direction
-	var arrow_tip := points[points.size() - 1]
-	var tangent := Vector2(-sin(end_angle), cos(end_angle)) * direction
-	var backward := -tangent
-	var normal := Vector2(-tangent.y, tangent.x)
-	var arrow_points := PackedVector2Array([
-		arrow_tip,
-		arrow_tip + backward * ARROW_LENGTH + normal * ARROW_HALF_WIDTH,
-		arrow_tip + backward * ARROW_LENGTH - normal * ARROW_HALF_WIDTH,
-	])
-	draw_colored_polygon(arrow_points, icon_color)
+	_draw_centered_text(center, label, 23 if radius > 40.0 else 28)
 
 
 func _draw_pill_button(rect: Rect2, label: String, action: StringName) -> void:
@@ -294,16 +298,15 @@ func _install_web_landscape_listener() -> void:
 
 func _refresh_visibility() -> void:
 	_landscape = _is_window_landscape()
-	if GameState.mode not in [GameState.Mode.EXPLORE, GameState.Mode.BATTLE]:
+	if GameState.mode != _previous_mode or not _camera_input_allowed():
 		_release_all_actions()
+	_previous_mode = GameState.mode
 	queue_redraw()
 
 
 func _on_viewport_size_changed() -> void:
-	var was_landscape := _landscape
 	_landscape = _is_window_landscape()
-	if was_landscape and not _landscape:
-		_release_all_actions()
+	_release_all_actions()
 	queue_redraw()
 
 
@@ -316,6 +319,7 @@ func _is_window_landscape() -> bool:
 
 
 func _release_all_actions() -> void:
+	_cancel_camera_drag()
 	_move_touch_index = -1
 	_move_vector = Vector2.ZERO
 	for action in MOVE_ACTIONS:
@@ -335,14 +339,6 @@ func _action_center() -> Vector2:
 	return Vector2(size.x - 112.0, size.y - 124.0)
 
 
-func _camera_left_center() -> Vector2:
-	return Vector2(94, size.y - 252) if GameState.mode == GameState.Mode.BATTLE else Vector2(size.x - 272.0, size.y - 82.0)
-
-
-func _camera_right_center() -> Vector2:
-	return Vector2(170, size.y - 252) if GameState.mode == GameState.Mode.BATTLE else Vector2(size.x - 196.0, size.y - 82.0)
-
-
 func _save_rect() -> Rect2:
 	return Rect2(Vector2(size.x - 210.0, 66.0), Vector2(82.0, 48.0))
 
@@ -353,3 +349,47 @@ func _equipment_rect() -> Rect2:
 
 func _load_rect() -> Rect2:
 	return Rect2(Vector2(size.x - 116.0, 66.0), Vector2(82.0, 48.0))
+
+
+func _camera_input_allowed() -> bool:
+	if not _landscape:
+		return false
+	if GameState.mode == GameState.Mode.BATTLE:
+		return GameState.battle_session != null and not bool(GameState.battle_session.paused) and int(GameState.battle_session.winner) == -1
+	return GameState.mode == GameState.Mode.EXPLORE
+
+
+func _process(_delta: float) -> void:
+	if not _camera_input_allowed():
+		_cancel_camera_drag()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	# Only claim an untouched world press after UI has had a chance to consume it.
+	if not _mobile_device or not _camera_input_allowed() or _camera_touch_index != -1:
+		return
+	if not event is InputEventScreenTouch or not event.pressed or event.canceled:
+		return
+	if event.index == _move_touch_index or _button_touches.has(event.index):
+		return
+	if event.position.distance_to(_joystick_center()) <= JOYSTICK_RADIUS * 1.45 or not _action_at(event.position).is_empty():
+		return
+	for node: Node in get_tree().get_nodes_in_group("camera_touch_blocker"):
+		var control := node as Control
+		if control == null or not control.is_visible_in_tree():
+			continue
+		if control.has_method("contains_screen_point"):
+			if control.contains_screen_point(event.position):
+				return
+		elif control.get_global_rect().has_point(event.position):
+			return
+	_camera_touch_index = event.index
+	_camera_pending = Vector2.ZERO
+	_camera_dragging = false
+	accept_event()
+
+
+func _cancel_camera_drag() -> void:
+	_camera_touch_index = -1
+	_camera_pending = Vector2.ZERO
+	_camera_dragging = false

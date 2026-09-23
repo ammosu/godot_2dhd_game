@@ -11,6 +11,8 @@ var first_frame: int = 0
 var _sparks: Array[Sprite3D] = []
 var _wave: MeshInstance3D
 var _radius: float = 1.0
+var _halo: MeshInstance3D
+var _tint := Color("ffe5a1")
 
 func configure(effect: String, point: Vector3, radius: float, direction: Vector2, camera: Camera3D) -> void:
 	kind = effect
@@ -52,12 +54,16 @@ func configure(effect: String, point: Vector3, radius: float, direction: Vector2
 		sprite.position.y = 0.7
 	var screen: Vector2 = Facing.screen_direction(Vector3(direction.x, 0, direction.y), camera)
 	sprite.flip_h = screen.x < 0
-	if kind in ["impact", "moon_slash"]:
-		_build_sparks()
-	if kind == "moon_slash":
+	_tint = Color("9feaff") if kind in ["moon_slash", "frost", "bolt"] else Color("9fffc8") if kind == "heal" else Color("b8ceff") if kind == "ward" else Color("ffe5a1")
+	_build_sparks()
+	if kind in ["moon_slash", "frost", "heal", "ward"]:
 		_wave = preload("res://scripts/gameplay/combat_ground_ring.gd").new()
-		_wave.configure(radius, Color("a5eaff"), 0.07)
+		_wave.configure(radius, _tint, 0.07)
 		add_child(_wave)
+	if kind in ["frost", "heal", "ward", "bolt"]:
+		_halo = preload("res://scripts/gameplay/combat_ground_ring.gd").new()
+		_halo.configure(maxf(0.6, radius * 0.65), _tint, 0.035)
+		add_child(_halo)
 	_update_frame()
 
 func advance(delta: float) -> void:
@@ -71,14 +77,22 @@ func advance(delta: float) -> void:
 	if kind in ["slash", "moon_slash", "spear", "claw", "impact"]:
 		sprite.scale = Vector3.ONE * lerpf(0.75, 1.18, sin(progress * PI * 0.5))
 	for index: int in range(_sparks.size()):
-		var angle: float = TAU * float(index) / float(_sparks.size())
-		var distance: float = progress * (1.0 if kind == "impact" else _radius * 0.7)
-		_sparks[index].position = Vector3(cos(angle) * distance, 0.7 + sin(angle) * distance * 0.6, sin(angle) * distance * 0.35)
-		_sparks[index].modulate.a = 1.0 - progress
-		_sparks[index].scale = Vector3.ONE * (1.0 - progress * 0.65)
+		var angle: float = TAU * float(index) / float(_sparks.size()) + float(index % 3) * 0.19
+		var eased: float = 1.0 - pow(1.0 - progress, 3.0)
+		var distance: float = eased * maxf(0.7, _radius) * (0.55 + float(index % 4) * 0.17)
+		var rising: bool = kind in ["heal", "ward", "frost"]
+		if rising:
+			angle += progress * 2.0
+		_sparks[index].position = Vector3(cos(angle) * distance, 0.5 + (progress * 2.2 + float(index % 3) * 0.2 if rising else sin(angle) * distance * 0.7 - progress * progress * 0.4), sin(angle) * distance * 0.6)
+		_sparks[index].modulate.a = (1.0 - progress) * 0.9
+		_sparks[index].scale = Vector3.ONE * (1.0 - progress * 0.8)
 	if is_instance_valid(_wave):
-		_wave.scale = Vector3.ONE * lerpf(0.35, 1.0, progress)
-		(_wave.material_override as StandardMaterial3D).albedo_color.a = (1.0 - progress) * 0.65
+		_wave.scale = Vector3.ONE * lerpf(0.2, 1.15, progress)
+		(_wave.material_override as StandardMaterial3D).albedo_color.a = (1.0 - progress) * 0.7
+	if is_instance_valid(_halo):
+		_halo.position.y = 0.1 + progress * 1.7
+		_halo.scale = Vector3.ONE * lerpf(0.35, 1.0, sin(progress * PI))
+		(_halo.material_override as StandardMaterial3D).albedo_color.a = sin(progress * PI) * 0.55
 
 func _update_frame() -> void:
 	if not animated:
@@ -98,17 +112,18 @@ func _build_sparks() -> void:
 	gradient.colors = PackedColorArray([Color.WHITE, Color.WHITE])
 	var texture := GradientTexture2D.new()
 	texture.gradient = gradient
-	texture.width = 12
+	texture.width = 16
 	texture.height = 4
-	for index: int in range(8):
+	for index: int in range(18 if kind in ["frost", "moon_slash"] else 10):
 		var spark := Sprite3D.new()
 		spark.texture = texture
-		spark.pixel_size = 0.016
+		spark.pixel_size = 0.012 if kind in ["heal", "ward"] else 0.019
 		spark.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		spark.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		spark.shaded = false
 		spark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		spark.modulate = Color("b4edff") if kind == "moon_slash" else Color("ffe5a1")
+		spark.modulate = _tint
+		spark.rotation.z = TAU * float(index) / 10.0
 		spark.position.y = 0.7
 		add_child(spark)
 		_sparks.append(spark)

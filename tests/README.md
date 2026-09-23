@@ -679,3 +679,9 @@ godot --headless --path . --rendering-method gl_compatibility --script tests/ash
 Expected: `ASHEN_CRYPT_TEST_PASS entrance navigation collision combat reward loot save return recovery`.
 
 Uses a PID-specific `user://ashen_crypt_test_*.json`, removed on success. Covers real entry/return interactions, five enemies, navigation through the nave, capsule/altar collision, attacks blocked by piers, real skill strike kills, gated one-time reward, cross-map loot isolation, save/load without respawning defeated guards, and defeat recovery/camera reset. No normal player save is read or overwritten. Also rerun `tests/field_combat_test.gd` after changes to the shared combat/navigation configuration.
+
+戰鬥 HUD 回歸：`tests/action_battle_ui_test.gd` 另檢查右上隊伍資訊與右下圓弧技能區不重疊、隊員血量同步，以及戰鬥時隱藏小地圖。使用有視窗的 Forward+／Compatibility 執行時，另輸出 `/tmp/wanderlight-battle-effects-<renderer>.png`，供斬擊、霜爆與治療特效檢查。
+
+圓形操作配置：同一 `action_battle_ui_test.gd` 涵蓋外圈交換、防止重複操作、即時草稿／取消／恢復預設、儲存後重載、暫停狀態還原、圓形命中區及最大／最小配置不重疊。設定測試使用並清理獨立 `user://battle_layout_test_<pid>.cfg`；可加入 `-- --mobile-controls` 驗證觸控。視窗模式另輸出 `/tmp/wanderlight-control-settings.png`。
+
+手機鏡頭手勢：`godot --headless --path . --script tests/mobile_camera_gesture_test.gd`，成功標記 `MOBILE_CAMERA_GESTURE_TEST_PASS`。透過實際 viewport 事件分派驗證空白處滑動、水平門檻／垂直排除、搖桿＋鏡頭＋技能多指同時操作、HUD 排除，以及暫停／設定／取消／失焦／方向切換清除舊手勢。`action_battle_ui_test.gd` 另驗證三位頭像來源、HP／MP 同步、操作標示、低血量／守護／倒下狀態；視窗版沿用戰鬥截圖做頭像卡視覺檢查。

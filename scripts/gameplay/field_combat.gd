@@ -451,6 +451,7 @@ func _build_hud() -> void:
 	layer.layer = 12
 	add_child(layer)
 	_hud = PanelContainer.new()
+	_hud.add_to_group("camera_touch_blocker")
 	_hud.theme = GameState.ui_theme
 	_hud.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
 	_hud.offset_left = -260
