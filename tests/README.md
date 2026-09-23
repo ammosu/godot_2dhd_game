@@ -687,3 +687,5 @@ Uses a PID-specific `user://ashen_crypt_test_*.json`, removed on success. Covers
 手機鏡頭手勢：`godot --headless --path . --script tests/mobile_camera_gesture_test.gd`，成功標記 `MOBILE_CAMERA_GESTURE_TEST_PASS`。透過實際 viewport 事件分派驗證空白處滑動、水平門檻／垂直排除、搖桿＋鏡頭＋技能多指同時操作、HUD 排除，以及暫停／設定／取消／失焦／方向切換清除舊手勢。`action_battle_ui_test.gd` 另驗證三位頭像來源、HP／MP 同步、操作標示、低血量／守護／倒下狀態；視窗版沿用戰鬥截圖做頭像卡視覺檢查。
 
 手機對話點擊：`godot --headless --path . --script tests/dialogue_touch_test.gd`，成功標記 `DIALOGUE_TOUCH_TEST_PASS`。透過 viewport 實際分派事件，驗證點擊說話者、內文、繼續提示、框內邊距與背景（含底層阻擋 UI）均只前進一頁；放開／取消不翻頁、Space 仍可繼續、最後一頁正常關閉。此為輸入回歸測試，尚不代表手機瀏覽器實機驗收。
+
+野外／地下城角色比例：`tests/field_combat_test.gd` 另驗證四向、四種裝備與一般／地下城縮放下，待機、走路、起手、攻擊與閃避使用同一動作圖集及固定比例，腳底保持接地；站立基準與探索角色身高一致。戰鬥區域採用動作圖集的四向行走，離開後恢復探索的八向行走。

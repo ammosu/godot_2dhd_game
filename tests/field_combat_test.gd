@@ -21,6 +21,7 @@ func _run() -> void:
 	while not field.ready_for_combat:
 		await physics_frame
 	field.set_physics_process(false)
+	_check_hero_art(field, player)
 	assert(field.enemies.size() == 4)
 	assert(field.navigation.graph.get_point_count() > 200)
 	# The path from below the south cliff must go round to the west ramp.
@@ -188,3 +189,38 @@ func _run() -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE))
 	print("FIELD_COMBAT_TEST_PASS slope chase elevation timing dodge rewards save migration defeat bat")
 	quit()
+
+func _check_hero_art(field: Node3D, player: CharacterBody3D) -> void:
+	var loadout: Dictionary = state.equipped.duplicate()
+	var art: Sprite3D = field.get("_hero_sprite")
+	for equipment: Dictionary in [{}, {"armor": "moonward_cloak"}, {"weapon": "moonsteel_saber"}, {"armor": "moonward_cloak", "weapon": "moonsteel_saber"}]:
+		state.equipped = equipment
+		for factor: float in [1.0, 1.45]:
+			player.call("set_presentation_scale", factor)
+			for direction: Vector3 in [Vector3.FORWARD, Vector3.RIGHT, Vector3.BACK, Vector3.LEFT]:
+				field.facing = direction
+				player.velocity = Vector3.ZERO
+				field.windup = 0.0
+				field.swing = 0.0
+				field.dodge_time = 0.0
+				field.call("_update_hero_art")
+				var standing := art.texture as AtlasTexture
+				var pixel_size: float = art.pixel_size
+				assert(is_equal_approx(standing.get_height() * pixel_size, 1.45 * factor), "Field art must match exploration standing height")
+				for pose: String in ["walk_a", "walk_b", "windup", "attack", "dodge_a", "dodge_b", "idle"]:
+					field.clock = 0.0 if pose == "walk_a" else 0.2
+					player.velocity = direction if pose.begins_with("walk") else Vector3.ZERO
+					field.windup = 0.1 if pose == "windup" else 0.0
+					field.swing = 0.1 if pose == "attack" else 0.0
+					field.dodge_time = 0.2 if pose == "dodge_a" else 0.1 if pose == "dodge_b" else 0.0
+					field.call("_update_hero_art")
+					assert(art.visible and not player.get_node("Sprite3D").visible, "Never swap body atlases at impact or recovery")
+					assert(art.texture.get_meta("pose") == pose)
+					assert((art.texture as AtlasTexture).atlas == standing.atlas)
+					assert(is_equal_approx(art.pixel_size, pixel_size), "Sword reach and crouching must not rescale the body")
+					assert(is_zero_approx(art.offset.y - art.texture.get_height() * 0.5), "Every field pose stays foot anchored")
+	state.equipped = loadout
+	player.call("set_presentation_scale", 1.0)
+	player.velocity = Vector3.ZERO
+	field.facing = Vector3.FORWARD
+	field.call("_update_hero_art")

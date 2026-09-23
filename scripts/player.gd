@@ -54,6 +54,11 @@ func set_presentation_scale(factor: float) -> void:
 	$ContactShadow.scale = Vector3(factor, 1.0, factor)
 
 
+func presentation_height() -> float:
+	# Measured standing body, excluding the walking atlas's transparent margins.
+	return 290.0 * _base_pixel_size * _presentation_scale
+
+
 func _refresh_equipment() -> void:
 	var key := EquipmentAppearance.variant(GameState.equipped) + (":door" if _door_pose >= 0 else "")
 	if key == _appearance_key:

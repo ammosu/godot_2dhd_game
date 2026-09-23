@@ -59,7 +59,7 @@ func _ready() -> void:
 	rig.set("_distance", camera_distance)
 	player.set("field_combat", self)
 	_hero_sprite = _sprite(player)
-	_hero_sprite.hide()
+	_update_hero_art()
 	_build_hud()
 	if build_terrain:
 		var sign := _label(self, "南側・舊道狩獵地\n坡道通往高台", Vector3(-2, 1.4, 7))
@@ -245,11 +245,22 @@ func _physics_process(delta: float) -> void:
 		if number.life <= 0:
 			number.node.queue_free()
 	_numbers = _numbers.filter(func(number: Dictionary) -> bool: return number.life > 0)
-	var posing: bool = windup > 0 or swing > 0 or dodge_time > 0
-	_hero_sprite.visible = posing
-	player.get_node("Sprite3D").visible = not posing
-	if posing:
-		_art(_hero_sprite, "wanderer", "dodge_a" if dodge_time > 0 else "windup" if windup > 0 else "attack", facing)
+	_update_hero_art()
+
+func _update_hero_art() -> void:
+	# Keep the same body proportions throughout locomotion and combat. The
+	# exploration atlas has a different silhouette and cannot be swapped per hit.
+	_hero_sprite.show()
+	player.get_node("Sprite3D").hide()
+	var moving: bool = Vector2(player.velocity.x, player.velocity.z).length() > 0.05
+	var pose: String = ["walk_a", "idle", "walk_b", "idle"][int(clock * 10.0) % 4] if moving else "idle"
+	if dodge_time > 0:
+		pose = "dodge_a" if dodge_time > 0.11 else "dodge_b"
+	elif windup > 0:
+		pose = "windup"
+	elif swing > 0:
+		pose = "attack"
+	_art(_hero_sprite, "wanderer", pose, facing)
 
 func _strike() -> void:
 	swing = 0.20
@@ -416,7 +427,10 @@ func _art(sprite: Sprite3D, actor: String, pose: String, direction: Vector3) -> 
 	var column: int = Art.direction(screen)
 	var texture: AtlasTexture = Art.texture_for(actor, pose, column, GameState.equipped if actor == "wanderer" else {})
 	sprite.texture = texture
-	sprite.pixel_size = float(texture.get_meta("pixel_size")) * (float(player.get("_presentation_scale")) if actor == "wanderer" else 1.0)
+	sprite.pixel_size = float(texture.get_meta("pixel_size"))
+	if actor == "wanderer":
+		var standing: AtlasTexture = Art.texture_for(actor, "idle", column, GameState.equipped)
+		sprite.pixel_size = float(player.call("presentation_height")) / float(standing.get_height())
 	Grounding.anchor(sprite, texture, float(texture.get_meta("ground_y")))
 	sprite.offset.x = texture.get_width() * 0.5 - float(texture.get_meta("anchor_x"))
 	sprite.flip_h = actor == "moss_wolf" and column == 1
