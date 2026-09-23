@@ -16,6 +16,13 @@ const SPAWNS: Array[Dictionary] = [
 	{"id": "road_mage_terrace", "at": Vector3(10, 1.85, 10.5), "caster": true},
 	{"id": "road_bat_south", "at": Vector3(-5, 0.05, 12.5), "caster": false, "art": "dusk_bat"},
 ]
+var spawn_list: Array[Dictionary] = SPAWNS.duplicate(true)
+var build_terrain: bool = true
+var area_title: String = "舊道南側狩獵地"
+var compact_hud: bool = false
+var camera_distance: float = 15.0
+var recovery_map: String = "village"
+var recovery_spawn: String = "from_east_road"
 var automation := Automation.new()
 var _auto_button: Button
 var player: CharacterBody3D
@@ -45,16 +52,18 @@ var _focus_paused: bool = false
 var _previous_camera_distance: float = 11.0
 
 func _ready() -> void:
-	Terrain.build(self)
+	if build_terrain:
+		Terrain.build(self)
 	var rig := player.get_parent().get_node("CameraRig")
 	_previous_camera_distance = float(rig.get("_distance"))
-	rig.set("_distance", 15.0)
+	rig.set("_distance", camera_distance)
 	player.set("field_combat", self)
 	_hero_sprite = _sprite(player)
 	_hero_sprite.hide()
 	_build_hud()
-	var sign := _label(self, "南側・舊道狩獵地\n坡道通往高台", Vector3(-2, 1.4, 7))
-	sign.modulate = Color("d8e9c0")
+	if build_terrain:
+		var sign := _label(self, "南側・舊道狩獵地\n坡道通往高台", Vector3(-2, 1.4, 7))
+		sign.modulate = Color("d8e9c0")
 	get_window().focus_exited.connect(_pause_focus)
 	get_window().focus_entered.connect(_resume_focus)
 	_initialize.call_deferred()
@@ -65,7 +74,7 @@ func _initialize() -> void:
 	if not is_inside_tree():
 		return
 	navigation.build(get_world_3d(), player)
-	for spawn: Dictionary in SPAWNS:
+	for spawn: Dictionary in spawn_list:
 		if not GameState.field_defeated.has(spawn.id):
 			_spawn_enemy(spawn)
 	_sync_loot()
@@ -283,7 +292,7 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 		enemy.label.hide()
 		return
 	var distance: float = at.distance_to(player.global_position)
-	var can_chase: bool = Navigation.contains(player.global_position) and player.global_position.distance_to(enemy.home) < 9.0
+	var can_chase: bool = navigation.contains(player.global_position) and player.global_position.distance_to(enemy.home) < 9.0
 	if enemy.state == "patrol" and can_chase and distance < 5.2:
 		enemy.state = "chase"
 	if enemy.state == "chase" and (not can_chase or at.distance_to(enemy.home) > 10.0):
@@ -359,11 +368,16 @@ func _enemy_strike(enemy: Dictionary) -> void:
 
 func _recover() -> void:
 	GameState.set_mode(GameState.Mode.EXPLORE)
-	GameState.map_change_requested.emit("village", "from_east_road")
-	GameState.notification_requested.emit("在村口醒來・已恢復體力，獲得的經驗與物品保留")
+	GameState.request_map(recovery_map, recovery_spawn)
+	GameState.notification_requested.emit("在安全地帶醒來・已恢復體力，獲得的經驗與物品保留")
 
 func _sync_loot() -> void:
+	var local_ids: Array[String] = []
+	for spawn: Dictionary in spawn_list:
+		local_ids.append(str(spawn.id))
 	for id: String in GameState.field_loot:
+		if id not in local_ids:
+			continue
 		if loot_nodes.has(id):
 			continue
 		var data: Dictionary = GameState.field_loot[id]
@@ -402,7 +416,7 @@ func _art(sprite: Sprite3D, actor: String, pose: String, direction: Vector3) -> 
 	var column: int = Art.direction(screen)
 	var texture: AtlasTexture = Art.texture_for(actor, pose, column, GameState.equipped if actor == "wanderer" else {})
 	sprite.texture = texture
-	sprite.pixel_size = float(texture.get_meta("pixel_size"))
+	sprite.pixel_size = float(texture.get_meta("pixel_size")) * (float(player.get("_presentation_scale")) if actor == "wanderer" else 1.0)
 	Grounding.anchor(sprite, texture, float(texture.get_meta("ground_y")))
 	sprite.offset.x = texture.get_width() * 0.5 - float(texture.get_meta("anchor_x"))
 	sprite.flip_h = actor == "moss_wolf" and column == 1
@@ -442,7 +456,9 @@ func _build_hud() -> void:
 	_hud.offset_left = -260
 	_hud.offset_right = 260
 	_hud.offset_top = -188
-	_hud.offset_bottom = -32
+	_hud.offset_bottom = -14 if compact_hud else -32
+	if compact_hud:
+		_hud.offset_top = -120
 	layer.add_child(_hud)
 	var column := VBoxContainer.new()
 	_hud.add_child(column)
@@ -473,7 +489,7 @@ func _build_hud() -> void:
 	column.add_child(row)
 	for action: String in ["attack", "skill", "dodge", "potion"]:
 		var button := Button.new()
-		button.custom_minimum_size = Vector2(124, 48)
+		button.custom_minimum_size = Vector2(124, 36 if compact_hud else 48)
 		button.focus_mode = Control.FOCUS_NONE
 		button.add_theme_font_size_override("font_size", 17)
 		button.pressed.connect(func() -> void: perform(action))
@@ -483,7 +499,9 @@ func _build_hud() -> void:
 func _update_hud() -> void:
 	_auto_button.text = "自動：開 B" if automation.enabled else "自動：關 B"
 	_auto_button.disabled = not ready_for_combat
-	_status.text = "Lv.%d  EXP %d/%d   HP %d/%d   MP %d/%d\n舊道南側狩獵地・月苔 ×%d" % [GameState.player_level, GameState.player_xp, GameState.xp_to_next_level(), GameState.player_hp, GameState.player_max_hp, GameState.player_mp, GameState.player_max_mp, int(GameState.inventory.get("moon_moss", 0))]
+	_status.text = "Lv.%d  EXP %d/%d   HP %d/%d   MP %d/%d\n%s・月苔 ×%d" % [GameState.player_level, GameState.player_xp, GameState.xp_to_next_level(), GameState.player_hp, GameState.player_max_hp, GameState.player_mp, GameState.player_max_mp, area_title, int(GameState.inventory.get("moon_moss", 0))]
+	if compact_hud:
+		_status.text = "Lv.%d  HP %d/%d   MP %d/%d" % [GameState.player_level, GameState.player_hp, GameState.player_max_hp, GameState.player_mp, GameState.player_max_mp]
 	var cooldowns: Dictionary = {"attack": attack_cooldown, "skill": skill_cooldown, "dodge": dodge_cooldown, "potion": 0.0}
 	var labels: Dictionary = {"attack": "普攻 J / 1", "skill": "月影斬 K / 2", "dodge": "閃避 Shift", "potion": "藥水 H ×%d" % int(GameState.inventory.get("potion", 0))}
 	for action: String in _buttons:

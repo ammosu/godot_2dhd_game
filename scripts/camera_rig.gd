@@ -11,6 +11,9 @@ var _target: Node3D
 var _target_yaw: float = deg_to_rad(45.0)
 var _distance: float
 var _indoors: bool = false
+var _dungeon: bool = false
+var _pre_dungeon_yaw: float = 0.0
+var _pre_dungeon_fov: float = 34.0
 var _outdoor_distance: float
 var _outdoor_yaw: float
 var _dialogue_occlusion := preload("res://scripts/gameplay/dialogue_occlusion.gd").new()
@@ -70,6 +73,28 @@ func _on_state_changed() -> void:
 		_dialogue_active = false
 
 
+func set_dungeon(enabled: bool) -> void:
+	if enabled == _dungeon:
+		return
+	_dungeon = enabled
+	if enabled:
+		_pre_dungeon_yaw = _target_yaw
+		_pre_dungeon_fov = camera.fov
+		camera.fov = 38.0
+		_target_yaw = 0.0
+		_distance = 17.0
+	else:
+		_target_yaw = _pre_dungeon_yaw
+		camera.fov = _pre_dungeon_fov
+	_configure_camera_attributes()
+
+
+func _exploration_focus() -> Vector3:
+	if _indoors:
+		return Vector3.ZERO
+	return _target.global_position + (Vector3(0, 0, -3.0).rotated(Vector3.UP, _target_yaw) if _dungeon else Vector3.ZERO)
+
+
 func set_interior(enabled: bool) -> void:
 	if enabled == _indoors:
 		return
@@ -96,7 +121,7 @@ func snap_to_target() -> void:
 	_dialogue_blend = 0.0
 	if _target == null:
 		return
-	global_position = Vector3.ZERO if _indoors else _target.global_position
+	global_position = _exploration_focus()
 	rotation.y = _target_yaw
 	_update_camera_local_position()
 	camera.look_at(global_position + Vector3.UP * 0.78, Vector3.UP)
@@ -114,7 +139,7 @@ func _ready() -> void:
 
 
 func _configure_camera_attributes() -> void:
-	if RenderingServer.get_current_rendering_method() == "gl_compatibility":
+	if _dungeon or _indoors or RenderingServer.get_current_rendering_method() == "gl_compatibility":
 		camera.attributes = null
 		return
 
@@ -149,12 +174,12 @@ func _process(delta: float) -> void:
 			if fighting:
 				_combat_distance = minf(26.0, _combat_distance + 1.25)
 			else:
-				_distance = minf(15.0, _distance + 1.25)
+				_distance = minf(20.0 if _dungeon else 15.0, _distance + 1.25)
 
 	_dialogue_blend = move_toward(_dialogue_blend, 1.0 if _dialogue_active else 0.0, delta / 0.85)
 	var shot_weight: float = smoothstep(0.0, 1.0, _dialogue_blend)
 	_combat_blend = move_toward(_combat_blend, 1.0 if fighting else 0.0, delta / 0.65)
-	var exploration_focus: Vector3 = Vector3.ZERO if _indoors else _target.global_position
+	var exploration_focus: Vector3 = _exploration_focus()
 	if fighting:
 		exploration_focus = exploration_focus.lerp(_combat_target.global_position, _combat_blend)
 	var follow_weight := 1.0 - exp(-delta * 7.5)

@@ -40,7 +40,7 @@ func sync_to_state() -> void:
 	elif GameState.current_map.begins_with("house_"):
 		current_context = &"house"
 	else:
-		current_context = &"ruins" if GameState.current_map == "ruins" else &"village"
+		current_context = &"ruins" if GameState.current_map in ["ruins", "ashen_crypt"] else &"village"
 
 
 func _process(delta: float) -> void:

@@ -17,6 +17,7 @@ func road_distance(at: Vector2) -> float:
 		return distance - 2.1
 	var distance: float = absf(at.x) - 1.8
 	if map_id == "east_road":
+		distance = minf(distance, box_distance(at, Vector2(-8, 0), Vector2(3.2, 2.8)))
 		distance = minf(distance, absf(at.y - 5) - 1.8)
 		distance = minf(distance, box_distance(at, Vector2(4, 2), Vector2(3.5, 3.5)))
 	else:

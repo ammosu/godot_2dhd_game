@@ -73,8 +73,10 @@ func _route_description(map_id: String) -> String:
 			return "北 → 北境遺跡　｜　東 → 東行舊道\n" + gate + "房屋門口按 Space／Enter 進入。"
 		"ruins":
 			return "南 → 暮光村\n沿中央道路探索；金色驚嘆號指向目前主線目標。"
+		"ashen_crypt":
+			return "南 → 東行舊道（拱門按 Space）\n擊敗五名守衛後，調查北側血晶祭壇領取獎勵。J 普攻／K 技能／Shift 閃避／H 藥水。"
 		"east_road":
-			return "西 → 暮光村　｜　北 → 螢光森林　｜　東 → 風丘商道／星灣城\n沿道路穿過出口，即可前往下一區域。"
+			return "西 → 暮光村　｜　北 → 螢光森林　｜　東 → 風丘商道／星灣城\n沿道路穿過出口；西側火盆拱門按 Space 可進入灰燼墓窟。"
 		"caravan_road":
 			return "南 → 東行舊道　｜　北 → 星灣城\n沿彎曲商道穿過丘林，路燈標示兩端出口。"
 		"starbay":

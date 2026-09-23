@@ -3,6 +3,8 @@ extends RefCounted
 const STEP: float = 0.5
 const ORIGIN := Vector2(-8, 6.5)
 const SIZE := Vector2i(43, 15)
+var origin: Vector2 = ORIGIN
+var grid_size: Vector2i = SIZE
 var graph := AStar3D.new()
 var cells: Dictionary[Vector2i, int] = {}
 var space: PhysicsDirectSpaceState3D
@@ -16,9 +18,9 @@ func build(world: World3D, player: CharacterBody3D) -> void:
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.29
 	capsule.height = 0.9
-	for x: int in range(SIZE.x):
-		for z: int in range(SIZE.y):
-			var point := Vector3(ORIGIN.x + x * STEP, 4, ORIGIN.y + z * STEP)
+	for x: int in range(grid_size.x):
+		for z: int in range(grid_size.y):
+			var point := Vector3(origin.x + x * STEP, 4, origin.y + z * STEP)
 			var ray := PhysicsRayQueryParameters3D.create(point, point + Vector3.DOWN * 5, 1, ignored)
 			var hit: Dictionary = space.intersect_ray(ray)
 			if hit.is_empty() or Vector3(hit.normal).y < 0.8:
@@ -52,5 +54,5 @@ func path(from: Vector3, to: Vector3) -> PackedVector3Array:
 		return PackedVector3Array()
 	return graph.get_point_path(graph.get_closest_point(from), graph.get_closest_point(to))
 
-static func contains(point: Vector3) -> bool:
-	return Rect2(ORIGIN, Vector2(SIZE - Vector2i.ONE) * STEP).has_point(Vector2(point.x, point.z))
+func contains(point: Vector3) -> bool:
+	return Rect2(origin, Vector2(grid_size - Vector2i.ONE) * STEP).has_point(Vector2(point.x, point.z))

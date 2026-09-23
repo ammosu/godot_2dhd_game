@@ -4,6 +4,8 @@ extends RefCounted
 const Mountains = preload("res://scripts/gameplay/mountain_maps.gd")
 const NAMES := {"moss_steps": "苔階山徑", "wind_gorge": "風切峽道", "moon_highland": "月冠高地", "east_road": "東行舊道", "firefly_forest": "螢光森林", "caravan_road": "風丘商道", "starbay": "星灣城"}
 const EXITS := {
+	"enter_crypt": ["east_road", "ashen_crypt", "entry"],
+	"leave_crypt": ["ashen_crypt", "east_road", "from_crypt"],
 	"forest_to_mountain": ["firefly_forest", "moss_steps", "from_base"],
 	"mountain_to_forest": ["moss_steps", "firefly_forest", "from_mountain"],
 	"mountain_to_gorge": ["moss_steps", "wind_gorge", "from_base"],
@@ -161,6 +163,7 @@ static func build(world: Node3D, map_id: String) -> void:
 		preload("res://scripts/gameplay/creek_bridge.gd").build(world.get("_map_root"), Vector3(0, 0, -5))
 	if not forest:
 		var field: Node3D = load("res://scripts/gameplay/field_combat.gd").new()
+		preload("res://scripts/gameplay/ashen_crypt.gd").build_entrance(world)
 		field.name = "FieldCombat"
 		field.player = world.get_node("Player")
 		world.get("_map_root").add_child(field)

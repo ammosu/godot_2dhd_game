@@ -668,3 +668,14 @@ godot --path . --script tests/door_action_art_test.gd -- --capture-dir=/absolute
 暮翼蝙蝠：`field_combat_test.gd` 額外驗證蝙蝠預警／命中／受擊中斷、懸浮與倒地、掉落與讀檔後不重生；`field_auto_battle_test.gd` 驗證四隻敵人的完整自動清場；`action_art_test.gd` 同時檢查蝙蝠四向動作裁切與透明背景。
 
 怪物呈現回歸：`godot --headless --path . --script tests/enemy_presentation_test.gd`，成功標記 `ENEMY_PRESENTATION_TEST_PASS`。涵蓋四類怪物、四向貼圖、固定時鐘下不累積位移／縮放、接地／懸浮、蓄力與出招、死亡關閉光環、血條縮減方向。搭配 `action_art_world_test.gd` 與 `field_combat_test.gd` 確認兩種戰鬥場景的整合。
+
+## Ashen Crypt dungeon
+
+```bash
+godot --headless --path . --rendering-method forward_plus --script tests/ashen_crypt_test.gd
+godot --headless --path . --rendering-method gl_compatibility --script tests/ashen_crypt_test.gd
+```
+
+Expected: `ASHEN_CRYPT_TEST_PASS entrance navigation collision combat reward loot save return recovery`.
+
+Uses a PID-specific `user://ashen_crypt_test_*.json`, removed on success. Covers real entry/return interactions, five enemies, navigation through the nave, capsule/altar collision, attacks blocked by piers, real skill strike kills, gated one-time reward, cross-map loot isolation, save/load without respawning defeated guards, and defeat recovery/camera reset. No normal player save is read or overwritten. Also rerun `tests/field_combat_test.gd` after changes to the shared combat/navigation configuration.

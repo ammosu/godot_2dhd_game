@@ -325,6 +325,8 @@ func complete_quest() -> void:
 
 
 func get_quest_text() -> String:
+	if current_map == "ashen_crypt":
+		return "墓窟已淨化・南側拱門返回東行舊道" if flags.get("crypt_cleared", false) else "地下城：擊敗五名守衛，調查北側血晶祭壇"
 	if current_map.begins_with("house_city_"):
 		return "拜訪屋主、查看屋內陳設；南側門口可返回星灣城。"
 	if current_map == "caravan_road":
@@ -592,4 +594,22 @@ func collect_field_loot(id: String) -> bool:
 	field_loot.erase(id)
 	state_changed.emit()
 	notification_requested.emit("拾取・%s ×1" % ("月苔" if item == "moon_moss" else "藥水"))
+	return true
+
+
+func claim_crypt_reward() -> bool:
+	if current_map != "ashen_crypt" or mode != Mode.EXPLORE:
+		return false
+	if bool(flags.get("crypt_cleared", false)):
+		notification_requested.emit("灰燼墓窟已淨化・獎勵已領取")
+		return false
+	for id: String in ["crypt_bat_entry", "crypt_wolf_west", "crypt_wolf_east", "crypt_mage_west", "crypt_mage_altar"]:
+		if not field_defeated.has(id):
+			notification_requested.emit("祭壇仍受守衛封印・先擊敗墓窟中的五名敵人")
+			return false
+	flags["crypt_cleared"] = true
+	inventory["potion"] = int(inventory.get("potion", 0)) + 3
+	inventory["moon_moss"] = int(inventory.get("moon_moss", 0)) + 2
+	state_changed.emit()
+	notification_requested.emit("灰燼墓窟淨化！藥水 ×3・月苔 ×2")
 	return true

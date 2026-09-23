@@ -47,7 +47,7 @@ func sync_to_state() -> void:
 		set_context(&"" if _battle_resolved else &"battle")
 	else:
 		_battle_resolved = false
-		set_context(&"ruins" if GameState.current_map == "ruins" else &"village")
+		set_context(&"ruins" if GameState.current_map in ["ruins", "ashen_crypt"] else &"village")
 
 
 func resolve_battle() -> void:
