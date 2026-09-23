@@ -283,7 +283,14 @@ func _draw_map_geometry() -> void:
 		if _map_id == "starbay":
 			for index: int in range(Starbay.STREETS.size()):
 				_draw_geography_polygon(Starbay.ribbon(Starbay.curve(Starbay.STREETS[index]), 4.2 if index == 0 else 2.8), MAP_PATH_COLOR)
-			_draw_geography_polygon(Starbay.ellipse(Vector2(-6, 11), Vector2(9, 6)), MAP_PATH_COLOR)
+			var city_streets: Array = []
+			for street: Array in Starbay.STREETS:
+				city_streets.append(Starbay.curve(street))
+			for index: int in range(Starbay.HOMES.size()):
+				var approach := Starbay.Streets.approach(index, city_streets)
+				if approach[0].distance_to(approach[1]) > 0.1:
+					_draw_geography_polygon(Starbay.ribbon(approach, 1.55), MAP_PATH_COLOR)
+			_draw_geography_polygon(PackedVector2Array(Starbay.Streets.MARKET), MAP_PATH_COLOR)
 			_draw_geography_polygon(Starbay.ellipse(Vector2(-8, -27), Vector2(6.5, 5)), MAP_PATH_COLOR)
 			_draw_geography_polygon(Starbay.ellipse(Vector2(12, 4), Vector2(3, 2)), MAP_WATER_COLOR)
 			for pocket: Vector2 in Starbay.Civic.POCKETS:

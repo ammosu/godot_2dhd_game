@@ -1,6 +1,7 @@
 extends RefCounted
 ## Shared authored geography for the playable world and both map views.
 const Shops = preload("res://scripts/gameplay/city_shops.gd")
+const Streets = preload("res://scripts/gameplay/city_streets.gd")
 const Civic = preload("res://scripts/gameplay/city_civic.gd")
 const NAMES := {"caravan_road": "風丘商道", "starbay": "星灣城"}
 const BOUNDS := {"caravan_road": Rect2(-32, -32, 60, 64), "starbay": Rect2(-46, -43, 88, 86)}
@@ -66,8 +67,15 @@ static func surface(world: Node3D, label: String, polygon: PackedVector2Array, h
 	material.set_shader_parameter("polygon_surface", true)
 	material.set_shader_parameter("planted_island", false)
 	var dirt_road: bool = label == "WindingCaravanRoad"
-	var worn_path: bool = label.begins_with("CivicLink") or label == "GardenWalk" or label in ["CityStreet1", "CityStreet4"]
+	var worn_path: bool = label.begins_with("DoorLane") or label.begins_with("CivicLink") or label == "GardenWalk" or label in ["CityStreet1", "CityStreet4"]
 	material.set_shader_parameter("road_kind", 2 if dirt_road else 1 if worn_path else 0)
+	if GameState.current_map == "starbay":
+		material.shader = preload("res://shaders/starbay_ground.gdshader")
+		material.set_shader_parameter("paving", preload("res://assets/generated/village_paving_v2.png"))
+		material.set_shader_parameter("meadow", preload("res://assets/generated/meadow_albedo.png"))
+		material.set_shader_parameter("weathered", preload("res://assets/generated/terrain/weathered_stone.png"))
+		material.set_shader_parameter("road", paving)
+		material.set_shader_parameter("lane", worn_path)
 	visual.material_override = material
 	visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	world.get("_map_root").add_child(visual)
@@ -109,11 +117,21 @@ static func build(world: Node3D, map_id: String) -> void:
 	boundary(world, perimeter, city)
 	if not city:
 		build_road(world)
+		var landscape := preload("res://scripts/gameplay/outdoor_landscape.gd").new()
+		landscape.name = "OutdoorLandscape"
+		world.get("_map_root").add_child(landscape)
+		landscape.configure(world, map_id)
 		return
 	for index: int in range(STREETS.size()):
-		surface(world, "CityStreet%d" % index, ribbon(curve(STREETS[index]), 4.2 if index == 0 else 2.8), 0.018 + index * 0.001, true)
-	surface(world, "MarketCourt", ellipse(Vector2(-6, 11), Vector2(9, 6)), 0.026, true)
-	surface(world, "BelfryCourt", ellipse(Vector2(-8, -27), Vector2(6.5, 5)), 0.026, true)
+		var polygon := ribbon(curve(STREETS[index]), 4.2 if index == 0 else 2.8)
+		Streets.border(world, polygon)
+		surface(world, "CityStreet%d" % index, polygon, 0.018 + index * 0.001, true)
+	Streets.border(world, PackedVector2Array(Streets.MARKET))
+	surface(world, "MarketCourt", PackedVector2Array(Streets.MARKET), 0.026, true)
+	var belfry := ellipse(Vector2(-8, -27), Vector2(6.5, 5))
+	Streets.border(world, belfry)
+	surface(world, "BelfryCourt", belfry, 0.026, true)
+	Streets.build_approaches(world, load("res://scripts/gameplay/starbay.gd"))
 	for index: int in range(HOMES.size()):
 		var home: Vector3 = HOMES[index]
 		var catalog: Dictionary = preload("res://scripts/gameplay/house_catalog.gd").HOMES[index % 8]
@@ -138,6 +156,7 @@ static func build(world: Node3D, map_id: String) -> void:
 	build_belfry(world)
 	dress_materials(world)
 	Civic.build(world)
+	Streets.landscape(world, load("res://scripts/gameplay/starbay.gd"))
 	add_residents(world)
 	var exits := preload("res://scripts/gameplay/outskirts.gd")
 	exits.add_interaction(world, "travel_city_home", "返回風丘商道", Vector3(-16, 0, 36.8), true)

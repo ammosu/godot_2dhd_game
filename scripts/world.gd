@@ -283,6 +283,8 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 		_environment.background_color = Color("101f24")
 		_environment.fog_light_color = Color("375c60")
 		_environment.fog_density = 0.006
+		if map_id in ["starbay", "moss_steps", "wind_gorge", "moon_highland"]:
+			_environment.ambient_light_energy = 0.58
 	elif map_id == "ruins":
 		_build_ruins()
 		_environment.background_color = Color("100e1d")
@@ -303,6 +305,9 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 		target_position = GameState.saved_position
 		if GameState.current_map == "village":
 			target_position = HouseCatalog.safe_village_position(target_position)
+	var landscape: Node = _map_root.get_node_or_null("OutdoorLandscape")
+	if landscape != null:
+		target_position.y = maxf(target_position.y, float(landscape.soil_height(Vector2(target_position.x, target_position.z))) + 0.1)
 	player.global_position = target_position
 	player.velocity = Vector3.ZERO
 	player.release_door_facing()
@@ -315,6 +320,11 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 		var home: Dictionary = HouseCatalog.find_home(spawn_id.trim_prefix("from_"))
 		if not home.is_empty():
 			player.face_world_position(player.global_position + Vector3.FORWARD.rotated(Vector3.UP, float(home.yaw)))
+	if Outskirts.NAMES.has(map_id):
+		var tree_visibility := preload("res://scripts/gameplay/tree_visibility.gd").new()
+		tree_visibility.name = "TreeVisibility"
+		_map_root.add_child(tree_visibility)
+		tree_visibility.configure(_map_root, player, $CameraRig/Camera3D)
 	GameMusic.sync_to_state()
 	GameAmbience.sync_to_state()
 	_refresh_hud()
@@ -1497,6 +1507,7 @@ func _update_village_gate_state() -> void:
 func _add_box(node_name: String, world_position: Vector3, size: Vector3, color: Color, collision: bool, metallic: float = 0.0) -> void:
 	var root: Node3D = StaticBody3D.new() if collision else Node3D.new()
 	root.name = node_name
+	root.set_meta("authored_name", node_name)
 	root.position = world_position
 	_map_root.add_child(root)
 	if node_name in ["Ground", "RuinGround"]:

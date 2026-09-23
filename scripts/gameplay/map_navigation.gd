@@ -47,6 +47,7 @@ func start(target: Vector3, bounds: Rect2) -> bool:
 	grid.offset = bounds.position
 	grid.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER
 	grid.update()
+	var terrain: Node = (player.get_parent().get("_map_root") as Node).get_node_or_null("OutdoorLandscape")
 	var space := player.get_world_3d().direct_space_state
 	var shape := CylinderShape3D.new()
 	# Inflate by half a grid cell so cardinal edges cannot cut thin walls.
@@ -66,12 +67,14 @@ func start(target: Vector3, bounds: Rect2) -> bool:
 		for x: int in range(grid.region.size.x):
 			var id := Vector2i(x, y)
 			var at := grid.get_point_position(id)
-			query.transform = Transform3D(Basis.IDENTITY, Vector3(at.x, 0.65, at.y))
+			var floor_y: float = float(terrain.soil_height(at)) if terrain != null else 0.0
+			query.transform = Transform3D(Basis.IDENTITY, Vector3(at.x, floor_y + (0.8 if terrain != null else 0.65), at.y))
 			var blocked := not space.intersect_shape(query, 1).is_empty()
 			if not blocked:
-				ray.from = Vector3(at.x, 0.18, at.y)
-				ray.to = Vector3(at.x, -0.35, at.y)
-				blocked = space.intersect_ray(ray).is_empty()
+				ray.from = Vector3(at.x, floor_y + 0.18, at.y)
+				ray.to = Vector3(at.x, floor_y - 0.35, at.y)
+				var hit: Dictionary = space.intersect_ray(ray)
+				blocked = hit.is_empty() or Vector3(hit.normal).y < 0.75
 			grid.set_point_solid(id, blocked)
 			if blocked:
 				continue
@@ -105,8 +108,11 @@ func _clear_segment(from: Vector3, to: Vector3) -> bool:
 	query.shape = shape
 	query.collision_mask = player.collision_mask
 	query.exclude = [player.get_rid()]
-	query.transform = Transform3D(Basis.IDENTITY, Vector3(from.x, 0.65, from.z))
-	query.motion = Vector3(to.x - from.x, 0, to.z - from.z)
+	var terrain: Node = (player.get_parent().get("_map_root") as Node).get_node_or_null("OutdoorLandscape")
+	var from_y: float = float(terrain.soil_height(Vector2(from.x, from.z))) if terrain != null else 0.0
+	var to_y: float = float(terrain.soil_height(Vector2(to.x, to.z))) if terrain != null else 0.0
+	query.transform = Transform3D(Basis.IDENTITY, Vector3(from.x, from_y + (0.8 if terrain != null else 0.65), from.z))
+	query.motion = Vector3(to.x - from.x, to_y - from_y, to.z - from.z)
 	var fractions := player.get_world_3d().direct_space_state.cast_motion(query)
 	return fractions[0] >= 1.0
 

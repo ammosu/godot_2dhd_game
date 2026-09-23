@@ -62,6 +62,13 @@ func _run() -> void:
 	check(not world.get("_mini_map").has_main_target(), "no unrelated quest marker")
 	for index: int in range(City.STREETS.size()):
 		sweep(City.curve(City.STREETS[index]).slice(2, -2), "street%d" % index)
+	var streets: Array = []
+	for street: Array in City.STREETS:
+		streets.append(City.curve(street))
+	for index: int in range(City.HOMES.size()):
+		var approach: PackedVector2Array = City.Streets.approach(index, streets)
+		check(approach[0].distance_to(approach[1]) > 0.1, "door lane missing %d" % index)
+		sweep(approach, "door lane%d" % index)
 	check(get_nodes_in_group("civic_landmarks").size() == 3, "three civic landmarks")
 	for index: int in range(City.Civic.LINKS.size()):
 		sweep(City.curve(City.Civic.LINKS[index]), "civic link%d" % index)

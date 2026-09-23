@@ -19,3 +19,11 @@ Use case: stylized-concept. Original seamless tileable ground albedo texture for
 ### grass
 
 Use case: stylized-concept. Original seamless tileable meadow ground albedo texture for an HD-2D JRPG, square 1024x1024. Strict straight-down orthographic material scan, entire image edge to edge, no perspective, horizon, cast shadow, lighting gradient, border or text. Natural slightly dry meadow turf with small uneven clumps of short muted olive and sage grass, occasional straw-colored dead blades, tiny irregular bare soil gaps. Still mostly green grass, not yellow desert. Fine deliberate pixel art clusters, modest detail and low contrast, natural restrained forest palette. No flowers, tall plants, rocks, distinct paths, circular central feature, large isolated objects or lawn stripes. Flat neutral diffuse albedo lighting. Seamless repeat both axes and consistent density across all edges.
+
+## Mossy granite — 2026-09-23
+
+`mossy_granite.png` is original generated art created with the built-in imagegen tool for the mountain and Starbay landscape polish. No third-party source art was used for this texture. It replaces the long horizontal striations on new mountain crags and the city cliff footing. Mountain ground uses world-space triplanar projection and slope-based moss blending. Nearest texel sampling with mipmaps reduces distant shimmer without switching to bilinear filtering.
+
+Generation prompt:
+
+> Generate a seamless tileable square albedo texture asset for an HD2D game mountain cliff, orthographic flat material texture with no perspective, no scene. Mossy blue-grey fractured granite, broad irregular angular rock blocks 8 to 12 blocks across image, deep dark irregular cracks, slate grey cool mineral faces with subdued olive moss collecting on upper lips and in cracks, occasional chipped corners. Readable hand-painted pixel-art surface, restrained grain and no fine noise, no tiny spots. Strong medium-scale rock face variation, asymmetric polygon shapes. Neutral diffuse illumination without baked sunlight, no cast shadows, no horizontal strata, no wavy parallel lines, no rounded cobblestones, no vegetation sprigs, no text. This will repeat over irregular 3D mountain crags. Make edges seamless; colors mid-value muted slate blue-grey with moss green.

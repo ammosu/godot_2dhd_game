@@ -128,15 +128,6 @@ static func build(world: Node3D, map_id: String) -> void:
 			if not forest and absf(x) < 12 and z == 0:
 				continue
 			world._add_tree(Vector3(x, 0, z))
-			var trunk := StaticBody3D.new()
-			trunk.position = Vector3(x, 0.4, z)
-			var trunk_shape := CollisionShape3D.new()
-			var cylinder := CylinderShape3D.new()
-			cylinder.radius = 0.22
-			cylinder.height = 0.8
-			trunk_shape.shape = cylinder
-			trunk.add_child(trunk_shape)
-			world.get("_map_root").add_child(trunk)
 			if forest:
 				world._add_grass_clump(Vector3(x + 0.7, 0.02, z + 0.8), "seed", 0.001)
 	for at: Vector3 in [Vector3(-2, 0, 7), Vector3(2, 0, -4), Vector3(-2, 0, -10)]:
@@ -174,6 +165,10 @@ static func build(world: Node3D, map_id: String) -> void:
 		field.player = world.get_node("Player")
 		world.get("_map_root").add_child(field)
 	configure_surfaces(world)
+	var landscape := preload("res://scripts/gameplay/outdoor_landscape.gd").new()
+	landscape.name = "OutdoorLandscape"
+	world.get("_map_root").add_child(landscape)
+	landscape.configure(world, map_id)
 
 
 static func configure_surfaces(world: Node3D) -> void:

@@ -45,12 +45,10 @@ static func side_at(points: PackedVector3Array, index: int) -> Vector3:
 static func build(world: Node3D, map_id: String) -> void:
 	var parent: Node3D = world.get("_map_root")
 	var points := route(map_id)
-	var cliff := Terrain._surface()
+	preload("res://scripts/gameplay/mountain_landscape.gd").build(world, points, map_id)
 	var turf := Terrain._surface()
 	var trail := Terrain._surface()
 	var rim := Terrain._surface()
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 92417 + NAMES.keys().find(map_id)
 	var width: float = 2.4
 	for i: int in range(points.size() - 1):
 		var a: Vector3 = points[i]
@@ -63,18 +61,6 @@ static func build(world: Node3D, map_id: String) -> void:
 		for sign_value: float in [-1, 1]:
 			var edge_a := a + sa * (width + 0.12 * sin(i * 1.7)) * sign_value
 			var edge_b := b + sb * (width + 0.12 * sin((i + 1) * 1.7)) * sign_value
-			for layer: int in range(5):
-				var t0: float = float(layer) / 5.0
-				var t1: float = float(layer + 1) / 5.0
-				var low_a := edge_a + sa * sign_value * (1.0 - t0) * (4.0 + sin(i * 1.3))
-				var low_b := edge_b + sb * sign_value * (1.0 - t0) * (4.0 + sin((i + 1) * 1.3))
-				var high_a := edge_a + sa * sign_value * (1.0 - t1) * (4.0 + sin(i * 1.3))
-				var high_b := edge_b + sb * sign_value * (1.0 - t1) * (4.0 + sin((i + 1) * 1.3))
-				low_a.y = lerpf(-5.0, edge_a.y, t0)
-				low_b.y = lerpf(-5.0, edge_b.y, t0)
-				high_a.y = lerpf(-5.0, edge_a.y, t1)
-				high_b.y = lerpf(-5.0, edge_b.y, t1)
-				_quad(cliff, low_a, high_a, high_b, low_b)
 			# Solid weathered parapet prevents falls; cap follows the walking slope.
 			var inner_a := edge_a - sa * sign_value * 0.20
 			var inner_b := edge_b - sb * sign_value * 0.20
@@ -85,33 +71,14 @@ static func build(world: Node3D, map_id: String) -> void:
 		if i % 8 == 3:
 			var at := a + sa * 1.85
 			Terrain._grass(parent, at, 0.95, i % 3 == 0)
-			if map_id == "moss_steps" and i % 24 == 3:
-				world._add_tree(a + sa * 1.95)
-				(parent.get_child(parent.get_child_count() - 1) as Node3D).scale *= 0.45
 			if map_id == "moon_highland":
 				world._add_crystal(a - sa * 1.95, 0.30)
 		elif i % 24 == 12:
 			world._add_lamp(a - sa * 1.9)
-	_collision_mesh(parent, "MountainWalkSurface", turf, Terrain._material(Terrain.GRASS, Color("9fa780") if map_id != "wind_gorge" else Color("87999a")))
-	_collision_mesh(parent, "MountainGravelTrail", trail, Terrain._material(Terrain.SOIL, Color("d2c2a2")))
-	Terrain._finish(parent, "MountainStrata", cliff, Terrain._material(Terrain.CLIFF))
-	_collision_mesh(parent, "WeatheredCliffRim", rim, Terrain._material(Terrain.STONE, Color("999989")))
-	# Layered distant peaks sit outside the playable ribbon.
-	for i: int in range(18):
-		var peak := MeshInstance3D.new()
-		peak.name = "DistantPeak"
-		var cone := CylinderMesh.new()
-		cone.top_radius = rng.randf_range(0.4, 1.8)
-		cone.bottom_radius = rng.randf_range(5, 9)
-		cone.height = rng.randf_range(9, 19)
-		cone.radial_segments = 7
-		peak.mesh = cone
-		peak.position = Vector3((-20 if i % 2 == 0 else 20) + rng.randf_range(-3, 3), -4, 22 - i * 3.3)
-		peak.rotation.y = rng.randf_range(-PI, PI)
-		peak.material_override = Terrain._material(Terrain.CLIFF, Color("687f87") if map_id == "wind_gorge" else Color("667c70"))
-		parent.add_child(peak)
-		if map_id == "moss_steps":
-			world._add_tree(peak.position + Vector3.UP * cone.height * 0.5)
+	_collision_mesh(parent, "MountainWalkSurface", turf, preload("res://scripts/gameplay/mountain_landscape.gd").material(Terrain.GRASS, Color("9fa780") if map_id != "wind_gorge" else Color("87999a")))
+	_collision_mesh(parent, "MountainGravelTrail", trail, preload("res://scripts/gameplay/mountain_landscape.gd").material(Terrain.SOIL, Color("d2c2a2")))
+	# Collision follows the original safe edge, now enclosed by natural outcrops.
+	_collision_mesh(parent, "WeatheredCliffRim", rim, preload("res://scripts/gameplay/mountain_landscape.gd").material(Terrain.CLIFF, Color("818776")))
 	var outskirts: GDScript = load("res://scripts/gameplay/outskirts.gd")
 	outskirts.add_interaction(world, LINKS[map_id][0], "下山", points[0], true)
 	if not str(LINKS[map_id][1]).is_empty():

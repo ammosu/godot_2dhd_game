@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bm0ng0yria5ar"
-path="res://.godot/imported/weathered_stone.png-f5dd1ca788423c0884c301e02a449643.ctex"
+uid="uid://c5531fx4jk0uw"
+path="res://.godot/imported/mossy_granite.png-d24aa9d3128762d56c480688cdd1b81a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/generated/terrain/weathered_stone.png"
-dest_files=["res://.godot/imported/weathered_stone.png-f5dd1ca788423c0884c301e02a449643.ctex"]
+source_file="res://assets/generated/terrain/mossy_granite.png"
+dest_files=["res://.godot/imported/mossy_granite.png-d24aa9d3128762d56c480688cdd1b81a.ctex"]
 
 [params]
 

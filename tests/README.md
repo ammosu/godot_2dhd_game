@@ -648,3 +648,19 @@ godot --path . --script tests/door_action_art_test.gd -- --capture-dir=/absolute
 
 
 山區地圖：`godot --headless --fixed-fps 60 --path . --script tests/mountain_maps_test.gd`，另加 `--rendering-method gl_compatibility` 執行一次。驗證三區路面碰撞、角色實際上下山、自動行走、高處存讀檔、步行出口與抵達後不會反覆換圖。獨立使用並清理 `user://mountain_maps_test.json`；成功標記 `MOUNTAIN_MAPS_TEST_PASS ground uphill downhill save walking_exits`。使用可見視窗加 `-- --capture` 可將三區截圖寫入 `/tmp/moss_steps.png`、`/tmp/wind_gorge.png`、`/tmp/moon_highland.png`。
+
+### 城鎮與山路視覺打磨（2026-09-23）
+
+- `mountain_landscape.gd` 依原有登山路線生成連續山體、裂岩、碎石及坡地樹林；路面與安全邊界仍由 `mountain_maps.gd` 管理。山徑的三區上下山與存檔測試仍使用上述 `mountain_maps_test.gd`。
+- `city_streets.gd` 管理星灣城道路石肩、市集輪廓、26 戶入口小徑、庭園及城外岩盤。小徑與市集的地圖繪製共用相同資料。
+- `starbay_test.gd` 現在額外檢查所有 26 條門前小徑的角色膠囊通行與地板。搭配 `city_house_test.gd` 驗證實際進出房屋。
+- `starbay_ground.gdshader` 和 `mountain_ground.gdshader` 使用 nearest + mipmaps 控制遠距閃爍；其他原有材質仍保留原有取樣方式。岩體新材質及生成提示記錄於 `assets/generated/terrain/README.md`。
+- 可用 `godot --path . -- --city-preview` 與 `godot --path . -- --mountain-preview` 直接檢查兩個區域；預覽不會自動載入或覆寫正常存檔。渲染修改需重新執行兩種 renderer 的測試及 Web export。
+- 房屋測試以最多 12 秒的有界等待確認換圖及輸入解鎖，涵蓋抵達後關門動畫，不再以固定 2.6／0.85 秒推測流程結束。
+
+### 樹木遮擋與城外坡地（2026-09-23）
+
+- `tree_visibility.gd` 依目前鏡頭與人物身體的交線淡出遮擋樹冠，離開後恢復。山區樹根依實際地形三角面落地，避開岩塊及陡坡。
+- `outdoor_landscape.gd` 為風丘商道、東行舊道與螢光森林加入可行走草坡、碎石路肩及外圍霧化坡地；橋梁、水面、互動點與戰鬥平台保留原有高度。`map_navigation.gd` 依坡面高度查詢碰撞；舊存檔位置會抬至新地面上方，不變更存檔格式。
+- 遮擋回歸：`godot --headless --path . --script tests/tree_visibility_test.gd`。驗證八個鏡頭方向、透視與正交投影，以及離開遮擋後透明度還原；成功標記 `TREE_VISIBILITY_TEST_PASS`。
+- 坡地回歸：`godot --headless --fixed-fps 60 --path . --script tests/outdoor_landscape_test.gd`，另以 `--rendering-method gl_compatibility` 執行。檢查三張地圖坡面碰撞、自動走上草坡及舊存檔高度校正；成功標記 `OUTDOOR_LANDSCAPE_TEST_PASS relief collision bank_walk old_save_height`。

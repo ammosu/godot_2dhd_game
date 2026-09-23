@@ -43,7 +43,8 @@ func _run() -> void:
 		if target == null or target.get("interaction_id") != "enter_" + id:
 			continue
 		target.call("interact")
-		await create_timer(2.6).timeout
+		if not await wait_for_transition(state, id):
+			return
 		await settle()
 		check(state.get("current_map") == id, "animated entry " + id)
 		if state.get("current_map") != id:
@@ -94,7 +95,8 @@ func _run() -> void:
 				rig.set_process(true)
 			tested_kinds[kind] = true
 		world.call("_handle_interaction", "leave_house")
-		await create_timer(0.85).timeout
+		if not await wait_for_transition(state, "starbay"):
+			return
 		await settle()
 		check(state.get("current_map") == "starbay", "return city " + id)
 		check(player.position.distance_to(Houses.return_position(id)) < 0.15, "return same doorstep " + id)
@@ -109,3 +111,16 @@ func _run() -> void:
 	if failures == 0:
 		print("CITY_HOUSE_TEST_PASS 26_doors six_layouts collisions dialogue save return")
 	quit(0 if failures == 0 else 1)
+
+
+func wait_for_transition(state: Node, expected_map: String) -> bool:
+	# Door contact, travel, and arrival-door closing finish asynchronously.
+	# A fixed sleep can inspect the new map before player input is restored.
+	var deadline: int = Time.get_ticks_msec() + 12000
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if state.get("current_map") == expected_map and not state.call("is_input_locked"):
+			return true
+	push_error("CITY_HOUSE_TEST_FAIL transition timed out: " + expected_map)
+	quit(1)
+	return false
