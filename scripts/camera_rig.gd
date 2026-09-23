@@ -82,7 +82,7 @@ func set_dungeon(enabled: bool) -> void:
 		_pre_dungeon_fov = camera.fov
 		camera.fov = 38.0
 		_target_yaw = 0.0
-		_distance = 17.0
+		_distance = 20.0
 	else:
 		_target_yaw = _pre_dungeon_yaw
 		camera.fov = _pre_dungeon_fov
@@ -92,7 +92,7 @@ func set_dungeon(enabled: bool) -> void:
 func _exploration_focus() -> Vector3:
 	if _indoors:
 		return Vector3.ZERO
-	return _target.global_position + (Vector3(0, 0, -3.0).rotated(Vector3.UP, _target_yaw) if _dungeon else Vector3.ZERO)
+	return _target.global_position + (Vector3(0, 0, lerpf(-3.0, -4.5, smoothstep(8.0, 16.0, _target.position.z))).rotated(Vector3.UP, _target_yaw) if _dungeon else Vector3.ZERO)
 
 
 func set_interior(enabled: bool) -> void:
@@ -201,7 +201,7 @@ func _update_camera_local_position() -> void:
 	if _indoors:
 		# Preserve zoom and dialogue framing without shrinking distant people.
 		camera.size = shot_distance * 0.64
-	var elevation: float = lerpf(0.56, 0.40, shot_weight)
+	var elevation: float = lerpf(lerpf(0.56, 0.70, smoothstep(8.0, 16.0, _target.position.z)) if _dungeon else 0.56, 0.40, shot_weight)
 	camera.position = Vector3(0.0, shot_distance * elevation, shot_distance * 0.83)
 
 

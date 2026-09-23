@@ -5,6 +5,7 @@ signal map_presented
 
 const DoorInteraction = preload("res://scripts/gameplay/door_interaction.gd")
 const Starbay = preload("res://scripts/gameplay/starbay.gd")
+const CryptLayout = preload("res://scripts/gameplay/crypt_layout.gd")
 const Dungeon = preload("res://scripts/gameplay/ashen_crypt.gd")
 const Outskirts = preload("res://scripts/gameplay/outskirts.gd")
 
@@ -128,10 +129,14 @@ func _ready() -> void:
 		_test_mode = true
 		GameState.flags["intro_seen"] = true
 		_load_map("caravan_road", "from_road")
-	elif "--dungeon-preview" in OS.get_cmdline_user_args():
+	elif "--crypt-boss-preview" in OS.get_cmdline_user_args():
 		_test_mode = true
 		GameState.flags["intro_seen"] = true
 		_load_map("ashen_crypt", "entry")
+	elif "--dungeon-preview" in OS.get_cmdline_user_args():
+		_test_mode = true
+		GameState.flags["intro_seen"] = true
+		_load_map("ashen_crypt_1", "entry")
 	elif "--field-preview" in OS.get_cmdline_user_args():
 		_test_mode = true
 		GameState.flags["intro_seen"] = true
@@ -260,10 +265,10 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 	add_child(_map_root)
 	GameState.current_map = map_id
 	GameState.spawn_id = spawn_id
-	if map_id != "ashen_crypt":
+	if not CryptLayout.NAMES.has(map_id):
 		($CameraRig as Hd2dCameraRig).set_dungeon(false)
 	var indoors := HouseCatalog.is_interior(map_id)
-	player.set_presentation_scale(HouseCatalog.INTERIOR_CHARACTER_SCALE if indoors else 1.45 if map_id == "ashen_crypt" else 1.0)
+	player.set_presentation_scale(HouseCatalog.INTERIOR_CHARACTER_SCALE if indoors else 1.45 if CryptLayout.NAMES.has(map_id) else 1.0)
 	# Canvas background follows the scene color pipeline in both renderers.
 	# Compatibility's BG_COLOR + glow path lifts this dark clear color to purple.
 	_interior_backdrop.visible = indoors
@@ -293,8 +298,11 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 		_environment.fog_density = 0.006
 		if map_id in ["starbay", "moss_steps", "wind_gorge", "moon_highland"]:
 			_environment.ambient_light_energy = 0.58
-	elif map_id == "ashen_crypt":
-		Dungeon.build(self)
+	elif CryptLayout.NAMES.has(map_id):
+		if CryptLayout.is_floor(map_id):
+			Dungeon.build_floor(self, map_id)
+		else:
+			Dungeon.build(self)
 		_environment.background_color = Color("101317")
 		_environment.fog_light_color = Color("29282c")
 		_environment.fog_density = 0.004
@@ -316,7 +324,7 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 		($Moonlight as DirectionalLight3D).light_energy = 0.70
 		($Moonlight as DirectionalLight3D).light_color = Color("91b3ed")
 
-	($CameraRig as Hd2dCameraRig).set_dungeon(map_id == "ashen_crypt")
+	($CameraRig as Hd2dCameraRig).set_dungeon(CryptLayout.NAMES.has(map_id))
 	var target_position := _get_spawn_position(GameState.current_map, spawn_id)
 	if spawn_id == "saved_position" and GameState.has_saved_position:
 		target_position = GameState.saved_position
@@ -399,8 +407,8 @@ func _retain_map_materials() -> void:
 
 
 func _get_spawn_position(map_id: String, spawn_id: String) -> Vector3:
-	if map_id == "ashen_crypt":
-		return Vector3(0, 0.1, 8.8)
+	if CryptLayout.NAMES.has(map_id):
+		return CryptLayout.spawn(map_id, spawn_id)
 	if map_id == "east_road" and spawn_id == "from_crypt":
 		return Vector3(-8, 0.1, 1)
 	if map_id == "starbay" and spawn_id.begins_with("from_house_city_"):
@@ -755,6 +763,11 @@ func _close_arrival_door(home_id: String) -> void:
 
 func _handle_interaction(interaction_id: String) -> void:
 	if GameState.is_input_locked() or _portal_transition_pending:
+		return
+	if interaction_id in ["crypt_spring_1", "crypt_cache_2", "crypt_lore_1", "crypt_lore_2"]:
+		var lore: String = GameState.resolve_crypt_event(interaction_id)
+		if not lore.is_empty():
+			dialogue_ui.show_dialogue([{ "speaker": "墓窟遺跡", "text": lore }])
 		return
 	if interaction_id == "crypt_reliquary" and GameState.current_map == "ashen_crypt":
 		GameState.claim_crypt_reward()
@@ -2169,9 +2182,11 @@ func _refresh_hud() -> void:
 		_mini_map.visible = not fighting
 	get_node("HUD/ExplorationHearts").visible = not fighting
 	get_node("HUD/OpenMap").visible = not fighting
-	_controls_label.visible = not fighting
+	_controls_label.visible = not fighting and not CryptLayout.NAMES.has(GameState.current_map)
 	_quest_label.visible = not fighting
-	(_map_label.get_parent().get_parent() as Control).custom_minimum_size.x = 280.0 if fighting else 530.0
+	var info_panel := _map_label.get_parent().get_parent() as Control
+	info_panel.custom_minimum_size.x = 280.0 if fighting else 350.0 if CryptLayout.NAMES.has(GameState.current_map) else 530.0
+	info_panel.reset_size()
 	_update_village_gate_state()
 	_update_quest_markers()
 	if GameState.current_map == "east_road" and is_instance_valid(_map_root):
@@ -2182,8 +2197,8 @@ func _refresh_hud() -> void:
 	_map_label.text = "WANDERLIGHT  /  %s" % ("北境遺跡" if GameState.current_map == "ruins" else "暮光村")
 	if Outskirts.NAMES.has(GameState.current_map):
 		_map_label.text = "WANDERLIGHT  /  " + str(Outskirts.NAMES[GameState.current_map])
-	if GameState.current_map == "ashen_crypt":
-		_map_label.text = "WANDERLIGHT  /  灰燼墓窟"
+	if CryptLayout.NAMES.has(GameState.current_map):
+		_map_label.text = CryptLayout.NAMES[GameState.current_map]
 	if HouseCatalog.is_interior(GameState.current_map):
 		_map_label.text = "WANDERLIGHT  /  " + str(HouseCatalog.find_home(GameState.current_map).name)
 	_quest_label.text = GameState.get_quest_text()
@@ -2210,6 +2225,9 @@ func _update_mini_map_targets() -> void:
 				main_target_visible = true
 		optional_target_position = Vector3(6.4, 0.0, 4.2)
 		optional_target_visible = not bool(GameState.flags.get("rumi_tip_seen", false))
+	elif CryptLayout.is_floor(GameState.current_map):
+		main_target_position = Vector3(0, 0, 11.8)
+		main_target_visible = true
 	elif GameState.current_map == "ashen_crypt":
 		optional_target_position = Vector3(0, 0, -9)
 		optional_target_visible = not bool(GameState.flags.get("crypt_cleared", false))
@@ -2545,5 +2563,5 @@ func _on_map_destination(point: Dictionary) -> void:
 func _map_destination_title(target: Interactable3D) -> String:
 	if Outskirts.EXITS.has(target.interaction_id):
 		var destination: String = Outskirts.EXITS[target.interaction_id][1]
-		return "前往・" + str(Outskirts.NAMES.get(destination, "灰燼墓窟" if destination == "ashen_crypt" else "暮光村"))
+		return "前往・" + str(Outskirts.NAMES.get(destination, CryptLayout.NAMES.get(destination, "暮光村")))
 	return target.prompt_text

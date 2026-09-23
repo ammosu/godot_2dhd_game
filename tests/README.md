@@ -672,13 +672,15 @@ godot --path . --script tests/door_action_art_test.gd -- --capture-dir=/absolute
 ## Ashen Crypt dungeon
 
 ```bash
-godot --headless --path . --rendering-method forward_plus --script tests/ashen_crypt_test.gd
-godot --headless --path . --rendering-method gl_compatibility --script tests/ashen_crypt_test.gd
+godot --headless --fixed-fps 60 --path . --rendering-method forward_plus --script tests/ashen_crypt_test.gd
+godot --headless --fixed-fps 60 --path . --rendering-method gl_compatibility --script tests/ashen_crypt_test.gd
 ```
 
-Expected: `ASHEN_CRYPT_TEST_PASS entrance navigation collision combat reward loot save return recovery`.
+Expected: `ASHEN_CRYPT_TEST_PASS two_floors two_routes branches portals boss phases dodge reward save migration recovery`.
 
-Uses a PID-specific `user://ashen_crypt_test_*.json`, removed on success. Covers real entry/return interactions, five enemies, navigation through the nave, capsule/altar collision, attacks blocked by piers, real skill strike kills, gated one-time reward, cross-map loot isolation, save/load without respawning defeated guards, and defeat recovery/camera reset. No normal player save is read or overwritten. Also rerun `tests/field_combat_test.gd` after changes to the shared combat/navigation configuration.
+The test physically walks both independent routes on each floor while blocking the opposite route in the navigation graph, visits both side rooms, crosses the full B1 → B2 → boss → B2 → B1 → road chain without arrival bounce, checks one-use healing/supplies, saves and loads both floors, exercises boss hit/dodge/locked-target escape/enrage/anti-stunlock, kills through the actual player skill, verifies one-time rewards and no boss respawn, and checks v4 safe-spawn/loot migration. Uses and removes PID-specific `user://ashen_crypt_test_*.json`; never touches normal saves. Also run `field_combat_test.gd` and `field_auto_battle_test.gd` for shared combat and radius-aware evasion.
+
+Boss 全域招式回歸包含：擴散火環的遠距掃掠碰撞、單波僅命中一次、閃避與自動閃避時機、分批血晶落地判定、落點間隙、自動尋找空隙、選單暫停飛行中的技能，以及死亡取消未落地技能。視覺需在 Forward+ 與 Compatibility 檢查火環、餘燼、落點預警與切面血晶；Web 匯出不依賴螢幕空間特效。
 
 戰鬥 HUD 回歸：`tests/action_battle_ui_test.gd` 另檢查右上隊伍資訊與右下圓弧技能區不重疊、隊員血量同步，以及戰鬥時隱藏小地圖。使用有視窗的 Forward+／Compatibility 執行時，另輸出 `/tmp/wanderlight-battle-effects-<renderer>.png`，供斬擊、霜爆與治療特效檢查。
 
@@ -689,3 +691,13 @@ Uses a PID-specific `user://ashen_crypt_test_*.json`, removed on success. Covers
 手機對話點擊：`godot --headless --path . --script tests/dialogue_touch_test.gd`，成功標記 `DIALOGUE_TOUCH_TEST_PASS`。透過 viewport 實際分派事件，驗證點擊說話者、內文、繼續提示、框內邊距與背景（含底層阻擋 UI）均只前進一頁；放開／取消不翻頁、Space 仍可繼續、最後一頁正常關閉。此為輸入回歸測試，尚不代表手機瀏覽器實機驗收。
 
 野外／地下城角色比例：`tests/field_combat_test.gd` 另驗證四向、四種裝備與一般／地下城縮放下，待機、走路、起手、攻擊與閃避使用同一動作圖集及固定比例，腳底保持接地；站立基準與探索角色身高一致。戰鬥區域採用動作圖集的四向行走，離開後恢復探索的八向行走。
+
+### Enemy eight-direction movement
+
+`godot --headless --path . --script tests/enemy_movement_test.gd`
+
+Checks all five species' eight camera-relative headings and independent step regions,
+transparent source art, ground metadata, camera rotation, turn hysteresis, and fallback
+to existing combat/equipment art. New original atlases and generation prompts live in
+`assets/generated/enemy_movement/`; regenerate metadata with
+`python3 tools/art/inspect_enemy_movement.py`.

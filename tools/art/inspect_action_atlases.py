@@ -11,7 +11,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[2] / 'assets/generated/action'
 
 
-def measure(path):
+def measure(path, expected=None, columns=6, expand_bat=True):
     image = Image.open(path).convert('RGBA')
     width, height = image.size
     alpha = image.getchannel('A').tobytes()
@@ -40,13 +40,14 @@ def measure(path):
                             stack.append(neighbor)
         if count > 500:
             boxes.append([x0, y0, x1 - x0 + 1, y1 - y0 + 1])
-    expected = 24 if path.stem == "dusk_bat" else 48
+    if expected is None:
+        expected = 24 if path.stem == "dusk_bat" else 48
     if len(boxes) != expected:
         raise ValueError(f'{path.name}: expected {expected} separate sprites, found {len(boxes)}; inspect before accepting')
     boxes.sort(key=lambda box: box[1] + box[3])
     frames = []
-    for row in range(expected // 6):
-        entries = sorted(boxes[row * 6:(row + 1) * 6], key=lambda box: box[0] + box[2] / 2)
+    for row in range(expected // columns):
+        entries = sorted(boxes[row * columns:(row + 1) * columns], key=lambda box: box[0] + box[2] / 2)
         for box in entries:
             x, y, w, h = box
             # Ground contact center from the lowest body pixels, rather than
@@ -55,7 +56,7 @@ def measure(path):
                     for xx in range(x, x + w) if alpha[yy * width + xx] > 100]
             anchor_x = round((min(feet) + max(feet)) / 2 - x, 2)
             frames.append(box + [anchor_x])
-    if path.stem == "dusk_bat":
+    if path.stem == "dusk_bat" and expand_bat:
         # Six distinct poses per facing, reused by the common 12-pose interface.
         mapping = [0, 1, 2, 1, 3, 0, 1, 3, 2, 0, 4, 5]
         frames = [frames[facing * 6 + pose] for facing in range(4) for pose in mapping]

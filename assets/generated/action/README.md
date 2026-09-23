@@ -2,7 +2,7 @@
 
 Original project-owned images generated with the built-in ImageGen tool on 2026-09-22. No new third-party assets. Reference art is the existing original `assets/generated` cast. Source PNGs are preserved with genuine alpha; Python only measures regions and never edits the images.
 
-Six base sheets and nine current equipment variants, each containing 48 key poses (four cardinal facings × twelve poses). This is a key-pose animation set, not a high-frame-count motion-capture or eight-direction animation set. Exploration retains its existing eight-direction traveler walking.
+Six base sheets and nine current equipment variants, each containing 48 key poses (four cardinal facings × twelve poses). This is the four-facing combat key-pose set. Enemy idle and locomotion now use the separate eight-direction atlases in `../enemy_movement/`; attacks, hits, and defeat still use this set. Exploration retains its existing eight-direction traveler walking.
 
 Pose order per facing: idle, walk A, walk B, windup, contact, recovery, casting gather, casting release, dodge crouch, dodge step, hurt, defeated. Facing order: front, right, back, left. Wolf right-facing uses a horizontal flip of its side row. Several attacking/recoiling poses twist the torso or head, while feet retain the selected facing.
 

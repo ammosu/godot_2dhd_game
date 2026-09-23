@@ -1,13 +1,8 @@
 extends RefCounted
 ## Original modular dungeon: real floor/wall collision, open sightlines, existing field combat.
+const Layout = preload("res://scripts/gameplay/crypt_layout.gd")
+const Maze = preload("res://scripts/gameplay/crypt_maze.gd")
 const MATERIAL_PATH: String = "res://assets/generated/dungeon/crypt_materials.png"
-const SPAWNS: Array[Dictionary] = [
-	{"id": "crypt_bat_entry", "at": Vector3(-2, 0.05, 3), "caster": false, "art": "dusk_bat"},
-	{"id": "crypt_wolf_west", "at": Vector3(-3, 0.05, -0.5), "caster": false},
-	{"id": "crypt_wolf_east", "at": Vector3(3, 0.05, -2), "caster": false},
-	{"id": "crypt_mage_west", "at": Vector3(-3, 0.05, -6), "caster": true},
-	{"id": "crypt_mage_altar", "at": Vector3(2, 0.05, -8), "caster": true},
-]
 
 static func material(quadrant: Vector2, density: float = 0.32, panel: bool = false) -> ShaderMaterial:
 	var result := ShaderMaterial.new()
@@ -138,15 +133,17 @@ static func build_entrance(world: Node3D) -> void:
 	var stone := material(Vector2(1, 0), 0.5)
 	var detail := material(Vector2(0, 1), 1, true)
 	arch(root, Vector3(-8, 0, -1.8), 2.5, stone)
-	box(root, Vector3(-8, 1.6, -2.25), Vector3(2.45, 3.2, 0.18), material(Vector2(1, 0)), true, "CryptDoor")
+	Maze.portal(world, Vector3(-8, 0, -1.8), "enter_crypt")
 	for side: float in [-1, 1]:
 		brazier(root, Vector3(-8 + side * 2.25, 0, -0.8), stone, detail)
-	interaction(world, "enter_crypt", "進入・灰燼墓窟（地下城）", Vector3(-8, 0, -0.7))
+
 
 static func build(world: Node3D) -> void:
 	var root: Node3D = world.get("_map_root")
 	var stone := material(Vector2(1, 0), 0.22)
+	stone.set_shader_parameter("dampness", 0.8)
 	var floor_stone := material(Vector2.ZERO, 0.25)
+	floor_stone.set_shader_parameter("dampness", 0.65)
 	floor_stone.set_shader_parameter("tint", Color(0.87, 0.94, 1.12))
 	var detail := material(Vector2(0, 1), 1, true)
 	var cloth := material(Vector2(1, 1), 1, true)
@@ -233,25 +230,26 @@ static func build(world: Node3D) -> void:
 			continue
 		var fragment := box(root, at, Vector3(rng.randf_range(0.08, 0.27), 0.08, rng.randf_range(0.1, 0.34)), stone, false, "FallenMasonry")
 		fragment.rotation.y = rng.randf_range(0, TAU)
-	interaction(world, "leave_crypt", "離開墓窟・返回東行舊道", Vector3(0, 0, 10))
+	Maze.portal(world, Vector3(0, 0, 10), "crypt_boss_return")
 	interaction(world, "crypt_reliquary", "調查・血晶祭壇", Vector3(0, 0, -9.25))
 	# The southern entry has cut-away piers so its arch cannot cover gameplay.
 	for x: float in [-2.15, 2.15]:
 		box(root, Vector3(x, 0.6, 10.7), Vector3(0.8, 1.2, 0.9), stone, true, "ExitPier")
-	box(root, Vector3(0, 0.45, 11.05), Vector3(3.5, 0.9, 0.2), stone, true, "ExitThreshold")
-	var field := preload("res://scripts/gameplay/field_combat.gd").new()
+
+	var field := preload("res://scripts/gameplay/crypt_boss_combat.gd").new()
 	field.name = "FieldCombat"
 	field.player = world.get_node("Player")
-	field.spawn_list = SPAWNS.duplicate(true)
+	field.spawn_list = [{"id": Layout.BOSS_ID, "at": Vector3(0, 0.05, -5), "caster": false, "art": "guardian"}]
 	field.build_terrain = false
 	field.compact_hud = true
-	field.camera_distance = 17.0
+	field.camera_distance = 20.0
 	field.area_title = "灰燼墓窟"
 	field.recovery_map = "east_road"
 	field.recovery_spawn = "from_crypt"
 	field.navigation.origin = Vector2(-8.5, -12)
 	field.navigation.grid_size = Vector2i(35, 46)
 	root.add_child(field)
+	preload("res://scripts/gameplay/crypt_dampness.gd").build(world, world.get_node("/root/GameState").current_map)
 
 static func effigy(parent: Node3D, at: Vector3, stone: Material) -> void:
 	# One batched carved effigy per lid; small rounded ribs and articulated limbs.
@@ -335,17 +333,17 @@ static func banner(parent: Node3D, at: Vector3, cloth: Material) -> void:
 		var stitch := box(parent, at + offset, Vector3(0.028, 0.24, 0.022), gold, false, "BannerSigil")
 		stitch.rotation.z = -angle + PI / 4.0
 
-static func flagstones(parent: Node3D, surface: Material) -> void:
+static func flagstones(parent: Node3D, surface: Material, start_z: float = -12.5, rows: int = 19, half_width: float = 9.0) -> void:
 	# One batched mesh: bevelled chipped slabs with deliberate broad tonal variation.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 73092
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for row: int in range(19):
-		var z: float = -12.5 + row * 1.25
-		var x: float = -9.0
-		while x < 8.95:
-			var width: float = minf(rng.randf_range(1.2, 2.2), 9.0 - x)
+	for row: int in range(rows):
+		var z: float = start_z + row * 1.25
+		var x: float = -half_width
+		while x < half_width - 0.05:
+			var width: float = minf(rng.randf_range(1.2, 2.2), half_width - x)
 			if width < 0.1:
 				break
 			var height: float = rng.randf_range(0.025, 0.05)
@@ -423,3 +421,29 @@ static func urn(parent: Node3D, at: Vector3, stone: Material) -> void:
 	collider.shape = shape
 	collider.position.y = 0.425
 	body.add_child(collider)
+
+
+static func build_floor(world: Node3D, id: String) -> void:
+	var root: Node3D = world.get("_map_root")
+	var second: bool = id == "ashen_crypt_2"
+	var stone := material(Vector2(1, 0), 0.22)
+	stone.set_shader_parameter("dampness", 0.8)
+	var floor_stone := material(Vector2.ZERO, 0.25)
+	floor_stone.set_shader_parameter("dampness", 0.65)
+	stone.set_shader_parameter("tint", Color(0.76, 0.83, 1.05) if second else Color.WHITE)
+	floor_stone.set_shader_parameter("tint", Color(0.78, 0.87, 1.15) if second else Color(0.87, 0.94, 1.12))
+	Maze.build(world, stone, floor_stone, material(Vector2(0, 1), 1, true), second)
+	var field := preload("res://scripts/gameplay/field_combat.gd").new()
+	field.name = "FieldCombat"
+	field.player = world.get_node("Player")
+	field.spawn_list.assign(Layout.FLOOR_SPAWNS[id].duplicate(true))
+	field.build_terrain = false
+	field.compact_hud = true
+	field.camera_distance = 20.0
+	field.area_title = Layout.NAMES[id]
+	field.recovery_map = "east_road"
+	field.recovery_spawn = "from_crypt"
+	field.navigation.origin = Vector2(-14, 11.5)
+	field.navigation.grid_size = Vector2i(57, 48)
+	root.add_child(field)
+	preload("res://scripts/gameplay/crypt_dampness.gd").build(world, world.get_node("/root/GameState").current_map)

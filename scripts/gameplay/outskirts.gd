@@ -4,8 +4,12 @@ extends RefCounted
 const Mountains = preload("res://scripts/gameplay/mountain_maps.gd")
 const NAMES := {"moss_steps": "苔階山徑", "wind_gorge": "風切峽道", "moon_highland": "月冠高地", "east_road": "東行舊道", "firefly_forest": "螢光森林", "caravan_road": "風丘商道", "starbay": "星灣城"}
 const EXITS := {
-	"enter_crypt": ["east_road", "ashen_crypt", "entry"],
-	"leave_crypt": ["ashen_crypt", "east_road", "from_crypt"],
+	"enter_crypt": ["east_road", "ashen_crypt_1", "entry"],
+	"leave_crypt": ["ashen_crypt_1", "east_road", "from_crypt"],
+	"crypt_descend": ["ashen_crypt_1", "ashen_crypt_2", "entry"],
+	"crypt_ascend": ["ashen_crypt_2", "ashen_crypt_1", "from_below"],
+	"crypt_boss_door": ["ashen_crypt_2", "ashen_crypt", "entry"],
+	"crypt_boss_return": ["ashen_crypt", "ashen_crypt_2", "from_below"],
 	"forest_to_mountain": ["firefly_forest", "moss_steps", "from_base"],
 	"mountain_to_forest": ["moss_steps", "firefly_forest", "from_mountain"],
 	"mountain_to_gorge": ["moss_steps", "wind_gorge", "from_base"],

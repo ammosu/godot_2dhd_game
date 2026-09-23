@@ -1,9 +1,21 @@
 extends RefCounted
 ## Four camera-relative facings, measured RGBA regions; presentation only.
 const Appearance = preload("res://scripts/gameplay/equipment_appearance.gd")
+const Movement = preload("res://scripts/gameplay/enemy_movement_art.gd")
 const DATA: Dictionary = preload("res://assets/generated/action/regions.gd").DATA
 const POSES: Array[String] = ["idle", "walk_a", "walk_b", "windup", "attack", "recover", "cast", "release", "dodge_a", "dodge_b", "hurt", "defeated"]
 static var _cache: Dictionary[String, AtlasTexture] = {}
+
+static func directional_texture(actor: String, pose_name: String, screen: Vector2, sprite: Sprite3D, loadout: Dictionary = {}) -> AtlasTexture:
+	if Movement.supports(actor, pose_name):
+		var previous: int = int(sprite.get_meta("movement_facing", -1))
+		var facing: int = Movement.direction(screen, previous)
+		sprite.set_meta("movement_facing", facing)
+		return Movement.texture_for(actor, pose_name, facing)
+	# Re-enter locomotion from the actual heading after an attack or hit.
+	if sprite.has_meta("movement_facing"):
+		sprite.remove_meta("movement_facing")
+	return texture_for(actor, pose_name, direction(screen), loadout)
 
 static func direction(facing: Vector2) -> int:
 	if absf(facing.y) > absf(facing.x):
@@ -52,5 +64,6 @@ static func texture_for(actor: String, pose_name: String, facing: int, loadout: 
 	texture.set_meta("pose", pose_name)
 	texture.set_meta("facing", facing)
 	texture.set_meta("variant", variant)
+	texture.set_meta("flip_h", actor == "moss_wolf" and facing == 1)
 	_cache[key] = texture
 	return texture

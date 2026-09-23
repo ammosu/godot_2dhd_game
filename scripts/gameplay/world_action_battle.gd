@@ -264,15 +264,13 @@ func refresh(delta: float) -> void:
 		var motion: Vector2 = Vector2(actor.position) - _last_positions[index]
 		var facing: Vector2 = Facing.screen_direction(Vector3(actor.facing.x, 0, actor.facing.y), camera)
 		var pose: String = Art.pose(actor, motion.length() > 0.002, _clock)
-		var direction: int = Art.direction(facing)
-		var art: AtlasTexture = Art.texture_for(str(actor.art), pose, direction, GameState.get_loadout(str(actor.art)) if index < 3 else {})
+		var art: AtlasTexture = Art.directional_texture(str(actor.art), pose, facing, sprites[index], GameState.get_loadout(str(actor.art)) if index < 3 else {})
 		poses[index] = pose
 		sprites[index].texture = art
 		sprites[index].pixel_size = float(art.get_meta("pixel_size"))
 		Grounding.anchor(sprites[index], art, float(art.get_meta("ground_y")))
 		sprites[index].offset.x = art.get_width() * 0.5 - float(art.get_meta("anchor_x"))
-		# Wolf side rows were both authored facing left; orient the right row.
-		sprites[index].flip_h = index == 4 and direction == 1
+		sprites[index].flip_h = bool(art.get_meta("flip_h", false))
 		if sprites[index].flip_h:
 			sprites[index].offset.x *= -1.0
 		_last_positions[index] = actor.position

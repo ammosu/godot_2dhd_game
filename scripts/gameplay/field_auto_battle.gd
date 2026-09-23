@@ -24,11 +24,13 @@ func direction(field: Node3D, delta: float) -> Vector3:
 		return Vector3.ZERO
 	if use_potions and GameState.player_hp <= GameState.player_max_hp * 0.3:
 		field.perform("potion", true)
+	if field.has_method("has_global_cast") and field.has_global_cast():
+		return field.global_escape_direction(at)
 	# Time the invulnerable burst against the enemy's announced impact.
 	for enemy: Dictionary in field.enemies:
 		if enemy.hp <= 0 or enemy.windup <= 0 or enemy.windup > 0.24:
 			continue
-		if at.distance_to(enemy.aim) < (1.5 if enemy.caster else 1.3):
+		if at.distance_to(enemy.aim) < float(enemy.get("radius", 1.5 if enemy.caster else 1.3)) + 0.2:
 			var away: Vector3 = (at - enemy.aim) * Vector3(1, 0, 1)
 			field.facing = away.normalized() if away.length() > 0.05 else Vector3.LEFT
 			if field.perform("dodge", true):

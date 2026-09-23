@@ -353,7 +353,7 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 	body.velocity.z = movement.z * (float(enemy.speed) if enemy.state == "chase" else 1.1)
 	body.velocity.y = -0.5 if body.is_on_floor() else body.velocity.y - 18.0 * delta
 	body.move_and_slide()
-	var pose: String = "hurt" if float(enemy.hurt) > 0 else "cast" if enemy.caster and float(enemy.windup) > 0 else "windup" if float(enemy.windup) > 0 else "attack" if float(enemy.swing) > 0 else ("walk_a" if int(clock * 8) % 2 == 0 else "walk_b") if not movement.is_zero_approx() else "idle"
+	var pose: String = "hurt" if float(enemy.hurt) > 0 else "cast" if enemy.caster and float(enemy.windup) > 0 else "windup" if float(enemy.windup) > 0 else "attack" if float(enemy.swing) > 0 else Art.Movement.walk_pose(clock + float(enemy.home.x) * 0.17 + float(enemy.home.z) * 0.11) if not movement.is_zero_approx() else "idle"
 	if enemy.art == "dusk_bat" and pose == "idle":
 		pose = ["walk_a", "idle", "walk_b", "idle"][int(clock * 10.0) % 4]
 	_art(enemy.sprite, enemy.art, pose, enemy.facing)
@@ -425,7 +425,7 @@ func _sprite(parent: Node3D) -> Sprite3D:
 func _art(sprite: Sprite3D, actor: String, pose: String, direction: Vector3) -> void:
 	var screen: Vector2 = Facing.screen_direction(direction, get_viewport().get_camera_3d())
 	var column: int = Art.direction(screen)
-	var texture: AtlasTexture = Art.texture_for(actor, pose, column, GameState.equipped if actor == "wanderer" else {})
+	var texture: AtlasTexture = Art.directional_texture(actor, pose, screen, sprite, GameState.equipped if actor == "wanderer" else {})
 	sprite.texture = texture
 	sprite.pixel_size = float(texture.get_meta("pixel_size"))
 	if actor == "wanderer":
@@ -433,7 +433,7 @@ func _art(sprite: Sprite3D, actor: String, pose: String, direction: Vector3) -> 
 		sprite.pixel_size = float(player.call("presentation_height")) / float(standing.get_height())
 	Grounding.anchor(sprite, texture, float(texture.get_meta("ground_y")))
 	sprite.offset.x = texture.get_width() * 0.5 - float(texture.get_meta("anchor_x"))
-	sprite.flip_h = actor == "moss_wolf" and column == 1
+	sprite.flip_h = bool(texture.get_meta("flip_h", false))
 	if sprite.flip_h:
 		sprite.offset.x *= -1
 

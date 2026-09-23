@@ -8,6 +8,8 @@ var _hovered_destination: Dictionary = {}
 var destinations: Array[Dictionary] = []
 var navigation_path := PackedVector3Array()
 
+const CryptLayout = preload("res://scripts/gameplay/crypt_layout.gd")
+const CryptMaze = preload("res://scripts/gameplay/crypt_maze.gd")
 const Starbay = preload("res://scripts/gameplay/starbay.gd")
 const Outskirts = preload("res://scripts/gameplay/outskirts.gd")
 const HouseCatalog = preload("res://scripts/gameplay/house_catalog.gd")
@@ -191,8 +193,13 @@ func _draw_region_labels() -> void:
 			_draw_place_name(Vector3(0, 0, 13), "暮光村 ↓")
 			_draw_place_name(Vector3(-9, 0, 3), "石碑")
 			_draw_place_name(Vector3(9, 0, -2), "月泉")
+		"ashen_crypt_1", "ashen_crypt_2":
+			_draw_place_name(Vector3(0, 0, 12), "王座 ↓" if _map_id == "ashen_crypt_2" else "B2 ↓")
+			_draw_place_name(CryptLayout.return_point(_map_id), "B1 ↑" if _map_id == "ashen_crypt_2" else "舊道 ↑")
+			_draw_place_name(Vector3(-12, 0, 26), "書庫" if _map_id == "ashen_crypt_2" else "月露泉")
+			_draw_place_name(Vector3(12, 0, 26), "庫房" if _map_id == "ashen_crypt_2" else "銘文室")
 		"ashen_crypt":
-			_draw_place_name(Vector3(0, 0, 9), "東行舊道 ↓")
+			_draw_place_name(Vector3(0, 0, 10), "B2 ↑")
 			_draw_place_name(Vector3(0, 0, -10), "血晶祭壇")
 		"east_road":
 			_draw_place_name(Vector3(-8, 0, -1), "灰燼墓窟")
@@ -220,8 +227,8 @@ func _draw_panel() -> void:
 
 	var font := get_theme_default_font()
 	var title := "暮光村" if _map_id == "village" else "北境遺跡"
-	if _map_id == "ashen_crypt":
-		title = "灰燼墓窟"
+	if CryptLayout.NAMES.has(_map_id):
+		title = "B1・燭火迴廊" if _map_id == "ashen_crypt_1" else "B2・沉灰牢廊" if _map_id == "ashen_crypt_2" else "燼冠王座"
 	if Outskirts.NAMES.has(_map_id):
 		title = str(Outskirts.NAMES[_map_id])
 	if HouseCatalog.is_interior(_map_id):
@@ -325,6 +332,11 @@ func _draw_map_geometry() -> void:
 		for at: Vector3 in Outskirts.Mountains.route(_map_id):
 			mountain_path.append(_world_to_map(at))
 		_draw_path(mountain_path, 4.8)
+	elif CryptLayout.is_floor(_map_id):
+		_draw_world_rect(Rect2(-14.5, 11, 29, 25), Color("625d73"))
+		for wall: Rect2 in CryptMaze.walls(_map_id == "ashen_crypt_2"):
+			_draw_world_rect(wall, Color("24232d"))
+		draw_circle(_world_to_map(Vector3(0, 0, 11.8)), 4, EXIT_COLOR)
 	elif _map_id == "ashen_crypt":
 		_draw_world_rect(Rect2(-9, -12.5, 18, 23), Color("363237"))
 		_draw_world_rect(Rect2(-5, -12, 10, 22), Color("625d73"))
@@ -384,6 +396,8 @@ func _draw_exit_marker() -> void:
 		exit_position = Vector3(0, 0, 2.95)
 	if _map_id == "ashen_crypt":
 		exit_position = Vector3(0, 0, 10)
+	if CryptLayout.is_floor(_map_id):
+		exit_position = CryptLayout.return_point(_map_id)
 	if _map_id == "east_road":
 		exit_position = Vector3(-14, 0, 5)
 	elif _map_id == "firefly_forest":
@@ -432,6 +446,8 @@ func _draw_player_marker(center: Vector2) -> void:
 func get_world_bounds() -> Rect2:
 	if _map_id == "ashen_crypt":
 		return Rect2(-9.5, -13, 19, 24)
+	if CryptLayout.is_floor(_map_id):
+		return Rect2(-15, 10, 30, 26)
 	var bounds := VILLAGE_BOUNDS if _map_id == "village" else RUINS_BOUNDS
 	if HouseCatalog.is_interior(_map_id):
 		bounds = INTERIOR_BOUNDS

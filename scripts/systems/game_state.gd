@@ -7,7 +7,7 @@ signal notification_requested(message: String)
 enum Mode { EXPLORE, DIALOGUE, BATTLE, EQUIPMENT, TRANSITION, MAP }
 enum QuestState { NOT_STARTED, ACTIVE, READY_TO_TURN_IN, COMPLETE }
 
-const SAVE_VERSION := 4
+const SAVE_VERSION := 5
 const PartyEquipment = preload("res://scripts/systems/party_equipment.gd")
 const SAVE_PATH := "user://wanderlight_save.json"
 const BASE_ATTACK := 14
@@ -325,8 +325,12 @@ func complete_quest() -> void:
 
 
 func get_quest_text() -> String:
+	if current_map == "ashen_crypt_1":
+		return "B1・探索左右環路與側室 → 北端下降 B2"
+	if current_map == "ashen_crypt_2":
+		return "B2・穿越沉灰牢廊 → 北端燼冠王座"
 	if current_map == "ashen_crypt":
-		return "墓窟已淨化・南側拱門返回東行舊道" if flags.get("crypt_cleared", false) else "地下城：擊敗五名守衛，調查北側血晶祭壇"
+		return "墓窟已淨化・沿南側傳送門返回" if flags.get("crypt_cleared", false) else "擊敗燼冠典獄長・維爾莫 → 調查血晶祭壇"
 	if current_map.begins_with("house_city_"):
 		return "拜訪屋主、查看屋內陳設；南側門口可返回星灣城。"
 	if current_map == "caravan_road":
@@ -417,7 +421,7 @@ func load_game(path: String = SAVE_PATH, announce: bool = true) -> bool:
 		return false
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	file.close()
-	if not parsed is Dictionary or int(parsed.get("version", 0)) not in [1, 2, 3, SAVE_VERSION]:
+	if not parsed is Dictionary or int(parsed.get("version", 0)) not in [1, 2, 3, 4, SAVE_VERSION]:
 		if announce:
 			notification_requested.emit("存檔格式不相容")
 		return false
@@ -524,6 +528,17 @@ func _apply_save(data: Dictionary) -> void:
 	else:
 		has_saved_position = false
 
+	# v5 splits the old combined dungeon into two floors and a boss room.
+	if int(data.get("version", 1)) < 5:
+		if current_map == "ashen_crypt":
+			current_map = "ashen_crypt_1"
+			spawn_id = "entry"
+			has_saved_position = false
+		for floor_id: String in preload("res://scripts/gameplay/crypt_layout.gd").FLOOR_SPAWNS:
+			for spawn: Dictionary in preload("res://scripts/gameplay/crypt_layout.gd").FLOOR_SPAWNS[floor_id]:
+				if field_loot.has(spawn.id):
+					field_loot[spawn.id].position = [spawn.at.x, spawn.at.y, spawn.at.z]
+
 
 func resolve_outskirts_event(event_id: String) -> String:
 	var event_maps := {"road_sign": "east_road", "road_traveler": "east_road", "forest_parcel": "firefly_forest", "forest_herb": "firefly_forest", "forest_rest": "firefly_forest"}
@@ -603,13 +618,31 @@ func claim_crypt_reward() -> bool:
 	if bool(flags.get("crypt_cleared", false)):
 		notification_requested.emit("灰燼墓窟已淨化・獎勵已領取")
 		return false
-	for id: String in ["crypt_bat_entry", "crypt_wolf_west", "crypt_wolf_east", "crypt_mage_west", "crypt_mage_altar"]:
-		if not field_defeated.has(id):
-			notification_requested.emit("祭壇仍受守衛封印・先擊敗墓窟中的五名敵人")
-			return false
+	if not field_defeated.has("crypt_ash_warden"):
+		notification_requested.emit("血晶仍受典獄長封印・先擊敗維爾莫")
+		return false
 	flags["crypt_cleared"] = true
 	inventory["potion"] = int(inventory.get("potion", 0)) + 3
 	inventory["moon_moss"] = int(inventory.get("moon_moss", 0)) + 2
 	state_changed.emit()
 	notification_requested.emit("灰燼墓窟淨化！藥水 ×3・月苔 ×2")
 	return true
+
+
+func resolve_crypt_event(id: String) -> String:
+	var map_ids := {"crypt_spring_1": "ashen_crypt_1", "crypt_lore_1": "ashen_crypt_1", "crypt_cache_2": "ashen_crypt_2", "crypt_lore_2": "ashen_crypt_2"}
+	if mode != Mode.EXPLORE or map_ids.get(id, "") != current_map:
+		return ""
+	if id.begins_with("crypt_lore"):
+		flags[id] = true
+		state_changed.emit()
+		return "典獄長維爾莫曾守護墓窟。他將最後的月光封入胸前血晶，如今只記得阻止生者。" if id == "crypt_lore_1" else "銘文：斧刃升起時退開；赤焰鎖定後離開原地。血晶半碎之時，典獄長將失去最後的理智。"
+	if flags.get(id, false):
+		return "泉水已沉寂。" if id == "crypt_spring_1" else "補給箱已經空了。"
+	flags[id] = true
+	if id == "crypt_spring_1":
+		restore_player()
+	else:
+		inventory["potion"] = int(inventory.get("potion", 0)) + 2
+	state_changed.emit()
+	return "月露泉恢復了生命與魔力。" if id == "crypt_spring_1" else "獲得守衛留下的藥水 ×2。"
