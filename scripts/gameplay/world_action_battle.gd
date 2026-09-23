@@ -4,6 +4,7 @@ const Grounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 const Ring = preload("res://scripts/gameplay/combat_ground_ring.gd")
 const Facing = preload("res://scripts/gameplay/eight_way_facing.gd")
 const Art = preload("res://scripts/gameplay/action_sprite_library.gd")
+const Presentation = preload("res://scripts/gameplay/enemy_presentation.gd")
 const HealthBar = preload("res://scripts/gameplay/world_health_bar.gd")
 const Effects = preload("res://scripts/gameplay/world_combat_effect.gd")
 const COURT := Rect2(-8.0, -13.0, 16.0, 14.0)
@@ -16,6 +17,7 @@ var reward_position := Vector3.ZERO
 var bodies: Array[CharacterBody3D] = []
 var sprites: Array[Sprite3D] = []
 var labels: Array[Label3D] = []
+var enemy_presentations: Array[Node3D] = []
 var health_bars: Array[Node3D] = []
 var warnings: Array[MeshInstance3D] = []
 var warning_labels: Array[Label3D] = []
@@ -114,8 +116,14 @@ func setup(model: RefCounted, traveler: CharacterBody3D, camera_rig: Node3D, ori
 		var health_bar := HealthBar.new()
 		body.add_child(health_bar)
 		health_bar.position.y = label.position.y - 0.24
-		health_bar.configure(index >= 3)
+		health_bar.configure(index >= 3, str(actor.art))
 		health_bars.append(health_bar)
+		var presentation: Node3D = null
+		if index >= 3:
+			presentation = Presentation.new()
+			body.add_child(presentation)
+			presentation.setup(body, str(actor.art), sprite, label, health_bar)
+		enemy_presentations.append(presentation)
 		var warning := Ring.new()
 		warning.configure(1.0, Color("ff746a"), 0.10)
 		add_child(warning)
@@ -270,8 +278,10 @@ func refresh(delta: float) -> void:
 		_last_positions[index] = actor.position
 		_update_charge(index, actor, facing)
 		sprites[index].modulate = Color("737a8c") if int(actor.hp) <= 0 else Color(2.2, 2.2, 2.2) if float(actor.hurt) > 0.10 else Color("b2efff") if float(actor.invulnerable) > 0 else Color.WHITE
+		if enemy_presentations[index] != null:
+			enemy_presentations[index].advance(_clock, pose, float(actor.hurt), float(actor.windup), float(actor.swing))
 		labels[index].text = ("▶ " if index == int(session.controlled) else "") + str(actor.name)
-		labels[index].modulate = Color("a5eaff") if index == int(session.controlled) else Color("ffd4c6") if index >= 3 else Color.WHITE
+		labels[index].modulate = Color("a5eaff") if index == int(session.controlled) else Color("f4e7cf") if index >= 3 else Color.WHITE
 		labels[index].visible = int(actor.hp) > 0
 		health_bars[index].set_health(int(actor.hp), int(actor.max_hp))
 		selections[index].visible = int(actor.hp) > 0 and (index == int(session.controlled) or float(actor.ward) > 0.0)

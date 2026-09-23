@@ -6,6 +6,7 @@ const Navigation = preload("res://scripts/gameplay/field_navigation.gd")
 const Art = preload("res://scripts/gameplay/action_sprite_library.gd")
 const Facing = preload("res://scripts/gameplay/eight_way_facing.gd")
 const Grounding = preload("res://scripts/gameplay/sprite_grounding.gd")
+const Presentation = preload("res://scripts/gameplay/enemy_presentation.gd")
 const HealthBar = preload("res://scripts/gameplay/world_health_bar.gd")
 const Ring = preload("res://scripts/gameplay/combat_ground_ring.gd")
 const Effect = preload("res://scripts/gameplay/world_combat_effect.gd")
@@ -13,6 +14,7 @@ const SPAWNS: Array[Dictionary] = [
 	{"id": "road_wolf_west", "at": Vector3(-4, 0.05, 10), "caster": false},
 	{"id": "road_wolf_ramp", "at": Vector3(2, 0.41, 10.5), "caster": false},
 	{"id": "road_mage_terrace", "at": Vector3(10, 1.85, 10.5), "caster": true},
+	{"id": "road_bat_south", "at": Vector3(-5, 0.05, 12.5), "caster": false, "art": "dusk_bat"},
 ]
 var automation := Automation.new()
 var _auto_button: Button
@@ -70,6 +72,7 @@ func _initialize() -> void:
 	ready_for_combat = true
 
 func _spawn_enemy(spawn: Dictionary) -> void:
+	var art: String = str(spawn.get("art", "eclipse_mage" if spawn.caster else "moss_wolf"))
 	var body := CharacterBody3D.new()
 	body.name = spawn.id
 	body.collision_layer = 2
@@ -90,15 +93,23 @@ func _spawn_enemy(spawn: Dictionary) -> void:
 	var bar := HealthBar.new()
 	body.add_child(bar)
 	bar.position.y = 1.85
-	bar.configure(true)
+	bar.configure(true, art)
 	var label := _label(body, "", Vector3(0, 2.1, 0))
 	var warning := Ring.new()
 	warning.configure(1.15 if spawn.caster else 0.95, Color("ff795e"), 0.12)
 	add_child(warning)
 	warning.hide()
-	var hp: int = 46 if spawn.caster else 38
+	var presentation := Presentation.new()
+	body.add_child(presentation)
+	presentation.setup(body, art, sprite, label, bar)
+	var bat: bool = art == "dusk_bat"
+	var hp: int = 28 if bat else 46 if spawn.caster else 38
 	enemies.append({"id": spawn.id, "body": body, "sprite": sprite, "bar": bar, "label": label,
-		"warning": warning, "caster": spawn.caster, "hp": hp, "max_hp": hp,
+		"presentation": presentation, "warning": warning, "caster": spawn.caster, "art": art,
+		"title": "暮翼蝙蝠" if bat else "月蝕術士" if spawn.caster else "苔原狼",
+		"speed": 3.15 if bat else 2.35, "attack_power": 10 if bat else 16 if spawn.caster else 12,
+		"attack_windup": 0.6 if bat else 1.0 if spawn.caster else 0.75,
+		"attack_interval": 1.35 if bat else 2.2 if spawn.caster else 1.6, "hp": hp, "max_hp": hp,
 		"home": spawn.at, "state": "patrol", "facing": Vector3.FORWARD, "hurt": 0.0,
 		"cooldown": 0.7, "windup": 0.0, "swing": 0.0, "aim": Vector3.ZERO,
 		"path": PackedVector3Array(), "repath": 0.0, "patrol": 1.0})
@@ -267,7 +278,8 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 	enemy.cooldown = maxf(0, float(enemy.cooldown) - delta)
 	enemy.bar.set_health(enemy.hp, enemy.max_hp)
 	if int(enemy.hp) <= 0:
-		_art(enemy.sprite, "eclipse_mage" if enemy.caster else "moss_wolf", "defeated", enemy.facing)
+		_art(enemy.sprite, enemy.art, "defeated", enemy.facing)
+		enemy.presentation.advance(clock, "defeated", 0.0, 0.0, 0.0)
 		enemy.label.hide()
 		return
 	var distance: float = at.distance_to(player.global_position)
@@ -292,8 +304,8 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 				if float(enemy.cooldown) == 0:
 					enemy.aim = target if enemy.caster else at + (target - at).normalized() * 0.8
 					enemy.facing = (target - at).normalized()
-					enemy.windup = 1.0 if enemy.caster else 0.75
-					enemy.cooldown = 2.2 if enemy.caster else 1.6
+					enemy.windup = enemy.attack_windup
+					enemy.cooldown = enemy.attack_interval
 					enemy.warning.position = enemy.aim + Vector3.UP * 0.04
 					enemy.warning.show()
 				target = at
@@ -317,14 +329,16 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 			if not path.is_empty():
 				movement = ((path[0] - at) * Vector3(1, 0, 1)).normalized()
 				enemy.facing = movement
-	body.velocity.x = movement.x * (2.35 if enemy.state == "chase" else 1.1)
-	body.velocity.z = movement.z * (2.35 if enemy.state == "chase" else 1.1)
+	body.velocity.x = movement.x * (float(enemy.speed) if enemy.state == "chase" else 1.1)
+	body.velocity.z = movement.z * (float(enemy.speed) if enemy.state == "chase" else 1.1)
 	body.velocity.y = -0.5 if body.is_on_floor() else body.velocity.y - 18.0 * delta
 	body.move_and_slide()
 	var pose: String = "hurt" if float(enemy.hurt) > 0 else "cast" if enemy.caster and float(enemy.windup) > 0 else "windup" if float(enemy.windup) > 0 else "attack" if float(enemy.swing) > 0 else ("walk_a" if int(clock * 8) % 2 == 0 else "walk_b") if not movement.is_zero_approx() else "idle"
-	_art(enemy.sprite, "eclipse_mage" if enemy.caster else "moss_wolf", pose, enemy.facing)
-	enemy.sprite.modulate = Color(1.8, 1.8, 1.8) if float(enemy.hurt) > 0 else Color.WHITE
-	enemy.label.text = ("月蝕術士" if enemy.caster else "苔原狼") + ("  !" if enemy.state == "chase" else "  ↩" if enemy.state == "return" else "")
+	if enemy.art == "dusk_bat" and pose == "idle":
+		pose = ["walk_a", "idle", "walk_b", "idle"][int(clock * 10.0) % 4]
+	_art(enemy.sprite, enemy.art, pose, enemy.facing)
+	enemy.presentation.advance(clock, pose, float(enemy.hurt), float(enemy.windup), float(enemy.swing))
+	enemy.label.text = str(enemy.title) + ("  !" if enemy.state == "chase" else "  ↩" if enemy.state == "return" else "")
 
 func _enemy_strike(enemy: Dictionary) -> void:
 	enemy.warning.hide()
@@ -333,7 +347,7 @@ func _enemy_strike(enemy: Dictionary) -> void:
 	var reach: float = 5.2 if enemy.caster else 1.8
 	var radius: float = 1.15 if enemy.caster else 0.95
 	if invulnerable <= 0 and can_hit(enemy.body.global_position, player.global_position, reach) and player.global_position.distance_to(enemy.aim) < radius:
-		var damage: int = maxi(1, (16 if enemy.caster else 12) - GameState.player_defense)
+		var damage: int = maxi(1, int(enemy.attack_power) - GameState.player_defense)
 		GameState.damage_player(damage)
 		invulnerable = 0.45
 		_number(player.global_position, "−%d" % damage, Color("ff9985"))

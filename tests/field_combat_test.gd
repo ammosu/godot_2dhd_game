@@ -21,7 +21,7 @@ func _run() -> void:
 	while not field.ready_for_combat:
 		await physics_frame
 	field.set_physics_process(false)
-	assert(field.enemies.size() == 3)
+	assert(field.enemies.size() == 4)
 	assert(field.navigation.graph.get_point_count() > 200)
 	# The path from below the south cliff must go round to the west ramp.
 	var path: PackedVector3Array = field.navigation.path(Vector3(9, 0, 7), Vector3(9, 1.8, 10))
@@ -123,7 +123,7 @@ func _run() -> void:
 	while not field.ready_for_combat:
 		await physics_frame
 	field.set_physics_process(false)
-	assert(field.enemies.size() == 1)
+	assert(field.enemies.size() == 2)
 	assert(state.player_level == 2 and state.player_xp == 6)
 	assert(field.loot_nodes.has("road_wolf_ramp"))
 	var potions: int = state.inventory.potion
@@ -131,6 +131,36 @@ func _run() -> void:
 	field._physics_process(0.02)
 	assert(state.inventory.potion == potions + 1)
 	assert(not state.collect_field_loot("road_wolf_ramp"))
+	# Bat telegraph, hover, interruption, rewards and persistence use the real adapter.
+	var bat: Dictionary = field.enemies[1]
+	assert(bat.art == "dusk_bat" and bat.hp == 28)
+	player.position = bat.body.position + Vector3(0, 0, -0.8)
+	bat.cooldown = 0.0
+	field._advance_enemy(bat, 0.02)
+	assert(bat.windup > 0 and bat.warning.visible, "Bat must telegraph its attack")
+	assert(bat.sprite.position.y > 0.4, "Living bat hovers above its ground anchor")
+	field.invulnerable = 0.0
+	var before_bite: int = state.player_hp
+	field._advance_enemy(bat, 0.61)
+	assert(state.player_hp == before_bite - maxi(1, 10 - state.player_defense))
+	bat.windup = 0.5
+	field._damage_enemy(bat, 1)
+	assert(bat.windup == 0 and not bat.warning.visible, "Hit interrupts bat windup")
+	field._damage_enemy(bat, 999)
+	field._advance_enemy(bat, 0.02)
+	assert(bat.sprite.position.y < 0.1, "Defeated bat rests on ground")
+	assert(state.field_defeated.has("road_bat_south"))
+	assert(state.field_loot["road_bat_south"].item == "potion")
+	assert(not state.defeat_field_enemy(bat.id, bat.body.position, false))
+	assert(state.save_game(SAVE, false))
+	assert(state.load_game(SAVE, false))
+	await process_frame
+	field = world.get("_map_root").get_node("FieldCombat")
+	while not field.ready_for_combat:
+		await physics_frame
+	field.set_physics_process(false)
+	assert(field.enemies.size() == 1 and field.enemies[0].caster)
+	assert(field.loot_nodes.has("road_bat_south"), "Bat drop survives reload")
 	# Failure recovers in the village and removes the overworld adapter.
 	var mage: Dictionary = field.enemies[0]
 	player.position = mage.body.position + Vector3(0, 0, -0.5)
@@ -156,5 +186,5 @@ func _run() -> void:
 	assert(state.player_max_hp == 100 and state.field_defeated.is_empty())
 	await process_frame
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE))
-	print("FIELD_COMBAT_TEST_PASS slope chase elevation timing dodge rewards save migration defeat")
+	print("FIELD_COMBAT_TEST_PASS slope chase elevation timing dodge rewards save migration defeat bat")
 	quit()

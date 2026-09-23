@@ -48,7 +48,7 @@ static func texture_for(actor: String, pose_name: String, facing: int, loadout: 
 	# Normalize against standing body height within this facing, not the weapon
 	# reach or crouched/dead frame height. Defeat must not grow to standing size.
 	var idle: Array = data.frames[facing * 12]
-	texture.set_meta("pixel_size", (1.45 if actor == "moss_wolf" else 2.1 if actor == "guardian" else 1.85 if actor == "noah" else 1.575) / float(idle[3]))
+	texture.set_meta("pixel_size", (0.8 if actor == "dusk_bat" else 1.45 if actor == "moss_wolf" else 1.88 if actor == "guardian" else 1.85 if actor == "noah" else 1.575) / float(idle[3]))
 	texture.set_meta("pose", pose_name)
 	texture.set_meta("facing", facing)
 	texture.set_meta("variant", variant)

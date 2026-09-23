@@ -664,3 +664,7 @@ godot --path . --script tests/door_action_art_test.gd -- --capture-dir=/absolute
 - `outdoor_landscape.gd` 為風丘商道、東行舊道與螢光森林加入可行走草坡、碎石路肩及外圍霧化坡地；橋梁、水面、互動點與戰鬥平台保留原有高度。`map_navigation.gd` 依坡面高度查詢碰撞；舊存檔位置會抬至新地面上方，不變更存檔格式。
 - 遮擋回歸：`godot --headless --path . --script tests/tree_visibility_test.gd`。驗證八個鏡頭方向、透視與正交投影，以及離開遮擋後透明度還原；成功標記 `TREE_VISIBILITY_TEST_PASS`。
 - 坡地回歸：`godot --headless --fixed-fps 60 --path . --script tests/outdoor_landscape_test.gd`，另以 `--rendering-method gl_compatibility` 執行。檢查三張地圖坡面碰撞、自動走上草坡及舊存檔高度校正；成功標記 `OUTDOOR_LANDSCAPE_TEST_PASS relief collision bank_walk old_save_height`。
+
+暮翼蝙蝠：`field_combat_test.gd` 額外驗證蝙蝠預警／命中／受擊中斷、懸浮與倒地、掉落與讀檔後不重生；`field_auto_battle_test.gd` 驗證四隻敵人的完整自動清場；`action_art_test.gd` 同時檢查蝙蝠四向動作裁切與透明背景。
+
+怪物呈現回歸：`godot --headless --path . --script tests/enemy_presentation_test.gd`，成功標記 `ENEMY_PRESENTATION_TEST_PASS`。涵蓋四類怪物、四向貼圖、固定時鐘下不累積位移／縮放、接地／懸浮、蓄力與出招、死亡關閉光環、血條縮減方向。搭配 `action_art_world_test.gd` 與 `field_combat_test.gd` 確認兩種戰鬥場景的整合。

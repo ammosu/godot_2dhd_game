@@ -76,7 +76,7 @@ func _run() -> void:
 		climbed = climbed or player.position.y > 1.6
 		if not field.automation.enabled:
 			break
-	assert(state.field_defeated.size() == 3, "Auto combat must defeat all three enemies")
+	assert(state.field_defeated.size() == field.SPAWNS.size(), "Auto combat must defeat every enemy including the bat")
 	assert(climbed, "Auto movement must climb the ramp to the mage")
 	assert(field.loot_nodes.is_empty(), "Auto combat must collect remaining loot")
 	assert(not field.automation.enabled, "Stop after clearing the encounter")
