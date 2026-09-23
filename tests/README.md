@@ -23,9 +23,9 @@ godot --headless --path . --rendering-method gl_compatibility -- --playthrough-t
 ## 故事物件專項
 
 在專案根目錄執行 `godot --headless --path . --script tests/spring_memory_test.gd`，
-驗證月泉插圖在受傷／滿血時均顯示、HP／MP 恢復，以及翻頁和換圖清理。
+驗證月泉插圖與電影回憶在受傷／滿血時均顯示、HP／MP 恢復、自然播畢仍保留對話，以及跳過和換圖清理。
 成功標記為 `SPRING_MEMORY_TEST_PASS injured full_health page_cleanup map_cleanup`。
-實機移除 `--headless` 並加 `-- --memory-capture`，輸出 `/tmp/wanderlight-memory-<renderer>.png`。
+實機移除 `--headless` 並加 `-- --memory-capture`，輸出 `/tmp/wanderlight-memory-<renderer>-<second>.png`（1、5、9、12 秒四個鏡頭）。
 古道光紋、月印與碎片專項命令和限制見 `docs/STORY_OBJECTS.md`；新增三項已納入下方整體清單。
 
 ## 裝備系統

@@ -938,7 +938,7 @@ func _rest_at_moon_spring() -> void:
 	var memory: Texture2D = _art_texture("res://assets/generated/moon_spring_memory.png")
 	var needs_rest := GameState.player_hp < GameState.player_max_hp or GameState.player_mp < GameState.player_max_mp
 	var lines: Array[Dictionary] = [
-		{"speaker": "月泉", "text": "泉面映出一段不屬於此刻的景象：許多人曾沿月光穿過夜霧，直到一道新建的村牆截斷道路。", "illustration": memory},
+		{"speaker": "月泉", "text": "泉面映出一段不屬於此刻的景象：許多人曾沿月光穿過夜霧，直到一道新建的村牆截斷道路。", "illustration": memory, "cinematic": "moon_memory"},
 	]
 	if needs_rest:
 		GameState.restore_player()

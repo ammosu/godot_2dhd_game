@@ -3,6 +3,10 @@ extends CanvasLayer
 
 signal page_shown(index: int)
 
+const Cinematic = preload("res://scripts/ui/dialogue_cinematic.gd")
+
+var _cinematic: Control
+var _panel: PanelContainer
 var _root: Control
 var _speaker_label: Label
 var _body_label: Label
@@ -76,6 +80,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _show_current_line() -> void:
+	_stop_cinematic()
 	GameAudio.play_cue(&"dialogue")
 	var line: Dictionary = _lines[_line_index]
 	_illustration.texture = line.get("illustration") as Texture2D
@@ -93,6 +98,10 @@ func _show_current_line() -> void:
 			_illustration.material = material
 	_speaker_label.text = str(line.get("speaker", ""))
 	_body_label.text = str(line.get("text", ""))
+	if str(line.get("cinematic", "")) == "moon_memory" and _illustration.texture != null:
+		layer = 100 # Keep arrival notices behind the cinematic insert.
+		_panel.hide()
+		_cinematic.play(_illustration.texture)
 	page_shown.emit(_line_index)
 
 
@@ -106,7 +115,14 @@ func _finish_dialogue() -> void:
 		callback.call()
 
 
+func _stop_cinematic() -> void:
+	layer = 60
+	_cinematic.stop()
+	_panel.show()
+
+
 func clear_illustration() -> void:
+	_stop_cinematic()
 	_motion = ""
 	_motion_elapsed = 0.0
 	_illustration.material = null
@@ -145,6 +161,7 @@ func _build_ui() -> void:
 	_root.add_child(_illustration)
 
 	var panel := PanelContainer.new()
+	_panel = panel
 	panel.anchor_left = 0.08
 	panel.anchor_top = 0.68
 	panel.anchor_right = 0.92
@@ -185,4 +202,8 @@ func _build_ui() -> void:
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_hint_label.add_theme_color_override("font_color", Color("b8a9bc"))
 	content.add_child(_hint_label)
+	_cinematic = Cinematic.new()
+	_cinematic.name = "CinematicInsert"
+	_root.add_child(_cinematic)
+	_cinematic.finished.connect(_stop_cinematic)
 	_root.visible = false
