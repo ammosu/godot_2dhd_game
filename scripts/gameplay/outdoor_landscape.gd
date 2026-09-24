@@ -120,6 +120,7 @@ func configure(world: Node3D, id: String) -> void:
 			else:
 				node.position.y += soil_height(at)
 	_dress(world, bounds)
+	preload("res://scripts/gameplay/roadside_props.gd").dress(self, bounds)
 	_backdrop(bounds.grow(24))
 
 func _triangle(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:

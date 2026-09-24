@@ -137,6 +137,14 @@ func _ready() -> void:
 		_test_mode = true
 		GameState.flags["intro_seen"] = true
 		_load_map("ashen_crypt_1", "entry")
+	elif "--roadside-preview" in OS.get_cmdline_user_args():
+		_test_mode = true
+		GameState.flags["intro_seen"] = true
+		_load_map("east_road", "from_village")
+		player.global_position = Vector3(-4.7, 0.1, 3.4)
+		$CameraRig.set("_distance", 9.0)
+		$CameraRig.set("_target_yaw", deg_to_rad(-15.0))
+		($CameraRig as Hd2dCameraRig).snap_to_target()
 	elif "--field-preview" in OS.get_cmdline_user_args():
 		_test_mode = true
 		GameState.flags["intro_seen"] = true

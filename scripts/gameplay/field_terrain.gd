@@ -119,11 +119,12 @@ static func _cliff(parent: Node3D, rng: RandomNumberGenerator) -> void:
 	turf.set_shader_parameter("soil_texture", SOIL)
 	_finish(parent, "BrokenTurfEdge", cap, turf)
 
-static func _slab(surface: SurfaceTool, at: Vector3, size: Vector3, yaw: float, tint: Color, rng: RandomNumberGenerator) -> void:
+static func _slab(surface: SurfaceTool, at: Vector3, size: Vector3, yaw: float, tint: Color, rng: RandomNumberGenerator, corner_wear: float = 1.0) -> void:
 	var outline: Array[Vector2] = [Vector2(-0.38,-0.5), Vector2(0.34,-0.5), Vector2(0.5,-0.32), Vector2(0.5,0.33), Vector2(0.33,0.5), Vector2(-0.35,0.5), Vector2(-0.5,0.31), Vector2(-0.5,-0.30)]
 	var top: Array[Vector3] = []
 	var bottom: Array[Vector3] = []
 	for point: Vector2 in outline:
+		point = Vector2(signf(point.x), signf(point.y)) * 0.5 * (1.0 - corner_wear) + point * corner_wear
 		var vertex := Vector3(point.x * size.x, 0, point.y * size.z).rotated(Vector3.UP, yaw)
 		top.append(at + vertex + Vector3.UP * (size.y + rng.randf_range(-0.009, 0.009)))
 		bottom.append(at + vertex * 1.025)
@@ -138,24 +139,72 @@ static func _slab(surface: SurfaceTool, at: Vector3, size: Vector3, yaw: float, 
 static func _stairs(parent: Node3D, rng: RandomNumberGenerator) -> void:
 	var slabs := _surface()
 	var foundation := _surface()
-	# Solid earth underneath the separate worn treads; no dark rectangular paving ramp.
-	for z: float in [9, 12]:
-		var normal := Vector3(0, 0, -1 if z == 9 else 1)
-		_triangle(foundation, Vector3(1, 0.01, z), Vector3(6, HEIGHT-0.13, z), Vector3(6, 0.01, z), normal)
-	_finish(parent, "StairEarthFoundation", foundation, _material(CLIFF, Color("b5a085")))
+	var moss := _surface()
+	# Continuous packed earth fills the old open joints. The central surface
+	# follows the original collision wedge, recessed below the worn stone noses.
+	var previous: Array[Vector3] = []
+	for row: int in range(21):
+		var x: float = 1.0 + row * 0.25
+		var h: float = (x - 1.0) * HEIGHT / 5.0
+		var edge: float = sin(x * 2.7) * 0.045
+		var ring: Array[Vector3] = [
+			Vector3(x, 0.005, 8.91 + edge),
+			Vector3(x, maxf(0.008, h - 0.12), 9.02 + edge),
+			Vector3(x, maxf(0.008, h - 0.018), 9.43 + edge),
+			Vector3(x, maxf(0.008, h - 0.035), 10.5),
+			Vector3(x, maxf(0.008, h - 0.018), 11.59 + edge),
+			Vector3(x, maxf(0.008, h - 0.12), 11.98 + edge),
+			Vector3(x, 0.005, 12.09 + edge),
+		]
+		if not previous.is_empty():
+			for band: int in range(ring.size() - 1):
+				var normal := (previous[band + 1] - previous[band]).cross(ring[band] - previous[band]).normalized()
+				var surface: SurfaceTool = moss if band in [1, 4] else foundation
+				_triangle(surface, previous[band], ring[band], ring[band + 1], normal)
+				_triangle(surface, previous[band], ring[band + 1], previous[band + 1], normal)
+		previous = ring
+	_finish(parent, "StairEarthFoundation", foundation, _material(SOIL, Color("a79a7f")))
+	_finish(parent, "StairMossShoulders", moss, _material(GRASS, Color("89916b")))
+	# Unequal stone lengths and offset seams break the former three-column grid.
+	# Keep the rise shallow so visible feet stay close to the smooth walk plane.
 	for step: int in range(16):
 		var x: float = 1.0 + (step + 0.5) * 5.0 / 16.0
 		var height: float = (step + 0.5) * HEIGHT / 16.0
-		for column: int in range(3):
-			var z: float = 9.5 + column + rng.randf_range(-0.03, 0.03)
-			_slab(slabs, Vector3(x, height - 0.17, z), Vector3(0.34, 0.17, rng.randf_range(0.95, 1.04)), rng.randf_range(-0.018, 0.018), Color.WHITE.lerp(Color("b6ac94"), rng.randf_range(0.0, 0.30)), rng)
-	# Sparse broken slabs continue the route into grass at both ends.
-	for index: int in range(8):
-		var high: bool = index >= 4
-		var x: float = 6.25 + (index-4)*0.65 if high else -0.6 + index*0.43
-		var z: float = 10.5 + rng.randf_range(-0.38, 0.38)
-		_slab(slabs, Vector3(x, HEIGHT-0.008 if high else 0.002, z), Vector3(rng.randf_range(0.34,0.55), 0.025, rng.randf_range(0.45,0.85)), rng.randf_range(-0.4,0.4), Color("c1baa6"), rng)
-	_finish(parent, "WornStoneTreads", slabs, _material(STONE, Color("b0a38a")))
+		var half_width: float = 1.08 + sin(step * 1.71) * 0.10
+		var center: float = 10.5 + sin(step * 0.8) * 0.09
+		var cursor: float = center - half_width
+		var count: int = 2 if step % 3 != 1 else 3
+		for column: int in range(count):
+			var remaining: float = center + half_width - cursor
+			var width: float = remaining if column == count - 1 else remaining / (count - column) * rng.randf_range(0.72, 1.22)
+			var depth: float = rng.randf_range(0.29, 0.33)
+			var top: float = height + rng.randf_range(-0.006, 0.006)
+			_slab(slabs, Vector3(x, top - 0.11, cursor + width * 0.5), Vector3(depth, 0.11, width - 0.018), rng.randf_range(-0.022, 0.022), Color.WHITE.lerp(Color("c2bba7"), rng.randf_range(0.05, 0.26)), rng, 0.3)
+			cursor += width
+		# Partly buried fragments and grass dissolve the stair edges into the bank.
+		for side: float in [-1.0, 1.0]:
+			var z: float = center + side * (half_width + 0.13)
+			if step % 3 != 0:
+				_slab(slabs, Vector3(x, height - 0.07, z), Vector3(0.24, 0.055, rng.randf_range(0.16, 0.27)), rng.randf_range(-0.3, 0.3), Color("92977f"), rng)
+			if rng.randf() < 0.6:
+				_grass(parent, Vector3(x, maxf(0.01, height - 0.025), z), rng.randf_range(0.26, 0.46), step % 4 == 0)
+	# Uneven rock outcrops interrupt the soil cut, without extending walkable tops.
+	for side: float in [-1.0, 1.0]:
+		for i: int in range(13):
+			var x: float = 1.4 + i * 0.35 + rng.randf_range(-0.09, 0.09)
+			var h: float = (x - 1.0) * HEIGHT / 5.0
+			var z: float = 10.5 + side * rng.randf_range(1.44, 1.55)
+			var y: float = h * rng.randf_range(0.1, 0.6)
+			_slab(slabs, Vector3(x, y, z), Vector3(rng.randf_range(0.32, 0.65), rng.randf_range(0.13, 0.28), 0.20), rng.randf_range(-0.4, 0.4), Color("a09b85"), rng)
+			if i % 3 == 0:
+				_grass(parent, Vector3(x, 0.015, z + side * 0.1), rng.randf_range(0.34, 0.55), true)
+	# Treads become scattered, buried stepping stones at the foot and landing.
+	for index: int in range(14):
+		var high: bool = index >= 7
+		var x: float = 6.17 + (index - 7) * 0.31 if high else -0.9 + index * 0.27
+		var z: float = 10.5 + rng.randf_range(-0.55, 0.55)
+		_slab(slabs, Vector3(x, HEIGHT - 0.012 if high else 0.002, z), Vector3(rng.randf_range(0.28, 0.49), 0.028, rng.randf_range(0.32, 0.66)), rng.randf_range(-0.35, 0.35), Color("bdb49b"), rng)
+	_finish(parent, "WornStoneTreads", slabs, _material(STONE, Color("b8ac94")))
 
 static func _grass(parent: Node3D, at: Vector3, size: float, fan: bool = false) -> void:
 	var sprite := Sprite3D.new()
@@ -190,12 +239,6 @@ static func _dressing(parent: Node3D, rng: RandomNumberGenerator) -> void:
 		if side == 2:
 			at = Vector3(11.78, HEIGHT, rng.randf_range(8.3,12.6))
 		_grass(parent, at, rng.randf_range(0.45,0.80), index % 4 == 0)
-	# Low tufts on the stair shoulders; never cover the central treads.
-	for index: int in range(16):
-		var x: float = 1.1 + index * 0.3
-		for z: float in [9.08, 11.93]:
-			if rng.randf() < 0.62:
-				_grass(parent, Vector3(x, (x-1)*HEIGHT/5, z), rng.randf_range(0.23,0.42))
 	for index: int in range(12):
 		var at := Vector3(rng.randf_range(6.3,11.7), HEIGHT + 0.002, 8.25 if index % 2 == 0 else 12.65)
 		_slab(rubble, at, Vector3(0.24,0.08,0.19), rng.randf_range(-PI,PI), Color("b5b699"), rng)

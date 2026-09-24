@@ -149,8 +149,7 @@ static func build(world: Node3D, map_id: String) -> void:
 	else:
 		world._add_supply_crate(Vector3(7, 0, 3), 0.1)
 		world._add_actor_interactable("road_traveler", "與驛路旅人交談", Vector3(5, 0, 2), "res://assets/generated/noah.tres", 1.6 / 724.0, Color("d3c5ac"), false, &"side")
-		world._add_box("FallenSignPost", Vector3(-6, 0.4, 2), Vector3(0.18, 0.8, 0.18), Color("806247"), false)
-		world._add_box("RoadSign", Vector3(-6, 0.9, 2), Vector3(1.5, 0.4, 0.15), Color("a88b60"), false)
+		preload("res://scripts/gameplay/roadside_props.gd").signpost(world.get("_map_root"), Vector3(-6, 0, 2))
 		add_interaction(world, "travel_caravan", "東行・風丘商道／星灣城", Vector3(14, 0, 5), true)
 		add_interaction(world, "travel_home", "西行・返回暮光村", Vector3(-14, 0, 5), true)
 		add_interaction(world, "travel_forest", "北行・螢光森林", Vector3(0, 0, -12), true)

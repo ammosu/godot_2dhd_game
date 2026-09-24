@@ -741,3 +741,11 @@ to existing combat/equipment art. New original atlases and generation prompts li
 停止朝向：`godot --headless --path . --script tests/player_stop_facing_test.gd` 使用實際 Input 與玩家物理處理，涵蓋四斜向、兩種放鍵順序、相差 1／3／5 幀、持續單鍵轉向與重新起步；`class_field_test.gd` 另檢查野外可見待機姿勢。斜向鬆開一軸時只有朝向等待最多 0.10 秒，移動／減速仍立即依原輸入處理。完全放開後保留原朝向，重新按鍵立即轉身。
 
 野外／地下城底部介面：`godot --headless --path . --script tests/field_hud_layout_test.gd`，再加 `-- --mobile-controls` 驗證觸控配置。檢查三種視窗比例、四職業與冷卻文字下的面板邊界、按鈕間距、搖桿／互動觸控保留區、互動提示位於面板上方，以及回村後恢復探索快捷鍵。成功標記 `FIELD_HUD_LAYOUT_TEST_PASS`。戰鬥地圖收起探索快捷鍵列，戰鬥面板依內容向上增高並保持底部留白；互動提示跟隨面板實際高度。
+
+### Roadside dressing capture
+
+`godot --path . --rendering-method forward_plus --script tests/roadside_capture.gd`
+
+Repeat with `gl_compatibility`. Checks wood/gravel presence and the tilted/repaired quest presentation; writes `/tmp/roadside-<renderer>.png` with a real rendering window. Success: `ROADSIDE_CAPTURE_PASS decoration tilted repaired`. Headless runs check structure/state only.
+
+石階外觀使用 `tests/field_render_test.gd` 分別以 Forward+ 與 Compatibility 截圖；`tests/field_combat_test.gd` 驗證角色上下坡及敵人追逐，`tests/field_auto_battle_test.gd` 驗證自動戰鬥與坡道側邊取物。
