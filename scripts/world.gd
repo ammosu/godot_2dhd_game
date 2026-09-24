@@ -469,6 +469,7 @@ func _build_village() -> void:
 	for z_position: float in [-16.8, 16.8]:
 		_add_cobble_box("GardenWalk", Vector3(0, 0.022, z_position), Vector3(38, 0.07, 1.8), false)
 	_configure_village_surfaces()
+	preload("res://scripts/gameplay/village_surface_overlap.gd").configure(_map_root)
 	for x_position: float in [-20.7, 20.7]:
 		for z_position: float in [-15, -7, 2, 11, 17]:
 			_add_tree(Vector3(x_position + sin(z_position * 1.7) * 0.55, 0, z_position + cos(z_position) * 0.75))
@@ -523,7 +524,7 @@ func _build_village() -> void:
 		flower.position = Vector3(cos(angle) * 1.16, 0.015, sin(angle) * 1.16)
 		flower.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 		flower.shaded = true
-		flower.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		flower.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 		flower.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 		flower.modulate = Color("bc95da") if index % 3 != 0 else Color.WHITE
 		planting.add_child(flower)
@@ -1923,7 +1924,7 @@ func _add_flower_clump(world_position: Vector3, variant: String) -> void:
 	# Ground the foliage instead of reusing the old floating sphere height.
 	flower.position = world_position + Vector3.UP * (620.0 - 320.0) * flower.pixel_size
 	flower.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	flower.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	flower.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 	flower.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	flower.shaded = true
 	flower.double_sided = true

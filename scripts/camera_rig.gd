@@ -183,9 +183,15 @@ func _process(delta: float) -> void:
 	if fighting:
 		exploration_focus = exploration_focus.lerp(_combat_target.global_position, _combat_blend)
 	var follow_weight := 1.0 - exp(-delta * 7.5)
-	global_position = global_position.lerp(exploration_focus.lerp(_dialogue_focus, shot_weight), follow_weight)
+	var desired_focus: Vector3 = exploration_focus.lerp(_dialogue_focus, shot_weight)
+	global_position = global_position.lerp(desired_focus, follow_weight)
+	# End the subpixel tail of exponential following once it is imperceptible.
+	if global_position.distance_squared_to(desired_focus) < 0.002 * 0.002:
+		global_position = desired_focus
 	var desired_yaw: float = lerp_angle(_target_yaw, _dialogue_yaw, shot_weight)
 	rotation.y = lerp_angle(rotation.y, desired_yaw, 1.0 - exp(-delta * 8.0))
+	if absf(angle_difference(rotation.y, desired_yaw)) < 0.0001:
+		rotation.y = desired_yaw
 	_update_camera_local_position()
 	camera.look_at(global_position + Vector3.UP * 0.78, Vector3.UP)
 	var subjects: Array[Node3D] = []

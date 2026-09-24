@@ -78,7 +78,7 @@ static func _add(parent: Node3D, label: String, position: Vector3, yaw: float, w
 		# Atlas canvas 640 high, measured root at 620 -> offset 300 pixels.
 		flowers.position = Vector3((index - 1) * 0.17, 0.87 + 300.0 * flowers.pixel_size, 0.21)
 		flowers.rotation.y = deg_to_rad(float(index - 1) * 12.0)
-		flowers.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		flowers.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 		flowers.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 		flowers.shaded = true
 		flowers.double_sided = true

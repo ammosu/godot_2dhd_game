@@ -22,6 +22,7 @@ func _run() -> void:
 		var atlas := load("res://assets/generated/flowers_%s.tres" % variant) as AtlasTexture
 		_check(atlas.get_size() == Vector2(640, 640), "Flower canvas must be 640 square")
 		var image := atlas.atlas.get_image()
+		_check(image.has_mipmaps(), "Flower atlas needs mipmaps for stable minification")
 		_check(image.detect_alpha() != Image.ALPHA_NONE, "Flowers need transparent backgrounds")
 		var region := Rect2i(atlas.region)
 		_check(Rect2i(Vector2i.ZERO, image.get_size()).encloses(region), "Flower crop outside image")
@@ -65,7 +66,7 @@ func _run() -> void:
 			count += 1
 			variants[flower.texture.resource_path] = true
 			_check(flower.shaded and flower.billboard == BaseMaterial3D.BILLBOARD_FIXED_Y, "Flowers must be shaded upright billboards")
-			_check(flower.texture_filter == BaseMaterial3D.TEXTURE_FILTER_NEAREST and flower.alpha_cut == SpriteBase3D.ALPHA_CUT_DISCARD, "Flower filtering or transparency regressed")
+			_check(flower.texture_filter == BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS and flower.alpha_cut == SpriteBase3D.ALPHA_CUT_DISCARD, "Flower filtering or transparency regressed")
 			_check(is_equal_approx(flower.position.y - 300.0 * flower.pixel_size, 0.01), "Flower roots not grounded")
 			_check(flower.get_child_count() == 0, "Flowers should remain visual-only sprites")
 	_check(count == 12 and variants.size() == 3, "Village needs twelve clumps across three variants")
@@ -222,7 +223,8 @@ func _check_borders(map_root: Node3D) -> void:
 			variants[texture.region] = true
 		_check(is_equal_approx(sprite.position.y - (baseline - texture.get_height() * 0.5) * sprite.pixel_size, 0.01), "Border roots drifted")
 		_check(sprite.shaded and sprite.billboard == BaseMaterial3D.BILLBOARD_FIXED_Y, "Border shading and upright view")
-		_check(sprite.alpha_cut == SpriteBase3D.ALPHA_CUT_DISCARD and sprite.texture_filter == BaseMaterial3D.TEXTURE_FILTER_NEAREST, "Border alpha and filtering")
+		var expected_filter: int = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS if texture.resource_path.begins_with("res://assets/generated/flowers_") else BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		_check(sprite.alpha_cut == SpriteBase3D.ALPHA_CUT_DISCARD and sprite.texture_filter == expected_filter, "Border alpha and filtering")
 		for rectangle: Rect2 in blocked:
 			_check(not rectangle.grow(texture.get_width() * sprite.pixel_size * 0.5 - 0.00001).has_point(Vector2(sprite.position.x, sprite.position.z)), "Border silhouette enters clearance")
 	_check(variants.size() == 5, "Three border shrubs plus upright grass and ivory flowers required")

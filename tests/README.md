@@ -776,3 +776,9 @@ Repeat with `gl_compatibility`. Checks wood/gravel presence and the tilted/repai
 精簡野外 HUD：`tests/field_hud_layout_test.gd` 另驗證進入戰鬥地圖預設自動開啟、實際點擊圓形自動開關、設定獨立展開／收合、手動接手、HP／MP 同步、左上地點小標籤，以及點小地圖開啟大地圖。以 `-- --mobile-controls` 檢查手機版面；有視窗時加 `-- --capture` 輸出 `/tmp/wanderlight-hud-<renderer>-<desktop或mobile>-<地圖>-<collapsed或settings>.png`，供兩種 renderer 目視檢查。
 
 戰鬥區斜向殘影：`godot --headless --path . --script tests/field_direction_test.gd` 檢查四職業、男女角色、四斜向、三種鏡頭角度及完整步伐。測試刻意加入 ±0.00001 的方向誤差，確認戰鬥貼圖不在正面／側面之間抖動，且同時只顯示一個主角。四向素材先依八向區段選擇固定的替代朝向，與探索的職業素材對應一致。
+
+花朵移動閃爍：`garden_flowers.png` 啟用 mipmap，花朵 Sprite3D 使用 nearest-with-mipmaps，避免高解析花瓣在遠距縮小時直接跳取原圖像素。其他像素素材保留原過濾設定。鏡頭追蹤在距離小於 0.002、旋轉誤差小於 0.0001 弧度時收斂至精確目標，避免停步後持續微移。
+
+`godot --headless --path . --script tests/camera_settle_test.gd` 驗證 30／60／120 FPS 行走、旋轉後鏡頭確實停止；成功標記 `CAMERA_SETTLE_TEST_PASS`。花朵的連續移動畫面仍需分別以 Forward+ 與 Compatibility 目視確認。
+
+村莊道路交界：`godot --headless --path . --script tests/village_road_overlap_test.gd` 檢查廣場、十字路、環村步道與出村道路的所有同高重疊區，每處必須恰有一張路面顯示。村莊建立時由實際 BoxMesh 範圍產生 shader 排除區，先建立的路面擁有交界，保留原本路高與碰撞。成功標記 `VILLAGE_ROAD_OVERLAP_TEST_PASS`；移除 `--headless` 並分別使用 `--rendering-method forward_plus`／`gl_compatibility`，會擷取 `/tmp/village-road-overlap-<renderer>.png`，供東側交界目視檢查。

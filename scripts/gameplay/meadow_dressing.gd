@@ -217,7 +217,7 @@ static func _build_borders(map_root: Node3D) -> void:
 		sprite.position = point + Vector3.UP * (baseline - sprite.texture.get_height() * 0.5) * pixel_size
 		sprite.set_meta("root_baseline", baseline)
 		sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-		sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS if kind == 4 else BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 		sprite.shaded = true
 		sprite.modulate = Color(0.68, 0.76, 0.80) if kind < 2 else Color(0.85, 0.88, 0.9)

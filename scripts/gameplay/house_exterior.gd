@@ -72,7 +72,7 @@ static func _planter(root: Node3D, x: float, wood: Material) -> void:
 		flowers.name = "WindowFlowers"
 		flowers.texture = preload("res://assets/generated/flowers_mauve.tres")
 		flowers.pixel_size = 0.00085
-		flowers.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		flowers.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 		flowers.shaded = true
 		flowers.double_sided = true
 		flowers.position = Vector3(x + float(index - 1) * 0.17, 0.89 + 300.0 * flowers.pixel_size, -1.97)

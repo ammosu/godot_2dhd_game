@@ -13,6 +13,10 @@ uniform bool road_surface = false;
 uniform bool organic_village = false;
 uniform float road_brightness = 1.0;
 uniform bool planted_island = true;
+// Earlier coplanar surfaces own intersections; never draw two road materials
+// into the same depth samples. Bounds use unsnapped world coordinates.
+uniform int overlap_count = 0;
+uniform vec4 overlap_rects[32];
 // Filled from the actual BoxMesh footprints, never a second map definition.
 uniform vec4 plaza_rect;
 uniform vec4 north_rect;
@@ -66,6 +70,13 @@ void vertex() {
 }
 
 void fragment() {
+	for (int i = 0; i < overlap_count; i++) {
+		vec4 bounds = overlap_rects[i];
+		if (all(greaterThanEqual(surface_world.xz, bounds.xy)) &&
+			all(lessThan(surface_world.xz, bounds.zw))) {
+			discard;
+		}
+	}
 	// One world-space sampling grid keeps separate road meshes and ground aligned.
 	vec2 p = floor(surface_world.xz * 72.0) / 72.0;
 	vec3 meadow = texture(meadow_texture, p / 4.0).rgb;
