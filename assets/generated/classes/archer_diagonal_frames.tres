@@ -1,0 +1,155 @@
+[gd_resource type="SpriteFrames" load_steps=14 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/generated/classes/archer_diagonal_walk.png" id="1"]
+
+[sub_resource type="AtlasTexture" id="down_left_0"]
+atlas = ExtResource("1")
+region = Rect2(114, 34, 212, 337)
+filter_clip = true
+metadata/ground_y = 337.0
+metadata/anchor_x = 92.0
+metadata/body_height = 337.0
+metadata/pixel_size = 0.004673590504451038
+metadata/pose = "idle"
+metadata/direction = "down_left"
+metadata/variant = "class_archer"
+
+[sub_resource type="AtlasTexture" id="down_left_1"]
+atlas = ExtResource("1")
+region = Rect2(113, 390, 216, 336)
+filter_clip = true
+metadata/ground_y = 336.0
+metadata/anchor_x = 93.0
+metadata/body_height = 337.0
+metadata/pixel_size = 0.004673590504451038
+metadata/pose = "walk_a"
+metadata/direction = "down_left"
+metadata/variant = "class_archer"
+
+[sub_resource type="AtlasTexture" id="down_left_2"]
+atlas = ExtResource("1")
+region = Rect2(112, 744, 217, 332)
+filter_clip = true
+metadata/ground_y = 332.0
+metadata/anchor_x = 94.0
+metadata/body_height = 337.0
+metadata/pixel_size = 0.004673590504451038
+metadata/pose = "walk_b"
+metadata/direction = "down_left"
+metadata/variant = "class_archer"
+
+[sub_resource type="AtlasTexture" id="down_right_0"]
+atlas = ExtResource("1")
+region = Rect2(446, 33, 231, 338)
+filter_clip = true
+metadata/ground_y = 338.0
+metadata/anchor_x = 106.5
+metadata/body_height = 338.0
+metadata/pixel_size = 0.004659763313609467
+metadata/pose = "idle"
+metadata/direction = "down_right"
+metadata/variant = "class_archer"
+
+[sub_resource type="AtlasTexture" id="down_right_1"]
+atlas = ExtResource("1")
+region = Rect2(448, 388, 237, 338)
+filter_clip = true
+metadata/ground_y = 338.0
+metadata/anchor_x = 104.5
+metadata/body_height = 338.0
+metadata/pixel_size = 0.004659763313609467
+metadata/pose = "walk_a"
+metadata/direction = "down_right"
+metadata/variant = "class_archer"
+
+[sub_resource type="AtlasTexture" id="down_right_2"]
+atlas = ExtResource("1")
+region = Rect2(437, 745, 240, 334)
+filter_clip = true
+metadata/ground_y = 334.0
+metadata/anchor_x = 115.5
+metadata/body_height = 338.0
+metadata/pixel_size = 0.004659763313609467
+metadata/pose = "walk_b"
+metadata/direction = "down_right"
+metadata/variant = "class_archer"
+
+[sub_resource type="AtlasTexture" id="up_left_0"]
+atlas = ExtResource("1")
+region = Rect2(806, 35, 236, 336)
+filter_clip = true
+metadata/ground_y = 336.0
+metadata/anchor_x = 124.0
+metadata/body_height = 336.0
+metadata/pixel_size = 0.0046875
+metadata/pose = "idle"
+metadata/direction = "up_left"
+metadata/variant = "class_archer"
+
+[sub_resource type="AtlasTexture" id="up_left_1"]
+atlas = ExtResource("1")
+region = Rect2(812, 391, 230, 336)
+filter_clip = true
+metadata/ground_y = 336.0
+metadata/anchor_x = 118.0
+metadata/body_height = 336.0
+metadata/pixel_size = 0.0046875
+metadata/pose = "walk_a"
+metadata/direction = "up_left"
+metadata/variant = "class_archer"
+
+[sub_resource type="AtlasTexture" id="up_left_2"]
+atlas = ExtResource("1")
+region = Rect2(811, 748, 231, 325)
+filter_clip = true
+metadata/ground_y = 325.0
+metadata/anchor_x = 119.0
+metadata/body_height = 336.0
+metadata/pixel_size = 0.0046875
+metadata/pose = "walk_b"
+metadata/direction = "up_left"
+metadata/variant = "class_archer"
+
+[sub_resource type="AtlasTexture" id="up_right_0"]
+atlas = ExtResource("1")
+region = Rect2(1162, 35, 215, 336)
+filter_clip = true
+metadata/ground_y = 336.0
+metadata/anchor_x = 98.0
+metadata/body_height = 336.0
+metadata/pixel_size = 0.0046875
+metadata/pose = "idle"
+metadata/direction = "up_right"
+metadata/variant = "class_archer"
+
+[sub_resource type="AtlasTexture" id="up_right_1"]
+atlas = ExtResource("1")
+region = Rect2(1151, 390, 228, 337)
+filter_clip = true
+metadata/ground_y = 337.0
+metadata/anchor_x = 109.0
+metadata/body_height = 336.0
+metadata/pixel_size = 0.0046875
+metadata/pose = "walk_a"
+metadata/direction = "up_right"
+metadata/variant = "class_archer"
+
+[sub_resource type="AtlasTexture" id="up_right_2"]
+atlas = ExtResource("1")
+region = Rect2(1150, 745, 228, 328)
+filter_clip = true
+metadata/ground_y = 328.0
+metadata/anchor_x = 110.0
+metadata/body_height = 336.0
+metadata/pixel_size = 0.0046875
+metadata/pose = "walk_b"
+metadata/direction = "up_right"
+metadata/variant = "class_archer"
+
+[resource]
+animations = [
+{"frames": [{"duration": 1.0, "texture": SubResource("down_left_0")}, {"duration": 1.0, "texture": SubResource("down_left_1")}, {"duration": 1.0, "texture": SubResource("down_left_0")}, {"duration": 1.0, "texture": SubResource("down_left_2")}], "loop": true, "name": &"down_left", "speed": 8.0},
+{"frames": [{"duration": 1.0, "texture": SubResource("down_right_0")}, {"duration": 1.0, "texture": SubResource("down_right_1")}, {"duration": 1.0, "texture": SubResource("down_right_0")}, {"duration": 1.0, "texture": SubResource("down_right_2")}], "loop": true, "name": &"down_right", "speed": 8.0},
+{"frames": [{"duration": 1.0, "texture": SubResource("up_left_0")}, {"duration": 1.0, "texture": SubResource("up_left_1")}, {"duration": 1.0, "texture": SubResource("up_left_0")}, {"duration": 1.0, "texture": SubResource("up_left_2")}], "loop": true, "name": &"up_left", "speed": 8.0},
+{"frames": [{"duration": 1.0, "texture": SubResource("up_right_0")}, {"duration": 1.0, "texture": SubResource("up_right_1")}, {"duration": 1.0, "texture": SubResource("up_right_0")}, {"duration": 1.0, "texture": SubResource("up_right_2")}], "loop": true, "name": &"up_right", "speed": 8.0}
+]

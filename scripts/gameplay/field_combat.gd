@@ -125,15 +125,16 @@ func _spawn_enemy(spawn: Dictionary) -> void:
 		"cooldown": 0.7, "windup": 0.0, "swing": 0.0, "aim": Vector3.ZERO,
 		"path": PackedVector3Array(), "repath": 0.0, "patrol": 1.0})
 
-func movement_velocity(requested: Vector3, delta: float = 0.0) -> Vector3:
+func movement_velocity(requested: Vector3, delta: float = 0.0, manual_facing: Vector3 = Vector3.ZERO) -> Vector3:
 	if _focus_paused:
 		return Vector3.ZERO
 	if not requested.is_zero_approx():
 		automation.set_enabled(false, self)
 	else:
 		requested = automation.direction(self, delta) * player.move_speed
+		manual_facing = Vector3.ZERO
 	if not requested.is_zero_approx():
-		facing = requested.normalized()
+		facing = manual_facing.normalized() if not manual_facing.is_zero_approx() else requested.normalized()
 	if dodge_time > 0:
 		return dodge_direction * 10.0
 	return requested * (0.45 if windup > 0 else 1.0)

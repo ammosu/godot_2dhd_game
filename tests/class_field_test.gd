@@ -34,6 +34,18 @@ func run() -> void:
 		while not field.ready_for_combat:
 			await physics_frame
 		field.set_physics_process(false)
+		if id == "archer" and "--female" not in OS.get_cmdline_user_args():
+			for screen: Vector2 in [Vector2(-1, 1), Vector2(1, 1), Vector2(-1, -1), Vector2(1, -1)]:
+				field.facing = player.call("_camera_relative_direction", screen)
+				player.velocity = field.facing * 4.2
+				for phase: int in range(4):
+					field.clock = float(phase) * 0.1
+					field.call("_update_hero_art")
+					var walking: Sprite3D = field.get("_hero_sprite")
+					check(walking.visible and not player.get_node("Sprite3D").visible, "Field walking sprite not active")
+					check((walking.texture as AtlasTexture).atlas.resource_path.ends_with("classes/archer_diagonal_walk.png"), "Field archer still uses cardinal walking art")
+			player.velocity = Vector3.ZERO
+			_check_staggered_release(player, field)
 		player.position = Vector3(-6, 0.06, 8)
 		field.facing = Vector3.RIGHT
 		for index: int in range(field.enemies.size()):
@@ -80,3 +92,25 @@ func run() -> void:
 	if failures.is_empty():
 		print("CLASS_FIELD_TEST_PASS gear effects piercing frost slow single_target backstab")
 	quit(0 if failures.is_empty() else 1)
+
+
+func _check_staggered_release(player: CharacterBody3D, field: Node3D) -> void:
+	var pairs: Array[Array] = [[&"move_left", &"move_back"], [&"move_right", &"move_back"], [&"move_left", &"move_forward"], [&"move_right", &"move_forward"]]
+	for pair: Array in pairs:
+		for first: int in range(2):
+			player.position = Vector3(-6, 0.06, 8)
+			for action: StringName in pair:
+				Input.action_press(action)
+			for frame: int in range(8):
+				player.call("_physics_process", 1.0 / 60.0)
+			var heading: Vector3 = field.facing
+			Input.action_release(pair[first])
+			for frame: int in range(3):
+				player.call("_physics_process", 1.0 / 60.0)
+			Input.action_release(pair[1 - first])
+			for frame: int in range(20):
+				player.call("_physics_process", 1.0 / 60.0)
+			field.call("_update_hero_art")
+			check(heading.is_equal_approx(field.facing), "Field idle changed diagonal after staggered release")
+			var texture: AtlasTexture = field.get("_hero_sprite").texture
+			check(texture.atlas.resource_path.ends_with("archer_diagonal_walk.png") and texture.get_meta("pose") == "idle", "Visible field idle lost diagonal art")

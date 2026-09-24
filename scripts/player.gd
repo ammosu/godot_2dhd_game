@@ -5,6 +5,7 @@ extends CharacterBody3D
 @export_range(1.0, 40.0, 0.5) var acceleration: float = 18.0
 
 const EightWayFacing = preload("res://scripts/gameplay/eight_way_facing.gd")
+var _movement_facing := preload("res://scripts/gameplay/movement_facing.gd").new()
 const FACING_ANIMATIONS: Array[StringName] = EightWayFacing.ANIMATIONS
 const SpriteGrounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 const Footsteps = preload("res://scripts/gameplay/footsteps.gd")
@@ -82,6 +83,7 @@ func _refresh_equipment() -> void:
 
 func _physics_process(delta: float) -> void:
 	if GameState.mode == GameState.Mode.MAP:
+		_movement_facing.update(Vector2.ZERO, delta)
 		velocity = Vector3.ZERO
 		_last_step_position = global_position
 		_update_sprite(Vector2.ZERO, Vector3.ZERO, delta)
@@ -90,6 +92,7 @@ func _physics_process(delta: float) -> void:
 		_footsteps.advance(0.0, false, false, true)
 		_footstep_map = GameState.current_map
 	if GameState.is_input_locked():
+		_movement_facing.update(Vector2.ZERO, delta)
 		_footsteps.advance(0.0, false, false, true)
 		velocity.x = move_toward(velocity.x, 0.0, acceleration * delta)
 		velocity.z = move_toward(velocity.z, 0.0, acceleration * delta)
@@ -100,17 +103,20 @@ func _physics_process(delta: float) -> void:
 		_update_sprite(Vector2.ZERO, Vector3.ZERO, delta)
 		return
 	var input_vector := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var facing_input := _movement_facing.update(input_vector, delta)
 	var move_direction := _camera_relative_direction(input_vector)
 	if not input_vector.is_zero_approx():
 		auto_walk.cancel()
 	elif auto_walk.is_active():
 		move_direction = auto_walk.direction(delta)
 		input_vector = EightWayFacing.screen_direction(move_direction, get_viewport().get_camera_3d())
+		facing_input = input_vector
 	var target_velocity := move_direction * move_speed
 	if is_instance_valid(field_combat):
-		target_velocity = field_combat.movement_velocity(target_velocity, delta)
+		target_velocity = field_combat.movement_velocity(target_velocity, delta, _camera_relative_direction(facing_input))
 		move_direction = target_velocity.normalized()
 		input_vector = EightWayFacing.screen_direction(move_direction, get_viewport().get_camera_3d())
+		facing_input = EightWayFacing.screen_direction(field_combat.get("facing"), get_viewport().get_camera_3d())
 
 	velocity.x = move_toward(velocity.x, target_velocity.x, acceleration * delta)
 	velocity.z = move_toward(velocity.z, target_velocity.z, acceleration * delta)
@@ -128,7 +134,7 @@ func _physics_process(delta: float) -> void:
 	if _footsteps.advance(traveled, is_on_floor(), not input_vector.is_zero_approx(), GameState.is_input_locked()):
 		GameAudio.play_cue(_footsteps.next_cue(Footsteps.surface_at(get_tree(), global_position)))
 	_last_step_position = global_position
-	_update_sprite(input_vector, move_direction, delta)
+	_update_sprite(facing_input, move_direction, delta)
 	if not auto_walk.is_active():
 		_update_automatic_interaction()
 

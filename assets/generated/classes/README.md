@@ -6,8 +6,8 @@ Generated PNGs are copied without editing pixels; `regions.gd` only measures
 alpha bounds using `tools/art/inspect_action_atlases.py` (`measure`, 48 sprites).
 Each image is six columns by eight rows, twelve poses per facing: front, right,
 back, left. Poses: idle, walk A/B, windup, attack, recover, cast, release, dodge
-A/B, hurt, defeated. Diagonal movement currently chooses the nearest cardinal
-wardrobe frame. Door interaction reuses cast/release arm gestures.
+A/B, hurt, defeated. Male archer diagonal movement uses its dedicated three-pose atlas
+(`ARCHER_DIAGONAL.md`); other class diagonals choose a cardinal wardrobe frame. Door interaction reuses cast/release arm gestures.
 
 - `archer.png`: forest hunter outfit, longbow and quiver.
 - `mage.png`: indigo star robe and ice crystal staff.

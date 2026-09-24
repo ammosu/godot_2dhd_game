@@ -717,3 +717,9 @@ to existing combat/equipment art. New original atlases and generation prompts li
 怪物退場回歸：`godot --headless --path . --script tests/field_combat_test.gd`，涵蓋擊殺後解除碰撞、倒地淡出、追蹤移動主角的光點、暫停與清理，以及經驗不重複入帳。可用 `-- --field-preview` 進入狩獵地目視確認效果。
 
 女性主角：`hero_selection_test.gd` 覆蓋男女 × 四職業 × 三配色的全部動作預覽、能力一致性、v9 存讀、v8 性別遷移與非法性別拒絕。`class_field_test.gd`／`class_arena_test.gd` 加 `-- --female --class-capture` 可驗證女性探索／開門、野外及主線戰鬥；`--style-capture` 可合併檢查配色。
+
+斜向步伐修正：四套旅人外觀的第 4 幀共用 `diagonal_contact_b.png` 中各自的反側接地姿勢，第 3 幀回到收腳姿勢。`tools/art/repair_diagonal_stride.py` 可重建裁切資訊；`player_art_test.gd` 檢查腳底與方向，`equipment_replacement_test.gd` 檢查各裝備的姿勢來源。美術的左右腳交替仍需在實際遊戲中目視確認。
+
+男弓箭手斜走：`godot --headless --path . --script tests/archer_diagonal_test.gd` 驗證四個斜向、兩種弓、獨立素材、步伐順序、固定身體軸心／比例及停止姿勢；保留女弓箭手與開門動作的既有來源，不寫存檔。實際 renderer 對照可執行 `godot --path . --rendering-method forward_plus --script tests/player_motion_capture.gd -- --class=archer --capture-dir=/existing/path`，並改用 `gl_compatibility` 重複。對照圖只代表畫格檢查，不取代連續動畫的目視驗證。
+
+停止朝向：`godot --headless --path . --script tests/player_stop_facing_test.gd` 使用實際 Input 與玩家物理處理，涵蓋四斜向、兩種放鍵順序、相差 1／3／5 幀、持續單鍵轉向與重新起步；`class_field_test.gd` 另檢查野外可見待機姿勢。斜向鬆開一軸時只有朝向等待最多 0.10 秒，移動／減速仍立即依原輸入處理。完全放開後保留原朝向，重新按鍵立即轉身。

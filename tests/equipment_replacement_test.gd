@@ -33,7 +33,10 @@ func _run() -> void:
 				if index == 0:
 					check(art == base, "Original loadout not restored exactly")
 				else:
-					check(art.atlas.resource_path.ends_with(names[index] + ("_diagonal_walk.png" if base.has_meta("diagonal_frame") else "_walk.png")), "Wrong independent weapon/armor combination")
+					if base.has_meta("diagonal_frame") and frame == 3:
+						check(art.atlas.resource_path.ends_with("diagonal_contact_b.png") and art.get_meta("contact_variant", "") == names[index], "Wrong opposite-foot outfit")
+					else:
+						check(art.atlas.resource_path.ends_with(names[index] + ("_diagonal_walk.png" if base.has_meta("diagonal_frame") else "_walk.png")), "Wrong independent weapon/armor combination")
 					_check_bounds(art)
 		for pose: String in Appearance.POSES:
 			var base := load("res://assets/generated/wanderer_combat_%s.tres" % pose) as Texture2D

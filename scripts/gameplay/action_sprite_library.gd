@@ -7,6 +7,10 @@ const POSES: Array[String] = ["idle", "walk_a", "walk_b", "windup", "attack", "r
 static var _cache: Dictionary[String, AtlasTexture] = {}
 
 static func directional_texture(actor: String, pose_name: String, screen: Vector2, sprite: Sprite3D, loadout: Dictionary = {}) -> AtlasTexture:
+	if actor == "wanderer":
+		var diagonal := Appearance.ClassArt.diagonal_walking_texture(loadout, pose_name, screen)
+		if diagonal != null:
+			return diagonal
 	if Movement.supports(actor, pose_name):
 		var previous: int = int(sprite.get_meta("movement_facing", -1))
 		var facing: int = Movement.direction(screen, previous)

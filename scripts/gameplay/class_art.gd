@@ -3,6 +3,8 @@ extends RefCounted
 const Equipment = preload("res://scripts/systems/class_equipment.gd")
 const Regions = preload("res://assets/generated/classes/regions.gd")
 const Heroines = preload("res://assets/generated/heroines/regions.gd")
+const ARCHER_DIAGONALS: SpriteFrames = preload("res://assets/generated/classes/archer_diagonal_frames.tres")
+const EightWayFacing = preload("res://scripts/gameplay/eight_way_facing.gd")
 const POSES: Array[String] = ["idle", "walk_a", "walk_b", "windup", "attack", "recover", "cast", "release", "dodge_a", "dodge_b", "hurt", "defeated"]
 const FACINGS: Dictionary = {"down": 0, "down_right": 1, "right": 1, "up_right": 2, "up": 2, "up_left": 2, "left": 3, "down_left": 3}
 static var _textures: Dictionary[String, AtlasTexture] = {}
@@ -57,6 +59,16 @@ static func texture_for(id: String, pose: String, facing: int = 0) -> AtlasTextu
 	_textures[key] = result
 	return result
 
+static func diagonal_walking_texture(loadout: Dictionary, pose: String, screen: Vector2) -> AtlasTexture:
+	if vocation(loadout) != "archer" or pose not in ["idle", "walk_a", "walk_b"]:
+		return null
+	var direction: StringName = EightWayFacing.ANIMATIONS[EightWayFacing.direction_index(screen)]
+	if not ARCHER_DIAGONALS.has_animation(direction):
+		return null
+	var frame: int = 1 if pose == "walk_a" else 3 if pose == "walk_b" else 0
+	return ARCHER_DIAGONALS.get_frame_texture(direction, frame) as AtlasTexture
+
+
 static func walking_frames(loadout: Dictionary, door: bool = false) -> SpriteFrames:
 	var id := vocation(loadout)
 	var key := id + (":door" if door else "")
@@ -67,6 +79,10 @@ static func walking_frames(loadout: Dictionary, door: bool = false) -> SpriteFra
 	for direction: String in FACINGS:
 		frames.add_animation(direction)
 		frames.set_animation_speed(direction, 8.0)
+		if id == "archer" and not door and ARCHER_DIAGONALS.has_animation(direction):
+			for index: int in range(ARCHER_DIAGONALS.get_frame_count(direction)):
+				frames.add_frame(direction, ARCHER_DIAGONALS.get_frame_texture(direction, index))
+			continue
 		var poses: Array[String] = ["idle", "walk_a", "idle", "walk_b"]
 		if door:
 			poses.assign(["cast", "release"])

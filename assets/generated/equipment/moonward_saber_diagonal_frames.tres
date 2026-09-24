@@ -1,6 +1,8 @@
-[gd_resource type="SpriteFrames" load_steps=18 format=3]
+[gd_resource type="SpriteFrames" load_steps=19 format=3]
 
 [ext_resource type="Texture2D" path="res://assets/generated/equipment/moonward_saber_diagonal_walk.png" id="2_diagonal"]
+
+[ext_resource type="Texture2D" path="res://assets/generated/diagonal_contact_b.png" id="3_contact"]
 
 [sub_resource type="AtlasTexture" id="Diagonal_0_0"]
 atlas = ExtResource("2_diagonal")
@@ -27,12 +29,13 @@ metadata/diagonal_frame = 2
 metadata/ground_y = 316.0
 
 [sub_resource type="AtlasTexture" id="Diagonal_0_3"]
-atlas = ExtResource("2_diagonal")
-region = Rect2(72, 951, 181, 293)
-margin = Rect2(85.5, 25, 171, 59)
+atlas = ExtResource("3_contact")
+region = Rect2(75, 947, 193, 291)
+margin = Rect2(79.5, 27, 159, 61)
 filter_clip = true
 metadata/diagonal_frame = 3
 metadata/ground_y = 316.0
+metadata/contact_variant = "moonward_saber"
 
 [sub_resource type="AtlasTexture" id="Diagonal_1_0"]
 atlas = ExtResource("2_diagonal")
@@ -59,12 +62,13 @@ metadata/diagonal_frame = 2
 metadata/ground_y = 316.0
 
 [sub_resource type="AtlasTexture" id="Diagonal_1_3"]
-atlas = ExtResource("2_diagonal")
-region = Rect2(383, 947, 176, 296)
-margin = Rect2(88.0, 22, 176, 56)
+atlas = ExtResource("3_contact")
+region = Rect2(370, 945, 194, 293)
+margin = Rect2(79.0, 25, 158, 59)
 filter_clip = true
 metadata/diagonal_frame = 3
 metadata/ground_y = 316.0
+metadata/contact_variant = "moonward_saber"
 
 [sub_resource type="AtlasTexture" id="Diagonal_2_0"]
 atlas = ExtResource("2_diagonal")
@@ -91,12 +95,13 @@ metadata/diagonal_frame = 2
 metadata/ground_y = 316.0
 
 [sub_resource type="AtlasTexture" id="Diagonal_2_3"]
-atlas = ExtResource("2_diagonal")
-region = Rect2(708, 949, 176, 294)
-margin = Rect2(88.0, 24, 176, 58)
+atlas = ExtResource("3_contact")
+region = Rect2(690, 946, 192, 301)
+margin = Rect2(80.0, 17, 160, 51)
 filter_clip = true
 metadata/diagonal_frame = 3
 metadata/ground_y = 316.0
+metadata/contact_variant = "moonward_saber"
 
 [sub_resource type="AtlasTexture" id="Diagonal_3_0"]
 atlas = ExtResource("2_diagonal")
@@ -123,31 +128,32 @@ metadata/diagonal_frame = 2
 metadata/ground_y = 316.0
 
 [sub_resource type="AtlasTexture" id="Diagonal_3_3"]
-atlas = ExtResource("2_diagonal")
-region = Rect2(1001, 950, 175, 295)
-margin = Rect2(88.5, 23, 177, 57)
+atlas = ExtResource("3_contact")
+region = Rect2(998, 949, 185, 298)
+margin = Rect2(83.5, 20, 167, 54)
 filter_clip = true
 metadata/diagonal_frame = 3
 metadata/ground_y = 316.0
+metadata/contact_variant = "moonward_saber"
 
 [resource]
 animations = [{
-"frames": [{"duration": 1.0, "texture": SubResource("Diagonal_0_0")}, {"duration": 1.0, "texture": SubResource("Diagonal_0_1")}, {"duration": 1.0, "texture": SubResource("Diagonal_0_2")}, {"duration": 1.0, "texture": SubResource("Diagonal_0_3")}],
+"frames": [{"duration": 1.0, "texture": SubResource("Diagonal_0_0")}, {"duration": 1.0, "texture": SubResource("Diagonal_0_1")}, {"duration": 1.0, "texture": SubResource("Diagonal_0_0")}, {"duration": 1.0, "texture": SubResource("Diagonal_0_3")}],
 "loop": true,
 "name": &"down_left",
 "speed": 8.0
 }, {
-"frames": [{"duration": 1.0, "texture": SubResource("Diagonal_1_0")}, {"duration": 1.0, "texture": SubResource("Diagonal_1_1")}, {"duration": 1.0, "texture": SubResource("Diagonal_1_2")}, {"duration": 1.0, "texture": SubResource("Diagonal_1_3")}],
+"frames": [{"duration": 1.0, "texture": SubResource("Diagonal_1_0")}, {"duration": 1.0, "texture": SubResource("Diagonal_1_1")}, {"duration": 1.0, "texture": SubResource("Diagonal_1_0")}, {"duration": 1.0, "texture": SubResource("Diagonal_1_3")}],
 "loop": true,
 "name": &"down_right",
 "speed": 8.0
 }, {
-"frames": [{"duration": 1.0, "texture": SubResource("Diagonal_2_0")}, {"duration": 1.0, "texture": SubResource("Diagonal_2_1")}, {"duration": 1.0, "texture": SubResource("Diagonal_2_2")}, {"duration": 1.0, "texture": SubResource("Diagonal_2_3")}],
+"frames": [{"duration": 1.0, "texture": SubResource("Diagonal_2_0")}, {"duration": 1.0, "texture": SubResource("Diagonal_2_1")}, {"duration": 1.0, "texture": SubResource("Diagonal_2_0")}, {"duration": 1.0, "texture": SubResource("Diagonal_2_3")}],
 "loop": true,
 "name": &"up_left",
 "speed": 8.0
 }, {
-"frames": [{"duration": 1.0, "texture": SubResource("Diagonal_3_0")}, {"duration": 1.0, "texture": SubResource("Diagonal_3_1")}, {"duration": 1.0, "texture": SubResource("Diagonal_3_2")}, {"duration": 1.0, "texture": SubResource("Diagonal_3_3")}],
+"frames": [{"duration": 1.0, "texture": SubResource("Diagonal_3_0")}, {"duration": 1.0, "texture": SubResource("Diagonal_3_1")}, {"duration": 1.0, "texture": SubResource("Diagonal_3_0")}, {"duration": 1.0, "texture": SubResource("Diagonal_3_3")}],
 "loop": true,
 "name": &"up_right",
 "speed": 8.0
