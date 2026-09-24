@@ -1,5 +1,8 @@
 # Playthrough smoke test
 
+道路自動戰鬥回歸：`godot --headless --path . --fixed-fps 60 --script tests/field_auto_battle_test.gd`。
+成功標記為 `FIELD_AUTO_BATTLE_TEST_PASS takeover potion pause dodge ramp combat loot ramp_sides`；包含完整戰鬥／拾取，以及從坡道兩側、崖下與平台接近固定掉落物，確認不會卡在坡道側壁。測試不寫正式存檔。
+
 故事操作回歸需涵蓋讀過與未讀石碑兩種路徑；兩者都是同一結局的資訊差異，不新增任務分支：
 
 ```bash

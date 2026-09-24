@@ -81,8 +81,29 @@ func _run() -> void:
 	assert(field.loot_nodes.is_empty(), "Auto combat must collect remaining loot")
 	assert(not field.automation.enabled, "Stop after clearing the encounter")
 	assert(state.player_mp >= mp_before, "Skills disabled must not spend MP")
+	# With enemies cleared, approach a stationary terrace drop from both ramp
+	# sides. Previously these routes hit the low vertical wall and never advanced.
+	var drop := Node3D.new()
+	field.add_child(drop)
+	drop.position = Vector3(10, 1.85, 10.5)
+	field.loot_nodes["navigation_probe"] = drop
+	for start: Vector3 in [Vector3(-1, 0.1, 6), Vector3(-6, 0.1, 13), Vector3(9, 0.1, 7), Vector3(0, 0.1, 9), Vector3(6, 1.85, 12)]:
+		player.position = start
+		player.velocity = Vector3.ZERO
+		field.automation.set_enabled(true, field)
+		for frame: int in range(1800):
+			await physics_frame
+			player.call("_physics_process", 1.0 / 60.0)
+			if player.position.distance_to(drop.position) < 1.0:
+				break
+		if player.position.distance_to(drop.position) >= 1.0:
+			push_error("Auto movement stalled from %s at %s" % [start, player.position])
+			quit(1)
+			return
+	field.loot_nodes.erase("navigation_probe")
+	drop.queue_free()
 	world.queue_free()
 	await process_frame
 	await process_frame
-	print("FIELD_AUTO_BATTLE_TEST_PASS takeover potion pause dodge ramp combat loot")
+	print("FIELD_AUTO_BATTLE_TEST_PASS takeover potion pause dodge ramp combat loot ramp_sides")
 	quit()

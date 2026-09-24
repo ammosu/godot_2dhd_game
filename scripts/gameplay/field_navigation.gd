@@ -46,8 +46,19 @@ func build(world: World3D, player: CharacterBody3D) -> void:
 			if absf(a.y - b.y) > 0.25:
 				continue
 			var ray := PhysicsRayQueryParameters3D.create(a + Vector3.UP * 0.4, b + Vector3.UP * 0.4, 1, ignored)
-			if space.intersect_ray(ray).is_empty():
+			if space.intersect_ray(ray).is_empty() and _continuous_floor(a, b):
 				graph.connect_points(cells[cell], cells[neighbor])
+
+func _continuous_floor(from: Vector3, to: Vector3) -> bool:
+	# Endpoint heights alone mistake the low side wall of a ramp for a slope.
+	# Require support along the edge at the interpolated walking height.
+	for fraction: float in [0.25, 0.5, 0.75]:
+		var point := from.lerp(to, fraction)
+		var ray := PhysicsRayQueryParameters3D.create(point + Vector3.UP * 0.3, point + Vector3.DOWN * 0.3, 1, ignored)
+		var hit: Dictionary = space.intersect_ray(ray)
+		if hit.is_empty() or Vector3(hit.normal).y < 0.8 or absf(Vector3(hit.position).y - point.y) > 0.06:
+			return false
+	return true
 
 func path(from: Vector3, to: Vector3) -> PackedVector3Array:
 	if graph.get_point_count() == 0:
