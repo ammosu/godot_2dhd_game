@@ -21,6 +21,7 @@ var elapsed: float = 0.0
 var current_pose: String = "idle"
 var _sprite := Sprite2D.new()
 var _last_key: String = ""
+var _foot_centers: Dictionary[AtlasTexture, float] = {}
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(280, 280)
@@ -62,12 +63,33 @@ func _refresh() -> void:
 	var factor: float = minf((size.y - 60.0) / float(texture.get_meta("body_height", idle.get_height())), (size.x - 40.0) / (float(texture.get_meta("body_height", idle.get_height())) * 1.55))
 	Style.apply_canvas(_sprite, texture, style_id)
 	_sprite.scale = Vector2.ONE * factor
-	_sprite.offset = Vector2(texture.get_width() * 0.5 - float(texture.get_meta("anchor_x")), texture.get_height() * 0.5 - float(texture.get_meta("ground_y")))
+	_sprite.offset = Vector2(texture.get_width() * 0.5 - _foot_center(texture), texture.get_height() * 0.5 - float(texture.get_meta("ground_y")))
 	_sprite.flip_h = bool(texture.get_meta("flip_h", false))
 	if _sprite.flip_h:
 		_sprite.offset.x *= -1.0
 	_sprite.position = Vector2(size.x * 0.5, size.y - 35.0)
 	queue_redraw()
+
+func _foot_center(texture: AtlasTexture) -> float:
+	if _foot_centers.has(texture):
+		return _foot_centers[texture]
+	var image: Image = texture.atlas.get_image()
+	if image.is_compressed() and image.decompress() != OK:
+		return float(texture.get_meta("anchor_x"))
+	var region := Rect2i(texture.region)
+	var left: int = region.end.x
+	var right: int = region.position.x - 1
+	# Sample only the soles. The atlas anchor uses the lowest 9% of the
+	# silhouette, which also catches lowered swords and shifts the body.
+	var sole_height: int = maxi(2, int(region.size.y * 0.02))
+	for y: int in range(region.end.y - sole_height, region.end.y):
+		for x: int in range(region.position.x, region.end.x):
+			if image.get_pixel(x, y).a > 100.0 / 255.0:
+				left = mini(left, x)
+				right = maxi(right, x)
+	var center: float = (left + right) * 0.5 - region.position.x if right >= left else float(texture.get_meta("anchor_x"))
+	_foot_centers[texture] = center
+	return center
 
 func _draw() -> void:
 	var tint: Color = Classes.profile(class_id).color
