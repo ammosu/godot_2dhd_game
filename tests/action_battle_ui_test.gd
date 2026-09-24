@@ -129,7 +129,7 @@ func _run() -> void:
 	await process_frame # Let containers apply the new button text/minimum sizes.
 	var status_rect: Rect2 = ui._root.get_node("PartyStatus").get_global_rect()
 	var dock_rect: Rect2 = ui._root.get_node("SkillDock").get_global_rect()
-	check(status_rect.position.x > ui._root.size.x * 0.5 and status_rect.position.y < 30.0, "Party status is anchored at top right")
+	check((status_rect.position.x < 30.0 if "--mobile-controls" in OS.get_cmdline_user_args() else status_rect.position.x > ui._root.size.x * 0.5) and status_rect.position.y < 30.0, "Party status adapts to touch and desktop layouts")
 	check(dock_rect.position.x > ui._root.size.x * 0.5 and dock_rect.end.y <= ui._root.size.y, "Skills stay inside bottom right")
 	check(not status_rect.intersects(dock_rect), "Status and skills must not overlap")
 	check(not world._mini_map.visible, "Exploration minimap leaves room for battle status")
@@ -285,7 +285,7 @@ func _run() -> void:
 	check(not ui.session.auto_enabled, "Victory disables auto")
 	check(ui.is_resolved() and ui.did_player_win(), "Victory resolves without a separate result screen")
 	check(state.flags.get("guardian_defeated", false) and int(state.inventory.get("moon_shard", 0)) == 1, "Victory grants original quest reward once")
-	await create_timer(1.4).timeout
+	await create_timer(2.1).timeout # Result presentation lasts 1.8 seconds.
 	check(not ui.is_active() and state.battle_session == null, "Victory automatically leaves combat without Continue")
 	check(world._map_root == map and player.global_position.distance_to(before) < 0.15, "Victory keeps same map instance and traveler location")
 	check(player.is_physics_processing() and player.collision_layer == 1 and player.get_node("Sprite3D").visible, "Exploration physics and art restore")

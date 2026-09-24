@@ -169,6 +169,7 @@ func _ready() -> void:
 		ui_theme.default_font_size = 16
 		ui_theme.set_type_variation("TitleLabel", "Label")
 		ui_theme.set_font("font", "TitleLabel", title_font)
+		preload("res://scripts/ui/presentation_theme.gd").apply(ui_theme)
 		ThemeDB.fallback_font = ui_font
 
 

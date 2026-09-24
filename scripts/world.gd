@@ -9,6 +9,7 @@ const CryptLayout = preload("res://scripts/gameplay/crypt_layout.gd")
 const Dungeon = preload("res://scripts/gameplay/ashen_crypt.gd")
 const Outskirts = preload("res://scripts/gameplay/outskirts.gd")
 
+const Presentation = preload("res://scripts/ui/presentation_theme.gd")
 const MiniMapControl = preload("res://scripts/ui/mini_map.gd")
 const HouseDetails = preload("res://scripts/gameplay/house_details.gd")
 const HouseExterior = preload("res://scripts/gameplay/house_exterior.gd")
@@ -68,7 +69,6 @@ var _map_label: Label
 var _quest_label: Label
 var _prompt_label: Label
 var _notice_label: Label
-var _controls_label: Label
 var _mini_map: MiniMapControl
 var _heart_atlases: Array[AtlasTexture] = []
 var _notice_generation: int = 0
@@ -2060,32 +2060,63 @@ func _build_hud() -> void:
 
 	var panel := PanelContainer.new()
 	panel.position = Vector2(24.0, 24.0)
-	panel.custom_minimum_size = Vector2(530.0, 0.0)
+	panel.name = "QuestPanel"
+	panel.custom_minimum_size = Vector2(360.0, 0.0)
 	panel.theme = GameState.ui_theme
 	hud.add_child(panel)
-	var panel_style := StyleBoxTexture.new()
-	panel_style.texture = load("res://assets/third_party/ninja_adventure/ui/panel.png") as Texture2D
-	panel_style.modulate_color = Color(0.26, 0.20, 0.34, 0.96)
-	for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
-		panel_style.set_texture_margin(side, 5.0)
-		panel_style.set_content_margin(side, 16.0)
-	panel.add_theme_stylebox_override("panel", panel_style)
+	panel.add_theme_stylebox_override("panel", Presentation.panel())
 	var info := VBoxContainer.new()
 	info.add_theme_constant_override("separation", 5)
 	panel.add_child(info)
+	var brand := Label.new()
+	brand.text = "W A N D E R L I G H T"
+	brand.add_theme_font_size_override("font_size", 11)
+	brand.add_theme_color_override("font_color", Presentation.GOLD)
+	info.add_child(brand)
 	_map_label = Label.new()
 	_map_label.theme_type_variation = &"TitleLabel"
-	_map_label.add_theme_color_override("font_color", Color("f3c77f"))
-	_map_label.add_theme_font_size_override("font_size", 18)
+	_map_label.add_theme_font_size_override("font_size", 28)
+	_map_label.add_theme_color_override("font_color", Presentation.PAPER)
 	info.add_child(_map_label)
+	var rule := HSeparator.new()
+	var rule_style := StyleBoxLine.new()
+	rule_style.color = Color("665c49")
+	rule.add_theme_stylebox_override("separator", rule_style)
+	info.add_child(rule)
 	_quest_label = Label.new()
+	_quest_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_quest_label.add_theme_color_override("font_color", Color("fff2d2"))
 	_quest_label.add_theme_font_size_override("font_size", 17)
 	info.add_child(_quest_label)
-	_controls_label = Label.new()
-	_controls_label.text = "左側移動｜右側互動｜空白處左右滑動轉鏡頭｜右上裝備／存讀檔" if MobileControls.is_mobile_device() else "WASD 移動｜Space 互動｜I 裝備｜F5 存檔｜F9 讀檔"
-	_controls_label.add_theme_color_override("font_color", Color("b8a9bc"))
-	info.add_child(_controls_label)
+	_quest_label.minimum_size_changed.connect(func() -> void: panel.set_deferred("size", Vector2(panel.size.x, 0)))
+	var footer := PanelContainer.new()
+	footer.name = "TravelHints"
+	footer.theme = GameState.ui_theme
+	footer.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	footer.offset_left = 24
+	footer.offset_top = -64
+	footer.offset_right = 24
+	footer.offset_bottom = -24
+	footer.add_theme_stylebox_override("panel", Presentation.panel(10))
+	hud.add_child(footer)
+	var shortcuts := HBoxContainer.new()
+	shortcuts.add_theme_constant_override("separation", 12)
+	footer.add_child(shortcuts)
+	for shortcut: Array in [["WASD", "移動"], ["Space", "互動"], ["I", "裝備"], ["F5", "存檔"], ["F9", "讀檔"]]:
+		var key := Label.new()
+		key.text = shortcut[0]
+		key.custom_minimum_size.x = 26
+		key.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		key.add_theme_color_override("font_color", Presentation.GOLD)
+		var key_style := Presentation.panel(4)
+		key_style.set_corner_radius_all(3)
+		key_style.shadow_size = 0
+		key.add_theme_stylebox_override("normal", key_style)
+		shortcuts.add_child(key)
+		var action := Label.new()
+		action.text = shortcut[1]
+		action.add_theme_color_override("font_color", Presentation.PAPER)
+		shortcuts.add_child(action)
 
 	var heart_row := HBoxContainer.new()
 	heart_row.name = "ExplorationHearts"
@@ -2111,10 +2142,10 @@ func _build_hud() -> void:
 	_mini_map.name = "MiniMap"
 	_mini_map.anchor_left = 1.0
 	_mini_map.anchor_right = 1.0
-	_mini_map.offset_left = -250.0
+	_mini_map.offset_left = -194.0 if MobileControls.is_mobile_device() else -250.0
 	_mini_map.offset_right = -24.0
-	_mini_map.offset_top = 128.0 if MobileControls.is_mobile_device() else 62.0
-	_mini_map.offset_bottom = _mini_map.offset_top + 176.0
+	_mini_map.offset_top = 146.0 if MobileControls.is_mobile_device() else 62.0
+	_mini_map.offset_bottom = _mini_map.offset_top + (170.0 if MobileControls.is_mobile_device() else 226.0)
 	_mini_map.theme = GameState.ui_theme
 	hud.add_child(_mini_map)
 	_mini_map.destination_selected.connect(_on_map_destination)
@@ -2128,10 +2159,15 @@ func _build_hud() -> void:
 	map_button.theme = GameState.ui_theme
 	map_button.anchor_left = 1.0
 	map_button.anchor_right = 1.0
-	map_button.offset_left = -250.0
+	map_button.offset_left = _mini_map.offset_left
 	map_button.offset_right = -24.0
-	map_button.offset_top = _mini_map.offset_top + 234.0
-	map_button.offset_bottom = map_button.offset_top + 48.0
+	map_button.offset_top = _mini_map.offset_top + (178.0 if MobileControls.is_mobile_device() else 234.0)
+	map_button.offset_bottom = map_button.offset_top + (64.0 if MobileControls.is_mobile_device() else 48.0)
+	if MobileControls.is_mobile_device():
+		map_button.add_theme_font_size_override("font_size", 22)
+	var map_glyph := preload("res://scripts/ui/map_glyph.gd").new()
+	map_glyph.position = Vector2(28, 17 if MobileControls.is_mobile_device() else 10)
+	map_button.add_child(map_glyph)
 	map_button.pressed.connect(map_ui.open)
 	hud.add_child(map_button)
 	map_ui.open_button = map_button
@@ -2142,9 +2178,9 @@ func _build_hud() -> void:
 	_prompt_label.anchor_right = 0.5
 	_prompt_label.anchor_bottom = 1.0
 	_prompt_label.offset_left = -260.0
-	_prompt_label.offset_top = -72.0
+	_prompt_label.offset_top = -72.0 if MobileControls.is_mobile_device() else -120.0
 	_prompt_label.offset_right = 260.0
-	_prompt_label.offset_bottom = -26.0
+	_prompt_label.offset_bottom = -26.0 if MobileControls.is_mobile_device() else -74.0
 	_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_prompt_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_prompt_label.add_theme_color_override("font_color", Color("ffe7a8"))
@@ -2158,9 +2194,9 @@ func _build_hud() -> void:
 	_notice_label.anchor_left = 0.5
 	_notice_label.anchor_right = 0.5
 	_notice_label.offset_left = -280.0
-	_notice_label.offset_top = 116.0
+	_notice_label.offset_top = 208.0
 	_notice_label.offset_right = 280.0
-	_notice_label.offset_bottom = 160.0
+	_notice_label.offset_bottom = 252.0
 	_notice_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_notice_label.add_theme_color_override("font_color", Color("9ef4df"))
 	_notice_label.add_theme_color_override("font_outline_color", Color("171326"))
@@ -2177,7 +2213,18 @@ func _build_hud() -> void:
 	for control: Node in hud.get_children():
 		if control is Control:
 			control.add_to_group("camera_touch_blocker")
+	get_viewport().size_changed.connect(_layout_hud)
 	_refresh_hud()
+
+
+func _layout_hud() -> void:
+	var panel := get_node("HUD/QuestPanel") as PanelContainer
+	var mobile: bool = MobileControls.is_mobile_device()
+	var available: float = get_viewport().get_visible_rect().size.x - (352.0 if mobile else 298.0)
+	panel.custom_minimum_size.x = minf(360.0, maxf(240.0, available))
+	panel.size.x = panel.custom_minimum_size.x
+	panel.reset_size()
+	get_node("HUD/TravelHints").visible = not mobile and GameState.mode == GameState.Mode.EXPLORE
 
 
 func _refresh_hud() -> void:
@@ -2188,11 +2235,9 @@ func _refresh_hud() -> void:
 		_mini_map.visible = not fighting
 	get_node("HUD/ExplorationHearts").visible = not fighting
 	get_node("HUD/OpenMap").visible = not fighting
-	_controls_label.visible = not fighting and not CryptLayout.NAMES.has(GameState.current_map)
 	_quest_label.visible = not fighting
-	var info_panel := _map_label.get_parent().get_parent() as Control
-	info_panel.custom_minimum_size.x = 280.0 if fighting else 350.0 if CryptLayout.NAMES.has(GameState.current_map) else 530.0
-	info_panel.reset_size()
+	get_node("HUD/QuestPanel").visible = not fighting or not MobileControls.is_mobile_device()
+	_layout_hud()
 	_update_village_gate_state()
 	_update_quest_markers()
 	if GameState.current_map == "east_road" and is_instance_valid(_map_root):
@@ -2200,14 +2245,14 @@ func _refresh_hud() -> void:
 		if sign_board != null:
 			sign_board.rotation.z = 0.0 if bool(GameState.flags.get("road_sign", false)) else -0.45
 	_update_mini_map_targets()
-	_map_label.text = "WANDERLIGHT  /  %s" % ("北境遺跡" if GameState.current_map == "ruins" else "暮光村")
+	_map_label.text = "北境遺跡" if GameState.current_map == "ruins" else "暮光村"
 	if Outskirts.NAMES.has(GameState.current_map):
-		_map_label.text = "WANDERLIGHT  /  " + str(Outskirts.NAMES[GameState.current_map])
+		_map_label.text = str(Outskirts.NAMES[GameState.current_map])
 	if CryptLayout.NAMES.has(GameState.current_map):
 		_map_label.text = CryptLayout.NAMES[GameState.current_map]
 	if HouseCatalog.is_interior(GameState.current_map):
-		_map_label.text = "WANDERLIGHT  /  " + str(HouseCatalog.find_home(GameState.current_map).name)
-	_quest_label.text = GameState.get_quest_text()
+		_map_label.text = str(HouseCatalog.find_home(GameState.current_map).name)
+	_quest_label.text = "◇  " + GameState.get_quest_text().trim_prefix("主線：").strip_edges()
 	var filled_hearts := ceili(float(GameState.player_hp) / float(GameState.player_max_hp) * 5.0)
 	for index in range(_heart_atlases.size()):
 		_heart_atlases[index].region = Rect2(64.0 if index < filled_hearts else 0.0, 0.0, 16.0, 16.0)

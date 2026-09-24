@@ -105,6 +105,10 @@ HUD 以血條與數字顯示操控角色 HP，並顯示 MP、剩餘敵人、技�
 
 ### 手機瀏覽器
 
+探索介面採深藍金框：左上分開顯示地點與任務，桌機底部提供鍵帽提示；手機使用獨立 960 × 540 延伸畫布、較大的裝備／存讀檔／地圖按鈕與較小的小地圖。手機戰鬥將三名隊員狀態橫排在頂部，保留左搖桿及右側技能區。對話框固定距離底部，顯示目前頁數；直向仍提示旋轉手機，不提供直向遊玩。
+
+介面截圖與邊界驗證：`godot --path . --rendering-method gl_compatibility --script tests/ui_presentation_test.gd -- --mobile-controls --mute-audio --capture-dir=/absolute/existing/directory`。移除 `--mobile-controls` 檢查桌機，改成 `forward_plus` 檢查桌機 renderer。涵蓋兩種橫向尺寸、對話、戰鬥與手機直向提示；不寫正常存檔。視窗模擬不等同 Android／iOS 瀏覽器實機驗收。
+
 GitHub Pages Web 版會在 Android／iOS 瀏覽器自動顯示觸控操作，行動版預設使用橫向畫面：
 
 - 左下搖桿：移動

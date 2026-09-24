@@ -324,6 +324,7 @@ func _build() -> void:
 	add_child(_root)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var boss_panel := VBoxContainer.new()
+	boss_panel.name = "BossStatus"
 	_root.add_child(boss_panel)
 	boss_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	boss_panel.offset_left = -180
@@ -346,6 +347,11 @@ func _build() -> void:
 	top.offset_right = -20
 	top.offset_top = 20
 	top.add_theme_stylebox_override("panel", _hud_style(Color("71859a")))
+	var mobile: bool = MobileControls.is_mobile_device()
+	if mobile:
+		top.anchor_left = 0.0
+		top.offset_left = 24
+		boss_panel.offset_top = 142
 	var stats := VBoxContainer.new()
 	stats.custom_minimum_size.x = 300
 	stats.add_theme_constant_override("separation", 5)
@@ -353,9 +359,14 @@ func _build() -> void:
 	_status = Label.new()
 	_status.add_theme_font_size_override("font_size", 16)
 	stats.add_child(_status)
+	var cards := BoxContainer.new()
+	cards.vertical = not mobile
+	cards.add_theme_constant_override("separation", 8)
+	stats.add_child(cards)
 	for index: int in range(3):
 		var card := StatusCard.new()
-		stats.add_child(card)
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cards.add_child(card)
 		_party_rows.append(card)
 	_pause = Button.new()
 	_pause.position = Vector2(24, 150)
@@ -382,6 +393,12 @@ func _build() -> void:
 	if MobileControls.is_mobile_device():
 		_layout_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_layout_button)
+	if mobile:
+		_pause.position.y = 136
+		_auto_button.position.y = 208
+		_layout_button.position.y = 280
+		for button: Button in [_pause, _auto_button, _layout_button]:
+			button.size.y = 64
 	_skill_dock = RadialDock.new()
 	_skill_dock.name = "SkillDock"
 	_root.add_child(_skill_dock)

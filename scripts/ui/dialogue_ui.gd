@@ -102,6 +102,7 @@ func _show_current_line() -> void:
 		layer = 100 # Keep arrival notices behind the cinematic insert.
 		_panel.hide()
 		_cinematic.play(_illustration.texture)
+	_hint_label.text = "%02d / %02d   ·   %s" % [_line_index + 1, _lines.size(), "點一下繼續" if MobileControls.is_mobile_device() else "Space / Enter  繼續"]
 	page_shown.emit(_line_index)
 
 
@@ -162,22 +163,18 @@ func _build_ui() -> void:
 
 	var panel := PanelContainer.new()
 	_panel = panel
-	panel.anchor_left = 0.08
-	panel.anchor_top = 0.68
-	panel.anchor_right = 0.92
-	panel.anchor_bottom = 0.94
+	panel.anchor_left = 0.06
+	panel.anchor_top = 1.0
+	panel.anchor_right = 0.94
+	panel.anchor_bottom = 1.0
 	panel.offset_left = 0.0
-	panel.offset_top = 0.0
+	panel.offset_top = -214.0
 	panel.offset_right = 0.0
-	panel.offset_bottom = 0.0
+	panel.offset_bottom = -24.0
+	panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_root.add_child(panel)
 
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.055, 0.045, 0.09, 0.96)
-	style.border_color = Color("d6a65e")
-	style.set_border_width_all(3)
-	style.set_corner_radius_all(8)
-	style.set_content_margin_all(22.0)
+	var style := preload("res://scripts/ui/presentation_theme.gd").panel(22)
 	panel.add_theme_stylebox_override("panel", style)
 
 	var content := VBoxContainer.new()

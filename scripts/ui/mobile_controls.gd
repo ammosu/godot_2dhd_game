@@ -74,6 +74,9 @@ static func is_mobile_device() -> bool:
 
 func _ready() -> void:
 	_mobile_device = is_mobile_device()
+	if _mobile_device:
+		get_window().content_scale_size = Vector2i(960, 540)
+		get_window().content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_process_input(_mobile_device)
 	set_process_unhandled_input(_mobile_device)
@@ -125,14 +128,14 @@ func _draw() -> void:
 
 	var base := _joystick_center()
 	var knob_offset := _move_vector * (JOYSTICK_RADIUS - JOYSTICK_KNOB_RADIUS)
-	draw_circle(base, JOYSTICK_RADIUS, Color(0.055, 0.045, 0.09, 0.62))
+	draw_circle(base, JOYSTICK_RADIUS, Color(0.035, 0.065, 0.10, 0.66))
 	draw_arc(base, JOYSTICK_RADIUS, 0.0, TAU, 64, Color(0.85, 0.65, 0.36, 0.76), 3.0, true)
-	draw_circle(base + knob_offset, JOYSTICK_KNOB_RADIUS, Color(0.47, 0.84, 0.81, 0.82))
+	draw_circle(base + knob_offset, JOYSTICK_KNOB_RADIUS, Color(0.38, 0.64, 0.65, 0.80))
 	draw_arc(base + knob_offset, JOYSTICK_KNOB_RADIUS, 0.0, TAU, 40, Color(0.92, 0.82, 0.56), 3.0, true)
 
 	if GameState.mode == GameState.Mode.BATTLE:
 		return
-	_draw_round_button(_action_center(), ACTION_RADIUS, "互動", &"interact", Color(0.16, 0.62, 0.59, 0.88))
+	_draw_round_button(_action_center(), ACTION_RADIUS, "互動", &"interact", Color(0.10, 0.25, 0.29, 0.88))
 	_draw_pill_button(_equipment_rect(), "裝備", &"equipment_menu")
 	_draw_pill_button(_save_rect(), "存檔", &"save_game")
 	_draw_pill_button(_load_rect(), "讀檔", &"load_game")
@@ -265,13 +268,11 @@ func _draw_round_button(center: Vector2, radius: float, label: String, action: S
 
 func _draw_pill_button(rect: Rect2, label: String, action: StringName) -> void:
 	var is_pressed := bool(_pressed_buttons.get(action, false))
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.10, 0.08, 0.17, 0.9 if is_pressed else 0.72)
-	style.border_color = Color(0.47, 0.84, 0.81, 0.82)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(18)
+	var style := preload("res://scripts/ui/presentation_theme.gd").panel(0)
+	if is_pressed:
+		style.bg_color = Color("345563")
 	draw_style_box(style, rect)
-	_draw_centered_text(rect.get_center(), label, 18)
+	_draw_centered_text(rect.get_center(), label, 22)
 
 
 func _draw_centered_text(center: Vector2, label: String, font_size: int) -> void:
@@ -283,11 +284,11 @@ func _draw_centered_text(center: Vector2, label: String, font_size: int) -> void
 
 func _draw_portrait_notice() -> void:
 	var backdrop := Rect2(Vector2.ZERO, size)
-	draw_rect(backdrop, Color(0.025, 0.02, 0.065, 0.88))
+	draw_rect(backdrop, Color(0.025, 0.045, 0.07, 0.97))
 	var center := size * 0.5
 	draw_arc(center + Vector2(0.0, -42.0), 46.0, -PI * 0.1, PI * 1.35, 40, Color("75d5ce"), 5.0, true)
-	_draw_centered_text(center + Vector2(0.0, 42.0), "點一下切換橫向", 34)
-	_draw_centered_text(center + Vector2(0.0, 84.0), "若瀏覽器未切換，請旋轉手機", 20)
+	_draw_centered_text(center + Vector2(0.0, 42.0), "點一下切換橫向", int(size.x * 0.06))
+	_draw_centered_text(center + Vector2(0.0, 122.0), "若瀏覽器未切換，請旋轉手機", int(size.x * 0.038))
 
 
 func _install_web_landscape_listener() -> void:
@@ -298,6 +299,8 @@ func _install_web_landscape_listener() -> void:
 
 func _refresh_visibility() -> void:
 	_landscape = _is_window_landscape()
+	if _mobile_device and get_parent() is CanvasLayer:
+		(get_parent() as CanvasLayer).layer = 50 if _landscape else 120
 	if GameState.mode != _previous_mode or not _camera_input_allowed():
 		_release_all_actions()
 	_previous_mode = GameState.mode
@@ -306,6 +309,8 @@ func _refresh_visibility() -> void:
 
 func _on_viewport_size_changed() -> void:
 	_landscape = _is_window_landscape()
+	if _mobile_device and get_parent() is CanvasLayer:
+		(get_parent() as CanvasLayer).layer = 50 if _landscape else 120
 	_release_all_actions()
 	queue_redraw()
 
@@ -332,23 +337,23 @@ func _release_all_actions() -> void:
 
 
 func _joystick_center() -> Vector2:
-	return Vector2(132.0, size.y - 132.0)
+	return Vector2(132.0, size.y - (108.0 if GameState.mode == GameState.Mode.BATTLE else 132.0))
 
 
 func _action_center() -> Vector2:
-	return Vector2(size.x - 112.0, size.y - 124.0)
+	return Vector2(size.x - 112.0, size.y - 82.0)
 
 
 func _save_rect() -> Rect2:
-	return Rect2(Vector2(size.x - 210.0, 66.0), Vector2(82.0, 48.0))
+	return Rect2(Vector2(size.x - 210.0, 66.0), Vector2(82.0, 64.0))
 
 
 func _equipment_rect() -> Rect2:
-	return Rect2(Vector2(size.x - 304.0, 66.0), Vector2(82.0, 48.0))
+	return Rect2(Vector2(size.x - 304.0, 66.0), Vector2(82.0, 64.0))
 
 
 func _load_rect() -> Rect2:
-	return Rect2(Vector2(size.x - 116.0, 66.0), Vector2(82.0, 48.0))
+	return Rect2(Vector2(size.x - 116.0, 66.0), Vector2(82.0, 64.0))
 
 
 func _camera_input_allowed() -> bool:

@@ -15,8 +15,8 @@ const Outskirts = preload("res://scripts/gameplay/outskirts.gd")
 const HouseCatalog = preload("res://scripts/gameplay/house_catalog.gd")
 const INTERIOR_BOUNDS := Rect2(-4.3, -3.8, 8.6, 7.6)
 
-const PANEL_COLOR := Color(0.035, 0.03, 0.065, 0.94)
-const PANEL_BORDER_COLOR := Color("d6a65e")
+const PANEL_COLOR := Color(0.035, 0.065, 0.10, 0.94)
+const PANEL_BORDER_COLOR := Color("c9a66c")
 const MAP_BACKGROUND_COLOR := Color(0.075, 0.075, 0.12, 0.96)
 const MAP_GROUND_COLOR := Color("35434b")
 const MAP_PATH_COLOR := Color("8c765f")
@@ -52,12 +52,12 @@ func _ready() -> void:
 		_hovered_destination = {}
 		queue_redraw()
 	)
-	custom_minimum_size = Vector2(226.0, 226.0)
+	custom_minimum_size = Vector2(170.0, 170.0) if MobileControls.is_mobile_device() and not interactive else Vector2(226.0, 226.0)
 	_panel_style = StyleBoxFlat.new()
 	_panel_style.bg_color = PANEL_COLOR
 	_panel_style.border_color = PANEL_BORDER_COLOR
 	_panel_style.set_border_width_all(2)
-	_panel_style.set_corner_radius_all(8)
+	_panel_style.set_corner_radius_all(10)
 	queue_redraw()
 
 
