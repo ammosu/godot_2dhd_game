@@ -1,11 +1,12 @@
 extends Sprite3D
+const Proportions = preload("res://scripts/gameplay/character_proportions.gd")
 ## Front-facing idle art for stationary city hosts; never used for patrols.
 const Grounding = preload("res://scripts/gameplay/sprite_grounding.gd")
-var visible_height: float = 1.4
+var visible_height: float = Proportions.HEIGHT
 
 
 func _ready() -> void:
-	pixel_size = visible_height / float(texture.get_meta("reference_height"))
+	Proportions.apply(self, texture, float(texture.get_meta("reference_height")), visible_height)
 	Grounding.anchor(self, texture, float(texture.get_meta("ground_y")))
 
 

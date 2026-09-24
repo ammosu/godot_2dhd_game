@@ -318,9 +318,9 @@ func _pose(index: int, pose: String) -> void:
 		_baseline_cache[texture_key] = float(texture.get_meta("ground_y")) if texture.has_meta("ground_y") else Grounding.foot_baseline(texture, 0.5)
 	# Raised weapons need extra canvas without shrinking the actor body.
 	var default_height: float = 145.0 if session.actors[index].art == "moss_wolf" else 175.0
-	var ratio: float = float(texture.get_meta("display_height", default_height)) / texture.get_height()
+	var ratio: float = 175.0 / float(texture.get_meta("body_height")) if index < 3 and texture.has_meta("body_height") else float(texture.get_meta("display_height", default_height)) / texture.get_height()
 	_portraits[index].texture = texture
-	_portraits[index].size = texture.get_size() * ratio
+	_portraits[index].size = texture.get_size() * ratio * Vector2(float(texture.get_meta("width_scale", 1.0)), 1.0)
 	_portraits[index].position = _point(index) - Vector2(_portraits[index].size.x * 0.5, float(_baseline_cache[texture_key]) * ratio)
 	_shadows[index].position = _point(index)
 	_shadows[index].scale = Vector2(1.8, 0.8) if pose == "defeated" else Vector2.ONE
@@ -730,7 +730,7 @@ func _build() -> void:
 		var offset := Vector2((index % 3) * 1.6, 0.8 if index % 3 == 1 else 0.0) * SCALE
 		art.position = origin + offset - Vector2(105, 165)
 		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		art.stretch_mode = TextureRect.STRETCH_SCALE
 		art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		art.z_index = 2 if index % 3 == 1 else 1

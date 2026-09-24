@@ -276,6 +276,7 @@ func refresh(delta: float) -> void:
 		poses[index] = pose
 		sprites[index].texture = art
 		sprites[index].pixel_size = float(art.get_meta("pixel_size"))
+		sprites[index].scale.x = float(art.get_meta("width_scale", 1.0))
 		Grounding.anchor(sprites[index], art, float(art.get_meta("ground_y")))
 		sprites[index].offset.x = art.get_width() * 0.5 - float(art.get_meta("anchor_x"))
 		sprites[index].flip_h = bool(art.get_meta("flip_h", false))

@@ -152,10 +152,10 @@ func _refresh_portrait() -> void:
 	GameState.HeroStyle.apply_canvas(_portrait, _portrait.texture, GameState.player_style if selected_actor == "wanderer" else "original")
 	var shown := _portrait.texture
 	_portrait.flip_h = bool(shown.get_meta("flip_h", false))
-	if selected_actor == "wanderer" and not Appearance.ClassArt.vocation(visual).is_empty():
+	if shown.has_meta("body_height"):
 		ratio = 335.0 / float(shown.get_meta("body_height"))
 	var padding: Vector2 = shown.get_meta("canvas_padding", Vector2.ZERO)
-	_portrait.size = shown.get_size() * ratio
+	_portrait.size = shown.get_size() * ratio * Vector2(float(shown.get_meta("width_scale", 1.0)), 1.0)
 	_portrait.position = Vector2(600 - _portrait.size.x / 2.0, (107.0 if _pose.begins_with("walk_") else 128.0) - padding.y * ratio)
 
 

@@ -494,6 +494,7 @@ func _art(sprite: Sprite3D, actor: String, pose: String, direction: Vector3) -> 
 	var texture: AtlasTexture = Art.directional_texture(actor, pose, screen, sprite, GameState.get_visual_loadout() if actor == "wanderer" else {})
 	sprite.texture = texture
 	sprite.pixel_size = float(texture.get_meta("pixel_size"))
+	sprite.scale.x = float(texture.get_meta("width_scale", 1.0))
 	if actor == "wanderer":
 		var standing: AtlasTexture = Art.texture_for(actor, "idle", column, GameState.get_visual_loadout())
 		sprite.pixel_size = float(player.call("presentation_height")) / float(texture.get_meta("body_height", standing.get_height()))

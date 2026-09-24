@@ -1,5 +1,6 @@
 extends SceneTree
 ## Real interaction dispatch, all eight approach directions, camera orbits and gear.
+const Proportions = preload("res://scripts/gameplay/character_proportions.gd")
 const Facing = preload("res://scripts/gameplay/eight_way_facing.gd")
 const Grounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 const Catalog = preload("res://scripts/systems/party_equipment.gd")
@@ -76,7 +77,7 @@ func _run() -> void:
 					var region := Rect2i(art.region)
 					check(image.get_pixel(region.position.x, region.position.y).a < 0.5, "Opaque atlas margin")
 					check(is_equal_approx(Grounding.foot_baseline(art, 0.5), float(art.get_meta("ground_y"))), "Conversation feet are not grounded")
-					check(is_equal_approx(sprite.pixel_size * float(art.get_meta("visible_height")), original_scale * float(original.get_meta("visible_height"))), "Turn changed NPC height")
+					check(is_equal_approx(sprite.pixel_size * Proportions.profile(art, float(art.get_meta("visible_height"))).x, Proportions.HEIGHT), "Turn changed NPC height")
 					var texture_before := sprite.texture
 					world.call("_handle_interaction", "noah" if actor != "noah" else "rumi")
 					check(sprite.texture == texture_before, "Locked dialogue changed speaker")

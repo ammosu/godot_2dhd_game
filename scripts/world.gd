@@ -1,5 +1,6 @@
 class_name PrototypeWorld
 extends Node3D
+const Proportions = preload("res://scripts/gameplay/character_proportions.gd")
 
 signal map_presented
 
@@ -1110,13 +1111,13 @@ func _add_actor_interactable(interaction_id: String, prompt: String, world_posit
 	if interaction_id in ["noah", "elder", "rumi"]:
 		sprite.set_script(preload("res://scripts/gameplay/equipment_actor.gd"))
 		sprite.set("actor_id", interaction_id)
-	if interaction_id == "house_resident":
+	if interaction_id in ["house_resident", "road_traveler"]:
 		if texture_path.contains("/city_residents/"):
 			sprite.set_script(preload("res://scripts/gameplay/city_resident_art.gd"))
 		else:
 			sprite.set_script(preload("res://scripts/gameplay/resident_art.gd"))
 			sprite.set("resident_id", texture_path.get_file().get_basename())
-		sprite.set("visible_height", 1.4 * HouseCatalog.INTERIOR_CHARACTER_SCALE)
+		sprite.set("visible_height", Proportions.HEIGHT * (HouseCatalog.INTERIOR_CHARACTER_SCALE if interaction_id == "house_resident" else 1.0))
 	sprite.texture = _art_texture(texture_path)
 	sprite.pixel_size = pixel_size
 	# Match the upright player: camera pitch must foreshorten every world actor alike.

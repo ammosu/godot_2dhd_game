@@ -1,7 +1,9 @@
 extends TextureRect
 ## Production atlas portrait with opt-in live layers for supported party poses.
+const Proportions = preload("res://scripts/gameplay/character_proportions.gd")
 const Appearance = preload("res://scripts/gameplay/equipment_appearance.gd")
 const LayeredActor = preload("res://scripts/gameplay/layered_combat_actor.gd")
+var _fitted_textures: Dictionary[int, Texture2D] = {}
 var _layered: Node2D
 var _layer_origin := Vector2.ZERO
 var _layer_canvases: Dictionary[String, Texture2D] = {}
@@ -20,6 +22,17 @@ func dress(base: Texture2D, pose: String, loadout: Dictionary, actor: String = "
 	if is_instance_valid(_layered):
 		_layered.hide()
 	texture = Appearance.texture_for(base, pose, loadout, actor)
+	if not texture.has_meta("body_height"):
+		var key: int = texture.get_instance_id()
+		if _fitted_textures.has(key):
+			texture = _fitted_textures[key]
+			return
+		texture = texture.duplicate() as Texture2D
+		_fitted_textures[key] = texture
+		var idle: Texture2D = base if pose.begins_with("walk_") else load("res://assets/generated/%s_combat_idle.tres" % actor)
+		if pose.begins_with("walk_"):
+			idle = Appearance.walking_frames(loadout).get_frame_texture(StringName(pose.trim_prefix("walk_")), 0)
+		Proportions.fit_portrait(texture, Appearance.texture_for(idle, pose if pose.begins_with("walk_") else "idle", loadout, actor))
 
 
 func _dress_layered(base: Texture2D, pose: String, loadout: Dictionary, actor: String) -> void:
@@ -35,6 +48,7 @@ func _dress_layered(base: Texture2D, pose: String, loadout: Dictionary, actor: S
 		placeholder.set_meta("canvas_padding", Appearance.PAD)
 		placeholder.set_meta("ground_y", LayeredActor.foot_y(pose, actor) + atlas.margin.position.y - atlas.region.position.y + Appearance.PAD.y)
 		placeholder.set_meta("display_height", float(base.get_meta("display_height", 175.0)) * canvas.y / base.get_height())
+		Proportions.fit_portrait(placeholder, load("res://assets/generated/%s_combat_idle.tres" % actor))
 		placeholder.set_meta("layered", true)
 		_layer_canvases[key] = placeholder
 	texture = _layer_canvases[key]
@@ -51,6 +65,6 @@ func _dress_layered(base: Texture2D, pose: String, loadout: Dictionary, actor: S
 func _layout_layers() -> void:
 	if not is_instance_valid(_layered) or not _layered.visible or texture == null:
 		return
-	var factor := minf(size.x / texture.get_width(), size.y / texture.get_height())
-	_layered.scale = Vector2.ONE * factor
+	var factor := size / texture.get_size()
+	_layered.scale = factor
 	_layered.position = (size - texture.get_size() * factor) * 0.5 + _layer_origin * factor

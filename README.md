@@ -351,3 +351,9 @@ godot --path . -- --crypt-boss-preview
 路標旁直接試玩：`godot --path . -- --roadside-preview`。
 
 野外高台石階改為錯縫、寬度不一的舊石板，搭配填實階縫的泥土、苔草邊坡及局部露岩；上下端以零散踏石銜接土路。保留原有平滑坡道碰撞與戰鬥導航。
+
+### Character proportions
+
+Human characters share the 1.45-unit standing-body reference in `scripts/gameplay/character_proportions.gd`. Player classes, companions, village residents, Starbay hosts, and the road traveler use standing-art measurements and bounded horizontal fitting; raised weapons and crouched action frames do not set their body size. Interiors retain their common room scale. Creatures and bosses retain species-specific sizes. The road traveler uses the existing eight-direction resident travel outfit.
+
+Run `godot --headless --path . --script tests/character_proportions_test.gd` for size and action-pose checks. Running the same test with a desktop renderer also writes a human-character comparison sheet to `/tmp/character-proportions.png`.

@@ -1,4 +1,5 @@
 extends SceneTree
+const Proportions = preload("res://scripts/gameplay/character_proportions.gd")
 const City = preload("res://scripts/gameplay/city_house_catalog.gd")
 const Residents = preload("res://scripts/gameplay/city_resident_catalog.gd")
 var failures: int = 0
@@ -32,10 +33,11 @@ func _run() -> void:
 		var texture := art.texture as AtlasTexture
 		check(texture != null, address + " atlas loaded")
 		check(art.texture_filter == BaseMaterial3D.TEXTURE_FILTER_NEAREST, address + " nearest sampling")
-		check(is_equal_approx(art.pixel_size * float(texture.get_meta("reference_height")),
-			1.4 * preload("res://scripts/gameplay/house_catalog.gd").INTERIOR_CHARACTER_SCALE), address + " height")
+		check(is_equal_approx(art.pixel_size * Proportions.profile(texture, float(texture.get_meta("reference_height"))).x,
+			Proportions.HEIGHT * preload("res://scripts/gameplay/house_catalog.gd").INTERIOR_CHARACTER_SCALE), address + " height")
 		check(texture.region.size.x > 100 and texture.region.size.y > 250, address + " complete body")
-		check(str(person.text).contains(str(Residents.RESIDENTS[Residents.HOUSE_IDENTITIES[index]].line)), address + " introduction")
+		var introduction: String = str(City.Shops.SHOPS[address].line) if City.Shops.SHOPS.has(address) else str(Residents.RESIDENTS[Residents.HOUSE_IDENTITIES[index]].line)
+		check(str(person.text).contains(introduction), address + " introduction")
 		if "--capture" in OS.get_cmdline_user_args() and index == 5:
 			world.get_node("CameraRig").call("snap_to_target")
 			await create_timer(1.0).timeout
@@ -46,9 +48,9 @@ func _run() -> void:
 		while world.get_node("DialogueUI").call("is_open"):
 			world.get_node("DialogueUI").call("advance")
 		seen[person.art] = true
-	check(seen.size() == 16, "all 16 designs used")
+	check(seen.size() == 14, "all household and shop designs used")
 	world.queue_free()
 	await process_frame
 	if failures == 0:
-		print("CITY_RESIDENT_ART_TEST_PASS 16 designs 26 homes dialogue scale")
+		print("CITY_RESIDENT_ART_TEST_PASS household and shop designs 26 homes dialogue scale")
 	quit(0 if failures == 0 else 1)

@@ -73,7 +73,7 @@ func _refresh() -> void:
 	var idle := Art.texture_for("wanderer", "idle", facing, loadout)
 	var factor: float = minf((size.y * 0.67) / float(texture.get_meta("body_height", idle.get_height())), (size.x - 40.0) / (float(texture.get_meta("body_height", idle.get_height())) * 1.55))
 	Style.apply_canvas(_sprite, texture, style_id)
-	_sprite.scale = Vector2.ONE * factor
+	_sprite.scale = Vector2(float(texture.get_meta("width_scale", 1.0)), 1.0) * factor
 	_sprite.offset = Vector2(texture.get_width() * 0.5 - _foot_center(texture), texture.get_height() * 0.5 - float(texture.get_meta("ground_y")))
 	_sprite.flip_h = bool(texture.get_meta("flip_h", false))
 	if _sprite.flip_h:

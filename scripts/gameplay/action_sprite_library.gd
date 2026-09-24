@@ -1,4 +1,5 @@
 extends RefCounted
+const Proportions = preload("res://scripts/gameplay/character_proportions.gd")
 ## Four camera-relative facings, measured RGBA regions; presentation only.
 const Appearance = preload("res://scripts/gameplay/equipment_appearance.gd")
 const Movement = preload("res://scripts/gameplay/enemy_movement_art.gd")
@@ -72,6 +73,16 @@ static func texture_for(actor: String, pose_name: String, facing: int, loadout: 
 	# reach or crouched/dead frame height. Defeat must not grow to standing size.
 	var idle: Array = data.frames[facing * 12]
 	texture.set_meta("pixel_size", (0.8 if actor == "dusk_bat" else 1.45 if actor == "moss_wolf" else 1.88 if actor == "guardian" else 1.85 if actor == "noah" else 1.575) / float(idle[3]))
+	if actor in ["wanderer", "noah", "elder"]:
+		var standing := AtlasTexture.new()
+		standing.atlas = texture.atlas
+		standing.region = Rect2(idle[0], idle[1], idle[2], idle[3])
+		standing.set_meta("anchor_x", float(idle[4]) if idle.size() > 4 else float(idle[2]) * 0.5)
+		# Cache one reference per sheet/facing; all action poses share its fit.
+		var reference_key := sheet + ":standing:" + str(facing)
+		if not _cache.has(reference_key):
+			_cache[reference_key] = standing
+		Proportions.stamp(texture, _cache[reference_key], float(idle[3]))
 	texture.set_meta("pose", pose_name)
 	texture.set_meta("facing", facing)
 	texture.set_meta("variant", variant)

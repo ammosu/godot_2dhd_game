@@ -1,4 +1,5 @@
 extends RefCounted
+const Proportions = preload("res://scripts/gameplay/character_proportions.gd")
 ## Class wardrobe atlases shared by field, arena, exploration and portraits.
 const Equipment = preload("res://scripts/systems/class_equipment.gd")
 const Regions = preload("res://assets/generated/classes/regions.gd")
@@ -32,13 +33,15 @@ static func texture_for(id: String, pose: String, facing: int = 0) -> AtlasTextu
 		result.set_meta("anchor_x", float(box[4]))
 		result.set_meta("foot_center", float(box[4]))
 		result.set_meta("body_height", float(entry.body_height))
+		result.set_meta("source_body_height", float(entry.body_height))
 		result.set_meta("display_height", float(box[3]))
-		result.set_meta("pixel_size", 1.575 / float(entry.body_height))
+		result.set_meta("pixel_size", Proportions.HEIGHT / float(entry.body_height))
 		result.set_meta("pose", pose)
 		result.set_meta("facing", facing)
 		result.set_meta("variant", "class_" + id)
 		result.set_meta("flip_h", bool(entry.flip))
 		_textures[key] = result
+		Proportions.stamp(result, result if pose == "idle" else texture_for(id, "idle", facing), float(entry.body_height))
 		return result
 	var frames: Array = Regions.DATA[id].frames
 	var box: Array = frames[facing * 12 + pose_index]
@@ -51,12 +54,14 @@ static func texture_for(id: String, pose: String, facing: int = 0) -> AtlasTextu
 	result.set_meta("anchor_x", float(box[4]))
 	result.set_meta("foot_center", float(box[4]))
 	result.set_meta("body_height", float(idle[3]))
+	result.set_meta("source_body_height", float(idle[3]))
 	result.set_meta("display_height", float(box[3]))
-	result.set_meta("pixel_size", 1.575 / float(idle[3]))
+	result.set_meta("pixel_size", Proportions.HEIGHT / float(idle[3]))
 	result.set_meta("pose", pose)
 	result.set_meta("facing", facing)
 	result.set_meta("variant", "class_" + id)
 	_textures[key] = result
+	Proportions.stamp(result, result if pose == "idle" else texture_for(id, "idle", facing), float(idle[3]))
 	return result
 
 static func diagonal_walking_texture(loadout: Dictionary, pose: String, screen: Vector2) -> AtlasTexture:
@@ -66,7 +71,13 @@ static func diagonal_walking_texture(loadout: Dictionary, pose: String, screen: 
 	if not ARCHER_DIAGONALS.has_animation(direction):
 		return null
 	var frame: int = 1 if pose == "walk_a" else 3 if pose == "walk_b" else 0
-	return ARCHER_DIAGONALS.get_frame_texture(direction, frame) as AtlasTexture
+	var texture := ARCHER_DIAGONALS.get_frame_texture(direction, frame) as AtlasTexture
+	if not texture.has_meta("width_scale"):
+		var standing := ARCHER_DIAGONALS.get_frame_texture(direction, 0)
+		if not standing.has_meta("source_body_height"):
+			standing.set_meta("source_body_height", standing.get_meta("body_height"))
+		Proportions.stamp(texture, standing, float(standing.get_meta("source_body_height")))
+	return texture
 
 
 static func walking_frames(loadout: Dictionary, door: bool = false) -> SpriteFrames:

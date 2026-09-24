@@ -1,5 +1,6 @@
 class_name Wanderer
 extends CharacterBody3D
+const Proportions = preload("res://scripts/gameplay/character_proportions.gd")
 
 @export_range(0.5, 12.0, 0.1) var move_speed: float = 4.2
 @export_range(1.0, 40.0, 0.5) var acceleration: float = 18.0
@@ -65,7 +66,7 @@ func set_presentation_scale(factor: float) -> void:
 
 func presentation_height() -> float:
 	# Measured standing body, excluding the walking atlas's transparent margins.
-	return 290.0 * _base_pixel_size * _presentation_scale
+	return Proportions.HEIGHT * _presentation_scale
 
 
 func _refresh_equipment() -> void:
@@ -245,7 +246,8 @@ func _update_sprite(input_vector: Vector2, move_direction: Vector3, delta: float
 		sprite.animation = FACING_ANIMATIONS[_facing_column]
 		sprite.frame = _door_pose
 		var texture := sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame)
-		sprite.pixel_size = _base_pixel_size * _presentation_scale * 290.0 / float(texture.get_meta("body_height"))
+		sprite.pixel_size = presentation_height() / float(texture.get_meta("body_height"))
+		sprite.scale.x = float(texture.get_meta("width_scale", sprite.scale.x))
 		sprite.offset = Vector2(texture.get_width() * 0.5 - float(texture.get_meta("foot_center")), float(texture.get_meta("ground_y")) - texture.get_height() * 0.5)
 		sprite.flip_h = bool(texture.get_meta("flip_h", false))
 		if sprite.flip_h:
@@ -269,10 +271,15 @@ func _update_sprite(input_vector: Vector2, move_direction: Vector3, delta: float
 		sprite.position.y = move_toward(sprite.position.y, _sprite_rest_height, delta * 0.5)
 		sprite.rotation.z = move_toward(sprite.rotation.z, 0.0, delta * 0.5)
 	_refresh_equipment()
-	if not EquipmentAppearance.ClassArt.vocation(GameState.get_visual_loadout()).is_empty():
-		var texture := sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame)
+	var standing := sprite.sprite_frames.get_frame_texture(sprite.animation, 0)
+	var texture := sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame)
+	if texture.has_meta("width_scale"):
 		sprite.pixel_size = presentation_height() / float(texture.get_meta("body_height"))
-		SpriteGrounding.anchor(sprite, texture, float(texture.get_meta("ground_y")))
+		sprite.scale.x = float(texture.get_meta("width_scale"))
+	else:
+		Proportions.apply(sprite, standing, float(standing.get_meta("body_height", 290.0)), presentation_height())
+	SpriteGrounding.anchor(sprite, texture, float(texture.get_meta("ground_y", 316.0)))
+	if texture.has_meta("anchor_x"):
 		sprite.offset.x = texture.get_width() * 0.5 - float(texture.get_meta("anchor_x"))
 
 

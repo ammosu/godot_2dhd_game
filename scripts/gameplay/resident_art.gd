@@ -1,4 +1,5 @@
 extends Sprite3D
+const Proportions = preload("res://scripts/gameplay/character_proportions.gd")
 ## Shared eight-way presentation for household residents and street patrols.
 const Facing = preload("res://scripts/gameplay/eight_way_facing.gd")
 const Grounding = preload("res://scripts/gameplay/sprite_grounding.gd")
@@ -10,7 +11,7 @@ const WALK_SEQUENCE: Array[int] = [1, 2, 3, 2]
 var resident_id: String = "mira"
 var world_heading: Vector3 = Vector3.BACK
 var walking: bool = false
-var visible_height: float = 1.4
+var visible_height: float = Proportions.HEIGHT
 var ground_lift: float = 0.008
 var sprite_frames: SpriteFrames
 var animation: StringName = &"down"
@@ -69,6 +70,6 @@ func _update_presentation(delta: float) -> void:
 	texture = next_texture
 	# One scale per direction avoids pumping between animation frames. Measured
 	# foot metadata keeps every direction planted without modifying source art.
-	pixel_size = visible_height / float(texture.get_meta("reference_height"))
+	Proportions.apply(self, sprite_frames.get_frame_texture(animation, 0), float(texture.get_meta("reference_height")), visible_height)
 	Grounding.anchor(self, texture, float(texture.get_meta("ground_y")))
 	position.y += ground_lift

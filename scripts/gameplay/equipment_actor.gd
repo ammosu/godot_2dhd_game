@@ -1,4 +1,5 @@
 extends Sprite3D
+const Proportions = preload("res://scripts/gameplay/character_proportions.gd")
 ## Village actors share the same authoritative loadout as their battle versions.
 const Appearance = preload("res://scripts/gameplay/equipment_appearance.gd")
 const Grounding = preload("res://scripts/gameplay/sprite_grounding.gd")
@@ -12,16 +13,12 @@ var actor_id: String = ""
 var source_texture: Texture2D
 @export var idle_world_direction: Vector3 = Vector3.BACK
 var _conversation_partner: Node3D
-var _source_pixel_size: float
-var _source_height: float
 var _facing_key: String = ""
 
 
 func _ready() -> void:
 	process_priority = 10 # Resolve directional art after the camera rig.
 	source_texture = texture
-	_source_pixel_size = pixel_size
-	_source_height = float(source_texture.get_image().get_used_rect().size.y)
 	GameState.state_changed.connect(_refresh_equipment)
 	_refresh_equipment()
 
@@ -81,6 +78,6 @@ func _show_facing(animation: StringName, variant: String) -> void:
 	# Idle and conversation share one character design and physical height.
 	var row := 3 if variant.ends_with("_both") else 2 if variant.ends_with("_armor") else 1 if variant.ends_with("_weapon") else 0
 	texture = TURNAROUNDS[actor_id].get_frame_texture(animation, row)
-	pixel_size = _source_pixel_size * _source_height / float(texture.get_meta("visible_height"))
+	Proportions.apply(self, texture, float(texture.get_meta("visible_height")))
 	Grounding.anchor(self, texture, float(texture.get_meta("ground_y")))
 	position.y += 0.008
