@@ -736,3 +736,5 @@ to existing combat/equipment art. New original atlases and generation prompts li
 男弓箭手斜走：`godot --headless --path . --script tests/archer_diagonal_test.gd` 驗證四個斜向、兩種弓、獨立素材、步伐順序、固定身體軸心／比例及停止姿勢；保留女弓箭手與開門動作的既有來源，不寫存檔。實際 renderer 對照可執行 `godot --path . --rendering-method forward_plus --script tests/player_motion_capture.gd -- --class=archer --capture-dir=/existing/path`，並改用 `gl_compatibility` 重複。對照圖只代表畫格檢查，不取代連續動畫的目視驗證。
 
 停止朝向：`godot --headless --path . --script tests/player_stop_facing_test.gd` 使用實際 Input 與玩家物理處理，涵蓋四斜向、兩種放鍵順序、相差 1／3／5 幀、持續單鍵轉向與重新起步；`class_field_test.gd` 另檢查野外可見待機姿勢。斜向鬆開一軸時只有朝向等待最多 0.10 秒，移動／減速仍立即依原輸入處理。完全放開後保留原朝向，重新按鍵立即轉身。
+
+野外／地下城底部介面：`godot --headless --path . --script tests/field_hud_layout_test.gd`，再加 `-- --mobile-controls` 驗證觸控配置。檢查三種視窗比例、四職業與冷卻文字下的面板邊界、按鈕間距、搖桿／互動觸控保留區、互動提示位於面板上方，以及回村後恢復探索快捷鍵。成功標記 `FIELD_HUD_LAYOUT_TEST_PASS`。戰鬥地圖收起探索快捷鍵列，戰鬥面板依內容向上增高並保持底部留白；互動提示跟隨面板實際高度。

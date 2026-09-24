@@ -1,5 +1,6 @@
 extends Node3D
 ## Optional overworld encounter. GameState owns progression, defeat flags and loot.
+const HudTheme = preload("res://scripts/ui/presentation_theme.gd")
 const Automation = preload("res://scripts/gameplay/field_auto_battle.gd")
 const Terrain = preload("res://scripts/gameplay/field_terrain.gd")
 const Navigation = preload("res://scripts/gameplay/field_navigation.gd")
@@ -528,6 +529,9 @@ func _effect(kind: String, at: Vector3, radius: float = 1, direction: Vector3 = 
 	_effects.append(effect)
 	return effect
 
+func get_hud_rect() -> Rect2:
+	return _hud.get_global_rect()
+
 func _build_hud() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 12
@@ -535,15 +539,24 @@ func _build_hud() -> void:
 	_hud = PanelContainer.new()
 	_hud.add_to_group("camera_touch_blocker")
 	_hud.theme = GameState.ui_theme
-	_hud.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	_hud.offset_left = -260
-	_hud.offset_right = 260
-	_hud.offset_top = -188
-	_hud.offset_bottom = -14 if compact_hud else -32
-	if compact_hud:
-		_hud.offset_top = -120
 	layer.add_child(_hud)
+	_hud.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	_hud.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_hud.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_hud.offset_left = -280
+	_hud.offset_right = 280
+	_hud.offset_top = -24
+	_hud.offset_bottom = -24
+	var mobile: bool = MobileControls.is_mobile_device()
+	if mobile:
+		# The touch viewport is 960 px wide; reserve the expanded stick hit area.
+		_hud.anchor_left = 0.0
+		_hud.anchor_right = 1.0
+		_hud.offset_left = 270
+		_hud.offset_right = -204
+	_hud.add_theme_stylebox_override("panel", HudTheme.panel(8 if mobile else 12))
 	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 8)
 	_hud.add_child(column)
 	_status = Label.new()
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -551,6 +564,7 @@ func _build_hud() -> void:
 	column.add_child(_status)
 	var options := HBoxContainer.new()
 	options.alignment = BoxContainer.ALIGNMENT_CENTER
+	options.add_theme_constant_override("separation", 8)
 	column.add_child(options)
 	_auto_button = Button.new()
 	_auto_button.focus_mode = Control.FOCUS_NONE
@@ -569,12 +583,14 @@ func _build_hud() -> void:
 	options.add_child(potions)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 8)
 	column.add_child(row)
 	for action: String in ["attack", "skill", "dodge", "potion"]:
 		var button := Button.new()
-		button.custom_minimum_size = Vector2(124, 36 if compact_hud else 48)
+		button.custom_minimum_size = Vector2(110 if mobile else 124, 48)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.focus_mode = Control.FOCUS_NONE
-		button.add_theme_font_size_override("font_size", 17)
+		button.add_theme_font_size_override("font_size", 15 if mobile else 17)
 		button.pressed.connect(func() -> void: perform(action))
 		row.add_child(button)
 		_buttons[action] = button
@@ -587,6 +603,8 @@ func _update_hud() -> void:
 		_status.text = "Lv.%d  HP %d/%d   MP %d/%d" % [GameState.player_level, GameState.player_hp, GameState.player_max_hp, GameState.player_mp, GameState.player_max_mp]
 	var cooldowns: Dictionary = {"attack": attack_cooldown, "skill": skill_cooldown, "dodge": dodge_cooldown, "potion": 0.0}
 	var labels: Dictionary = {"attack": "普攻 J / 1", "skill": str(GameState.class_profile().skill) + " %d MP" % int(GameState.class_profile().cost), "dodge": "閃避 Shift", "potion": "藥水 H ×%d" % int(GameState.inventory.get("potion", 0))}
+	if MobileControls.is_mobile_device():
+		labels.skill = "%s\n%d MP" % [GameState.class_profile().skill, GameState.class_profile().cost]
 	if GameState.player_class != "traveler":
 		labels.attack = ("射擊" if GameState.player_class == "archer" else "魔力彈" if GameState.player_class == "mage" else "雙刃") + " J / 1"
 	for action: String in _buttons:

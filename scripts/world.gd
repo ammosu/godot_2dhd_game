@@ -193,6 +193,7 @@ func _process(delta: float) -> void:
 	if _prompt_label != null:
 		var prompt := player.get_interaction_prompt() if GameState.mode == GameState.Mode.EXPLORE else ""
 		var prompt_prefix := "互動：" if MobileControls.is_mobile_device() else "Space："
+		_layout_interaction_prompt()
 		_prompt_label.text = "%s%s" % [prompt_prefix, prompt] if not prompt.is_empty() else ""
 
 
@@ -2224,7 +2225,17 @@ func _layout_hud() -> void:
 	panel.custom_minimum_size.x = minf(360.0, maxf(240.0, available))
 	panel.size.x = panel.custom_minimum_size.x
 	panel.reset_size()
-	get_node("HUD/TravelHints").visible = not mobile and GameState.mode == GameState.Mode.EXPLORE
+	get_node("HUD/TravelHints").visible = not mobile and GameState.mode == GameState.Mode.EXPLORE and not is_instance_valid(player.field_combat)
+
+
+func _layout_interaction_prompt() -> void:
+	var bottom: float = -26.0 if MobileControls.is_mobile_device() else -74.0
+	if is_instance_valid(player.field_combat):
+		# Field combat shares EXPLORE mode; reserve its actual container height,
+		# including font, cooldown text and compact dungeon layout changes.
+		bottom = player.field_combat.get_hud_rect().position.y - get_viewport().get_visible_rect().size.y - 12.0
+	_prompt_label.offset_top = bottom - 46.0
+	_prompt_label.offset_bottom = bottom
 
 
 func _refresh_hud() -> void:
