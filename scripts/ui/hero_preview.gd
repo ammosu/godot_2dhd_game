@@ -19,8 +19,10 @@ var facing: int = 0
 var playing: bool = true
 var elapsed: float = 0.0
 var current_pose: String = "idle"
+const MOONLIT := preload("res://assets/generated/class_selection_moonlit.png")
 var _sprite := Sprite2D.new()
 var _last_key: String = ""
+var _verse: Label
 var _foot_centers: Dictionary[AtlasTexture, float] = {}
 
 func _ready() -> void:
@@ -28,6 +30,14 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	clip_contents = true
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_verse = Label.new()
+	_verse.text = "微小的光，\n也能照亮\n遙遠的路。"
+	_verse.position = Vector2(28, 35)
+	_verse.add_theme_font_override("font", GameState.title_font)
+	_verse.add_theme_font_size_override("font_size", 16)
+	_verse.add_theme_color_override("font_color", Color("99b7cc"))
+	_verse.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_verse)
 	add_child(_sprite)
 	resized.connect(_refresh)
 	_refresh()
@@ -50,6 +60,7 @@ func _process(delta: float) -> void:
 	_refresh()
 
 func _refresh() -> void:
+	_verse.visible = size.x > 580
 	var sequence: Array = SEQUENCES[action]
 	current_pose = str(sequence[int(elapsed * 6.0) % sequence.size()])
 	var key := "%s:%s:%s:%d" % [body_id, class_id, current_pose, facing]
@@ -60,14 +71,14 @@ func _refresh() -> void:
 		_sprite.texture = Art.texture_for("wanderer", current_pose, facing, loadout)
 	var texture := _sprite.texture as AtlasTexture
 	var idle := Art.texture_for("wanderer", "idle", facing, loadout)
-	var factor: float = minf((size.y - 60.0) / float(texture.get_meta("body_height", idle.get_height())), (size.x - 40.0) / (float(texture.get_meta("body_height", idle.get_height())) * 1.55))
+	var factor: float = minf((size.y * 0.67) / float(texture.get_meta("body_height", idle.get_height())), (size.x - 40.0) / (float(texture.get_meta("body_height", idle.get_height())) * 1.55))
 	Style.apply_canvas(_sprite, texture, style_id)
 	_sprite.scale = Vector2.ONE * factor
 	_sprite.offset = Vector2(texture.get_width() * 0.5 - _foot_center(texture), texture.get_height() * 0.5 - float(texture.get_meta("ground_y")))
 	_sprite.flip_h = bool(texture.get_meta("flip_h", false))
 	if _sprite.flip_h:
 		_sprite.offset.x *= -1.0
-	_sprite.position = Vector2(size.x * 0.5, size.y - 35.0)
+	_sprite.position = Vector2(size.x * 0.5, size.y - 42.0)
 	queue_redraw()
 
 func _foot_center(texture: AtlasTexture) -> float:
@@ -92,18 +103,24 @@ func _foot_center(texture: AtlasTexture) -> float:
 	return center
 
 func _draw() -> void:
-	var tint: Color = Classes.profile(class_id).color
-	var ground := Vector2(size.x * 0.5, size.y - 33.0)
-	draw_style_box(_background(), Rect2(Vector2.ZERO, size))
-	draw_set_transform(ground, 0, Vector2(1, 0.3))
-	draw_circle(Vector2.ZERO, minf(100.0, size.x * 0.28), Color(0.03, 0.06, 0.09, 0.9))
-	draw_arc(Vector2.ZERO, minf(105.0, size.x * 0.29), 0, TAU, 64, Color(tint, 0.5), 2.0, true)
+	var ground := Vector2(size.x * 0.5, size.y - 41.0)
+	draw_texture_rect(MOONLIT, Rect2(Vector2.ZERO, size), false)
+	draw_set_transform(ground, 0, Vector2(1, 0.22))
+	var radius: float = size.x * 0.30
+	draw_circle(Vector2.ZERO, radius, Color(0.03, 0.06, 0.09, 0.65))
+	for ring: float in [0.88, 1.08, 1.38]:
+		draw_arc(Vector2.ZERO, radius * ring, 0, TAU, 100, Color(0.91, 0.76, 0.48, 0.68), 1.4, true)
 	draw_set_transform(Vector2.ZERO)
-
-func _background() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color("152b3c")
-	style.border_color = Color("476074")
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(8)
-	return style
+	for index: int in range(9):
+		var angle: float = TAU * index / 9.0
+		var point := ground + Vector2(cos(angle) * radius * 1.38, sin(angle) * radius * 1.38 * 0.22)
+		draw_line(point - Vector2(4, 0), point + Vector2(4, 0), Color("e8c889"), 1, true)
+		draw_line(point - Vector2(0, 4), point + Vector2(0, 4), Color("e8c889"), 1, true)
+	var border := StyleBoxFlat.new()
+	border.bg_color = Color.TRANSPARENT
+	border.border_color = Color("a08a62")
+	border.set_border_width_all(1)
+	border.set_corner_radius_all(8)
+	draw_style_box(border, Rect2(Vector2.ZERO, size))
+	for point: Vector2 in [Vector2(7, 7), Vector2(size.x - 7, 7), Vector2(7, size.y - 7), size - Vector2(7, 7)]:
+		draw_arc(point, 5, 0, TAU, 12, Color("b39a6c"), 1, true)

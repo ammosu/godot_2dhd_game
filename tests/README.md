@@ -704,6 +704,8 @@ to existing combat/equipment art. New original atlases and generation prompts li
 
 ## 初始職業回歸
 
+選角介面輸入與排版：`godot --headless --path . --script tests/class_selection_layout_test.gd`，成功標記 `CLASS_SELECTION_LAYOUT_TEST_PASS mouse keyboard responsive draft`。使用實際 viewport 事件點擊職業、性別、配色、動作、方向及暫停，再以 Enter 開始旅程；驗證預覽不修改進度、1280×720 首屏包含開始按鈕，以及 960×720、540×900、390×844 下無水平溢出且可捲動至開始按鈕。不寫入一般存檔。移除 `--headless` 並加 `-- --capture`，可輸出 `/tmp/wanderlight-class-layout-<width>x<height>.png`；須另行目視確認字體、角色與裝飾。
+
 `godot --headless --path . --script tests/hero_class_test.gd`
 
 成功標記：`HERO_CLASS_TEST_PASS selection stats equipment combat save migration`。涵蓋四職業能力、裝備與升級疊加、實際近遠程命中、技能 MP、穿射／範圍命中、盜賊閃避、v8 存讀與 v5／v6 遷移、非法職業拒絕，以及選單預覽不修改遊戲。使用獨立 `user://hero_class_test_*.json` 後刪除。移除 `--headless` 並加 `-- --class-capture` 可輸出 `/tmp/wanderlight-class-selection.png`。
