@@ -20,6 +20,7 @@ func check(condition: bool, message: String) -> void:
 func _run() -> void:
 	var state := root.get_node("GameState")
 	state.call("reset_new_game", false, "archer")
+	state.set("current_map", "east_road") # Armed exploration atlas; towns have empty-handed art.
 	var player := (load("res://scenes/player.tscn") as PackedScene).instantiate() as CharacterBody3D
 	root.add_child(player)
 	player.set_physics_process(false)

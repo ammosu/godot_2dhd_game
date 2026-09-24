@@ -1,0 +1,40 @@
+{
+  "date": "2026-09-24",
+  "tool": "built-in image_gen",
+  "prompt": "Create a peaceful town exploration sprite atlas of the EXACT SAME character and outfit as the reference. Original HD-2D chibi painted pixel sprite style, same silver hair, face, clothing, boots and gender. BOTH HANDS EMPTY in EVERY frame: remove all held swords, daggers, bows, staffs and magic effects. Relaxed natural hands. Keep clothes and any back quiver. TRANSPARENT alpha background, no ground shadows, no text, no grid lines. EXACTLY 20 separate full-body sprites arranged in 4 rows and 5 columns with generous clear gutters. Each row has one consistent facing: row 1 FRONT facing viewer, row 2 RIGHT facing screen right profile, row 3 BACK facing away, row 4 LEFT facing screen left profile. Each row's five poses in order: neutral idle with feet level, walking left foot forward, walking right foot forward, empty hand reaching halfway for a door, empty hand extended to touch a door (door absent). All poses upright with identical body scale, head height and foot baseline per row, natural small arm swings for walking, never combat stances. Every sprite complete and isolated from neighboring cells. This is a new supplementary town-only atlas, use the supplied image for character identity rather than its combat pose layout.",
+  "diagonal_prompt": "Edit this transparent game sprite atlas: remove the held bow in EVERY sprite and reconstruct the empty relaxed hand naturally. Preserve the quiver on the back, character identity, green outfit, silver hair, exact 4 columns x 3 rows layout, same positions, scale, direction and poses. Column directions down-left, down-right, up-left, up-right. Rows idle, walking A, walking B. No weapon held, no magic. Preserve true alpha transparency; no backdrop/shadow/text. These are peaceful town exploration poses, both hands empty. Do not add sprites or change the layout.",
+  "assets": [
+    {
+      "id": "mage",
+      "source": "/Users/cwchang/.codex/generated_images/01a0d27f-2549-7ba3-b8a6-0c09127e364f/exec-0833cde0-918e-435c-a22e-b9dadfd9e489.png"
+    },
+    {
+      "id": "archer",
+      "source": "/Users/cwchang/.codex/generated_images/01a0d27f-2549-7ba3-b8a6-0c09127e364f/exec-9c7e4d87-ed9a-43ad-be2b-c8fc1c1b349a.png"
+    },
+    {
+      "id": "thief",
+      "source": "/Users/cwchang/.codex/generated_images/01a0d27f-2549-7ba3-b8a6-0c09127e364f/exec-793cc35e-6e69-44a0-8a7a-4e09a7b33682.png"
+    },
+    {
+      "id": "female_traveler",
+      "source": "/Users/cwchang/.codex/generated_images/01a0d27f-2549-7ba3-b8a6-0c09127e364f/exec-4cd32d71-bd6a-4fe3-b2dd-94c46bf119d5.png"
+    },
+    {
+      "id": "female_archer",
+      "source": "/Users/cwchang/.codex/generated_images/01a0d27f-2549-7ba3-b8a6-0c09127e364f/exec-b3f530ef-60c1-4d6c-97bc-1f308992b1e3.png"
+    },
+    {
+      "id": "female_mage",
+      "source": "/Users/cwchang/.codex/generated_images/01a0d27f-2549-7ba3-b8a6-0c09127e364f/exec-6f7ae2d9-362a-481a-a0aa-091c8ec4d1cc.png"
+    },
+    {
+      "id": "female_thief",
+      "source": "/Users/cwchang/.codex/generated_images/01a0d27f-2549-7ba3-b8a6-0c09127e364f/exec-63f52f3a-a79b-49ca-a323-955e91170e1e.png"
+    },
+    {
+      "id": "archer_diagonal",
+      "source": "/Users/cwchang/.codex/generated_images/01a0d27f-2549-7ba3-b8a6-0c09127e364f/exec-640c86de-82de-442d-a16e-8ad8fef4ef2a.png"
+    }
+  ]
+}

@@ -11,6 +11,7 @@ const SpriteGrounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 const Footsteps = preload("res://scripts/gameplay/footsteps.gd")
 const EquipmentAppearance = preload("res://scripts/gameplay/equipment_appearance.gd")
 const DoorActionArt = preload("res://scripts/gameplay/door_action_art.gd")
+const TownAppearance = preload("res://scripts/gameplay/town_appearance.gd")
 const CONVERSATION_DISTANCE: float = 1.35
 var auto_walk := preload("res://scripts/gameplay/map_navigation.gd").new()
 var field_combat: Node
@@ -69,13 +70,18 @@ func presentation_height() -> float:
 
 func _refresh_equipment() -> void:
 	_refresh_style()
-	var key := EquipmentAppearance.variant(GameState.get_visual_loadout()) + (":door" if _door_pose >= 0 else "")
+	var loadout := GameState.get_visual_loadout()
+	var town := TownAppearance.applies(GameState.current_map, loadout)
+	var key := EquipmentAppearance.variant(loadout) + (":town" if town else "") + (":door" if _door_pose >= 0 else "")
 	if key == _appearance_key:
 		return
 	_appearance_key = key
 	var direction := sprite.animation
 	var frame := sprite.frame
-	sprite.sprite_frames = DoorActionArt.frames(GameState.get_visual_loadout()) if _door_pose >= 0 else EquipmentAppearance.walking_frames(GameState.get_visual_loadout())
+	if town:
+		sprite.sprite_frames = TownAppearance.frames(loadout, _door_pose >= 0)
+	else:
+		sprite.sprite_frames = DoorActionArt.frames(loadout) if _door_pose >= 0 else EquipmentAppearance.walking_frames(loadout)
 	sprite.animation = direction
 	sprite.frame = mini(frame, sprite.sprite_frames.get_frame_count(direction) - 1)
 	_refresh_style()

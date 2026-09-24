@@ -704,6 +704,13 @@ to existing combat/equipment art. New original atlases and generation prompts li
 
 ## 初始職業回歸
 
+八方向素材稽核：`godot --headless --path . --script tests/hero_direction_audit.gd`。輸出各性別／職業在城鎮行走、開門、野外行走與戰鬥動作的獨立素材方向數；PASS 僅代表八向輸入都有可用畫格，不代表八向素材齊全。完整結果與缺項見 `docs/HERO_DIRECTION_AUDIT.md`。
+
+城鎮收起武器：`godot --headless --path . --script tests/town_appearance_test.gd`。
+成功標記 `TOWN_APPEARANCE_TEST_PASS classes bodies walking doors map_transitions equipment`。
+涵蓋男女四職業在暮光村、星灣城、住宅與野外往返，檢查行走／待機／開門使用空手圖、離開城鎮恢復原圖且裝備不變；不寫存檔。
+男弓箭手仍有四個獨立空手斜向，其他職業沿用既有斜向對應。素材來源與提示詞記錄於 `assets/generated/town/`。
+
 選角介面輸入與排版：`godot --headless --path . --script tests/class_selection_layout_test.gd`，成功標記 `CLASS_SELECTION_LAYOUT_TEST_PASS mouse keyboard responsive draft`。使用實際 viewport 事件點擊職業、性別、配色、動作、方向及暫停，再以 Enter 開始旅程；驗證預覽不修改進度、1280×720 首屏包含開始按鈕，以及 960×720、540×900、390×844 下無水平溢出且可捲動至開始按鈕。不寫入一般存檔。移除 `--headless` 並加 `-- --capture`，可輸出 `/tmp/wanderlight-class-layout-<width>x<height>.png`；須另行目視確認字體、角色與裝飾。
 
 `godot --headless --path . --script tests/hero_class_test.gd`
