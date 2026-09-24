@@ -584,7 +584,7 @@ godot --headless --path . --rendering-method gl_compatibility -- --playthrough-t
 
 
 自動動作戰鬥：`godot --headless --path . --script tests/action_auto_battle_test.gd`。
-涵蓋預設關閉、自動追擊／技能／閃避、暫停、手動接管、換人、無 MP 戰鬥與勝敗後停止。`action_battle_ui_test.gd` 另驗證 B 鍵、觸控開關、手動接管及完整原地自動戰鬥獲勝，而且不消耗共享藥水。
+涵蓋模型在準備確認前不啟動、自動追擊／技能／閃避、暫停、手動接管、換人、無 MP 戰鬥與勝敗後停止。`action_battle_ui_test.gd` 另驗證準備彈窗預設勾選自動、B 鍵、觸控開關、手動接管及完整原地自動戰鬥獲勝，而且不消耗共享藥水。
 
 ### Action combat artwork
 
@@ -749,3 +749,5 @@ to existing combat/equipment art. New original atlases and generation prompts li
 Repeat with `gl_compatibility`. Checks wood/gravel presence and the tilted/repaired quest presentation; writes `/tmp/roadside-<renderer>.png` with a real rendering window. Success: `ROADSIDE_CAPTURE_PASS decoration tilted repaired`. Headless runs check structure/state only.
 
 石階外觀使用 `tests/field_render_test.gd` 分別以 Forward+ 與 Compatibility 截圖；`tests/field_combat_test.gd` 驗證角色上下坡及敵人追逐，`tests/field_auto_battle_test.gd` 驗證自動戰鬥與坡道側邊取物。
+
+精簡野外 HUD：`tests/field_hud_layout_test.gd` 另驗證進入戰鬥地圖預設自動開啟、實際點擊圓形自動開關、設定獨立展開／收合、手動接手、HP／MP 同步、左上地點小標籤，以及點小地圖開啟大地圖。以 `-- --mobile-controls` 檢查手機版面；有視窗時加 `-- --capture` 輸出 `/tmp/wanderlight-hud-<renderer>-<desktop或mobile>-<地圖>-<collapsed或settings>.png`，供兩種 renderer 目視檢查。

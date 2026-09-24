@@ -60,6 +60,15 @@ func _line(points: Array, color: Color, width: float = 3.0) -> void:
 
 func _draw_glyph(ink: Color) -> void:
 	match glyph:
+		"auto":
+			draw_arc(Vector2.ZERO, 19, -PI * 0.8, PI * 0.2, 24, ink, 3, true)
+			draw_arc(Vector2.ZERO, 19, PI * 0.2, PI * 1.2, 24, ink, 3, true)
+			_line([Vector2(17, -9), Vector2(16, 12), Vector2(2, 7)], ink)
+			_line([Vector2(-17, 9), Vector2(-16, -12), Vector2(-2, -7)], ink)
+		"settings":
+			for y: float in [-14.0, 0.0, 14.0]:
+				_line([Vector2(-22, y), Vector2(22, y)], ink)
+				draw_circle(Vector2(-8 if y == 0 else 8, y), 5, ink)
 		"attack":
 			draw_colored_polygon(PackedVector2Array([Vector2(-9, 8), Vector2(9, -17), Vector2(20, -23), Vector2(17, -11), Vector2(-3, 13)]), ink)
 			_line([Vector2(-16, 2), Vector2(3, 19)], ink, 4)

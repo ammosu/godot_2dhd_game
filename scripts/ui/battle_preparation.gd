@@ -65,7 +65,7 @@ func _ready() -> void:
 	)
 
 func open_choices() -> void:
-	auto_mode.set_pressed_no_signal(false)
+	auto_mode.set_pressed_no_signal(true)
 	skills.set_pressed_no_signal(true)
 	potions.set_pressed_no_signal(false)
 	threshold.select(0)

@@ -7,6 +7,7 @@ const FACES: Dictionary = {
 	"elder": Rect2(245, 62, 258, 258),
 }
 var portrait: TextureRect
+var compact: bool = false
 var title: Label
 var status: Label
 var hp: ProgressBar
@@ -18,7 +19,7 @@ var _portrait_style: StyleBoxFlat
 var _art: String = ""
 
 func _ready() -> void:
-	custom_minimum_size.y = 74
+	custom_minimum_size.y = 54 if compact else 74
 	_style = StyleBoxFlat.new()
 	_style.bg_color = Color(0.10, 0.14, 0.20, 0.72)
 	_style.set_corner_radius_all(4)
@@ -29,7 +30,7 @@ func _ready() -> void:
 	row.add_theme_constant_override("separation", 8)
 	add_child(row)
 	var frame := PanelContainer.new()
-	frame.custom_minimum_size = Vector2(66, 66)
+	frame.custom_minimum_size = Vector2(40, 40) if compact else Vector2(66, 66)
 	frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_portrait_style = StyleBoxFlat.new()
 	_portrait_style.bg_color = Color("263d50")
@@ -46,23 +47,24 @@ func _ready() -> void:
 	frame.add_child(portrait)
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	info.add_theme_constant_override("separation", 3)
+	info.add_theme_constant_override("separation", 1 if compact else 3)
 	row.add_child(info)
 	var heading := HBoxContainer.new()
 	info.add_child(heading)
 	title = Label.new()
-	title.add_theme_font_size_override("font_size", 16)
+	title.add_theme_font_size_override("font_size", 12 if compact else 16)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	heading.add_child(title)
 	status = Label.new()
+	status.visible = not compact
 	status.add_theme_font_size_override("font_size", 12)
 	heading.add_child(status)
-	hp = _bar(Color("4dad81"), 19)
+	hp = _bar(Color("4dad81"), 14 if compact else 19)
 	info.add_child(hp)
-	_hp_text = _bar_label(hp, 13)
-	mp = _bar(Color("4a84c7"), 16)
+	_hp_text = _bar_label(hp, 11 if compact else 13)
+	mp = _bar(Color("4a84c7"), 12 if compact else 16)
 	info.add_child(mp)
-	_mp_text = _bar_label(mp, 12)
+	_mp_text = _bar_label(mp, 10 if compact else 12)
 
 func display_actor(actor: Dictionary, controlled: bool) -> void:
 	var art: String = str(actor.art)

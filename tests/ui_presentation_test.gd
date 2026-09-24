@@ -37,11 +37,11 @@ func _run() -> void:
 		await create_timer(0.4).timeout
 		var bounds := root.get_visible_rect()
 		var panel: Control = world._map_label.get_parent().get_parent()
-		var map_button: Control = world.get_node("HUD/OpenMap")
+		var map_button: Control = world.get_node("HUD/MiniMap/OpenMap")
 		check(bounds.encloses(panel.get_global_rect()), "Quest panel outside viewport")
 		check(not panel.get_global_rect().intersects(world._mini_map.get_global_rect()), "Quest overlaps map")
 		check(bounds.encloses(map_button.get_global_rect()), "Map button outside viewport")
-		check(not map_button.get_global_rect().intersects(world._mini_map.get_global_rect()), "Map button overlaps map")
+		check(map_button.get_global_rect().is_equal_approx(world._mini_map.get_global_rect()), "Map open target must match mini-map bounds")
 		await capture("%s-%dx%d" % [prefix, dimensions.x, dimensions.y])
 		world.dialogue_ui.show_dialogue([{"speaker": "艾爾", "text": "月燈的光正在漸漸微弱。沿著月紋石路向北走，穿過村莊的月紋門，就能找到北境遺跡。願月光照亮你的旅程。"}])
 		await process_frame
@@ -65,7 +65,7 @@ func _run() -> void:
 	check(root.get_visible_rect().encloses(party.get_global_rect()), "Party outside viewport")
 	if mobile:
 		var physical_scale: float = float(root.size.y) / root.get_visible_rect().size.y
-		check(world.get_node("HUD/OpenMap").size.y * physical_scale >= 44, "Map touch target below 44 physical pixels")
+		check(world.get_node("HUD/MiniMap/OpenMap").size.y * physical_scale >= 44, "Map touch target below 44 physical pixels")
 	print("UI_PRESENTATION_RENDER_FPS %s" % Performance.get_monitor(Performance.TIME_FPS))
 	await capture(prefix + "-battle")
 	if mobile:

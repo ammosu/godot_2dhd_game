@@ -17,6 +17,10 @@ func _run() -> void:
 	while not field.ready_for_combat:
 		await physics_frame
 	field.set_physics_process(false)
+	assert(field.automation.enabled, "Combat maps default to automatic combat")
+	player.position = Vector3(-14, 0.1, 0)
+	assert(field.movement_velocity(Vector3.ZERO, 1.0 / 60.0) == Vector3.ZERO, "Auto waits outside navigable hunting ground")
+	assert(field.automation.enabled, "Road entrance retains the default auto setting")
 	player.position = Vector3(-1, 0.1, 6)
 	field.automation.set_enabled(true, field)
 	field.movement_velocity(Vector3.RIGHT, 1.0 / 60.0)

@@ -71,7 +71,7 @@ var _quest_label: Label
 var _prompt_label: Label
 var _notice_label: Label
 var _mini_map: MiniMapControl
-var _heart_atlases: Array[AtlasTexture] = []
+var _player_status: PanelContainer
 var _notice_generation: int = 0
 var _interior_backdrop: ColorRect
 var _test_mode: bool = false
@@ -2071,34 +2071,25 @@ func _build_hud() -> void:
 	var panel := PanelContainer.new()
 	panel.position = Vector2(24.0, 24.0)
 	panel.name = "QuestPanel"
-	panel.custom_minimum_size = Vector2(360.0, 0.0)
 	panel.theme = GameState.ui_theme
 	hud.add_child(panel)
-	panel.add_theme_stylebox_override("panel", Presentation.panel())
+	var location_style := Presentation.panel(10)
+	location_style.bg_color = Color(0.035, 0.065, 0.10, 0.64)
+	location_style.set_border_width_all(0)
+	location_style.shadow_size = 0
+	location_style.set_corner_radius_all(4)
+	panel.add_theme_stylebox_override("panel", location_style)
 	var info := VBoxContainer.new()
-	info.add_theme_constant_override("separation", 5)
 	panel.add_child(info)
-	var brand := Label.new()
-	brand.text = "W A N D E R L I G H T"
-	brand.add_theme_font_size_override("font_size", 11)
-	brand.add_theme_color_override("font_color", Presentation.GOLD)
-	info.add_child(brand)
 	_map_label = Label.new()
-	_map_label.theme_type_variation = &"TitleLabel"
-	_map_label.add_theme_font_size_override("font_size", 28)
+	_map_label.add_theme_font_size_override("font_size", 19)
 	_map_label.add_theme_color_override("font_color", Presentation.PAPER)
+	_map_label.clip_text = true
+	_map_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	info.add_child(_map_label)
-	var rule := HSeparator.new()
-	var rule_style := StyleBoxLine.new()
-	rule_style.color = Color("665c49")
-	rule.add_theme_stylebox_override("separator", rule_style)
-	info.add_child(rule)
 	_quest_label = Label.new()
-	_quest_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_quest_label.add_theme_color_override("font_color", Color("fff2d2"))
-	_quest_label.add_theme_font_size_override("font_size", 17)
+	_quest_label.hide()
 	info.add_child(_quest_label)
-	_quest_label.minimum_size_changed.connect(func() -> void: panel.set_deferred("size", Vector2(panel.size.x, 0)))
 	var footer := PanelContainer.new()
 	footer.name = "TravelHints"
 	footer.theme = GameState.ui_theme
@@ -2128,25 +2119,16 @@ func _build_hud() -> void:
 		action.add_theme_color_override("font_color", Presentation.PAPER)
 		shortcuts.add_child(action)
 
-	var heart_row := HBoxContainer.new()
-	heart_row.name = "ExplorationHearts"
-	heart_row.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	heart_row.position = Vector2(-164.0, 24.0)
-	heart_row.add_theme_constant_override("separation", 4)
-	hud.add_child(heart_row)
-	var heart_sheet := load("res://assets/third_party/ninja_adventure/ui/heart.png") as Texture2D
-	for index in range(5):
-		var atlas := AtlasTexture.new()
-		atlas.atlas = heart_sheet
-		atlas.region = Rect2(64.0, 0.0, 16.0, 16.0)
-		_heart_atlases.append(atlas)
-		var heart := TextureRect.new()
-		heart.texture = atlas
-		heart.custom_minimum_size = Vector2(24.0, 24.0)
-		heart.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		heart.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		heart.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		heart_row.add_child(heart)
+	_player_status = preload("res://scripts/ui/party_status_card.gd").new()
+	_player_status.name = "PlayerStatus"
+	_player_status.compact = true
+	_player_status.theme = GameState.ui_theme
+	hud.add_child(_player_status)
+	_player_status.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	_player_status.offset_left = -250
+	_player_status.offset_right = -24
+	_player_status.offset_top = 8 if MobileControls.is_mobile_device() else 24
+	_player_status.offset_bottom = _player_status.offset_top + 54
 
 	_mini_map = MiniMapControl.new()
 	_mini_map.name = "MiniMap"
@@ -2154,7 +2136,7 @@ func _build_hud() -> void:
 	_mini_map.anchor_right = 1.0
 	_mini_map.offset_left = -194.0 if MobileControls.is_mobile_device() else -250.0
 	_mini_map.offset_right = -24.0
-	_mini_map.offset_top = 146.0 if MobileControls.is_mobile_device() else 62.0
+	_mini_map.offset_top = 146.0 if MobileControls.is_mobile_device() else 90.0
 	_mini_map.offset_bottom = _mini_map.offset_top + (170.0 if MobileControls.is_mobile_device() else 226.0)
 	_mini_map.theme = GameState.ui_theme
 	hud.add_child(_mini_map)
@@ -2165,21 +2147,15 @@ func _build_hud() -> void:
 	add_child(map_ui)
 	var map_button := Button.new()
 	map_button.name = "OpenMap"
-	map_button.text = "地圖  G" if not MobileControls.is_mobile_device() else "地圖"
-	map_button.theme = GameState.ui_theme
-	map_button.anchor_left = 1.0
-	map_button.anchor_right = 1.0
-	map_button.offset_left = _mini_map.offset_left
-	map_button.offset_right = -24.0
-	map_button.offset_top = _mini_map.offset_top + (178.0 if MobileControls.is_mobile_device() else 234.0)
-	map_button.offset_bottom = map_button.offset_top + (64.0 if MobileControls.is_mobile_device() else 48.0)
-	if MobileControls.is_mobile_device():
-		map_button.add_theme_font_size_override("font_size", 22)
-	var map_glyph := preload("res://scripts/ui/map_glyph.gd").new()
-	map_glyph.position = Vector2(28, 17 if MobileControls.is_mobile_device() else 10)
-	map_button.add_child(map_glyph)
+	map_button.focus_mode = Control.FOCUS_NONE
+	map_button.tooltip_text = "開啟區域地圖 [G]"
+	map_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	for style: String in ["normal", "hover", "pressed", "disabled"]:
+		map_button.add_theme_stylebox_override(style, StyleBoxEmpty.new())
 	map_button.pressed.connect(map_ui.open)
-	hud.add_child(map_button)
+	_mini_map.add_child(map_button)
+	map_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
 	map_ui.open_button = map_button
 
 	_prompt_label = Label.new()
@@ -2231,7 +2207,8 @@ func _layout_hud() -> void:
 	var panel := get_node("HUD/QuestPanel") as PanelContainer
 	var mobile: bool = MobileControls.is_mobile_device()
 	var available: float = get_viewport().get_visible_rect().size.x - (352.0 if mobile else 298.0)
-	panel.custom_minimum_size.x = minf(360.0, maxf(240.0, available))
+	var title_width: float = _map_label.get_theme_font("font").get_string_size(_map_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x + 20.0
+	panel.custom_minimum_size.x = minf(title_width, minf(300.0, maxf(100.0, available)))
 	panel.size.x = panel.custom_minimum_size.x
 	panel.reset_size()
 	get_node("HUD/TravelHints").visible = not mobile and GameState.mode == GameState.Mode.EXPLORE and not is_instance_valid(player.field_combat)
@@ -2253,11 +2230,9 @@ func _refresh_hud() -> void:
 	var fighting: bool = GameState.mode == GameState.Mode.BATTLE
 	if is_instance_valid(_mini_map):
 		_mini_map.visible = not fighting
-	get_node("HUD/ExplorationHearts").visible = not fighting
-	get_node("HUD/OpenMap").visible = not fighting
-	_quest_label.visible = not fighting
+	_player_status.visible = not fighting
+	_quest_label.hide()
 	get_node("HUD/QuestPanel").visible = not fighting or not MobileControls.is_mobile_device()
-	_layout_hud()
 	_update_village_gate_state()
 	_update_quest_markers()
 	if GameState.current_map == "east_road" and is_instance_valid(_map_root):
@@ -2272,10 +2247,18 @@ func _refresh_hud() -> void:
 		_map_label.text = CryptLayout.NAMES[GameState.current_map]
 	if HouseCatalog.is_interior(GameState.current_map):
 		_map_label.text = str(HouseCatalog.find_home(GameState.current_map).name)
-	_quest_label.text = "◇  " + GameState.get_quest_text().trim_prefix("主線：").strip_edges()
-	var filled_hearts := ceili(float(GameState.player_hp) / float(GameState.player_max_hp) * 5.0)
-	for index in range(_heart_atlases.size()):
-		_heart_atlases[index].region = Rect2(64.0 if index < filled_hearts else 0.0, 0.0, 16.0, 16.0)
+	_quest_label.text = GameState.get_quest_text().trim_prefix("主線：").strip_edges()
+	get_node("HUD/QuestPanel").tooltip_text = _map_label.text + "\n" + _quest_label.text
+	_layout_hud()
+	_player_status.display_actor({
+		"art": "wanderer", "hero_class": GameState.player_class,
+		"hero_body": GameState.player_body, "hero_style": GameState.player_style,
+		"name": "Lv.%d" % GameState.player_level, "hp": GameState.player_hp,
+		"max_hp": GameState.player_max_hp, "mp": GameState.player_mp,
+		"max_mp": GameState.player_max_mp, "ward": 0.0,
+	}, false)
+	_player_status.tooltip_text = "Lv.%d · EXP %d / %d · 月苔 ×%d" % [GameState.player_level, GameState.player_xp, GameState.xp_to_next_level(), int(GameState.inventory.get("moon_moss", 0))]
+
 
 
 func _update_mini_map_targets() -> void:

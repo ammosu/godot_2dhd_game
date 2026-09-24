@@ -43,6 +43,8 @@ func _run() -> void:
 	ui.advance_combat(0.05, Vector2.RIGHT)
 	ui._toggle_pause()
 	check(ui.session.actors == prepared_positions and ui.session.paused, "Preparation blocks combat and pause shortcuts")
+	check(ui._preparation.auto_mode.button_pressed, "Preparation defaults to automatic combat")
+	ui._preparation.auto_mode.button_pressed = false
 	ui._preparation.confirmed.emit()
 	check(not ui._preparing and not ui.session.paused and not ui.session.auto_enabled, "Manual confirmation releases combat")
 	# Reopen only the preparation gate to exercise the real option-to-model signal.

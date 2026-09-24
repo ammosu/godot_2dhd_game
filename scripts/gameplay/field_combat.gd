@@ -1,5 +1,6 @@
 extends Node3D
 ## Optional overworld encounter. GameState owns progression, defeat flags and loot.
+const IconButton = preload("res://scripts/ui/battle_icon_button.gd")
 const HudTheme = preload("res://scripts/ui/presentation_theme.gd")
 const Automation = preload("res://scripts/gameplay/field_auto_battle.gd")
 const Terrain = preload("res://scripts/gameplay/field_terrain.gd")
@@ -27,6 +28,9 @@ var recovery_map: String = "village"
 var recovery_spawn: String = "from_east_road"
 var automation := Automation.new()
 var _auto_button: Button
+var _auto_settings_button: Button
+var _auto_options: PanelContainer
+var _auto_controls: Control
 var player: CharacterBody3D
 var navigation := Navigation.new()
 var enemies: Array[Dictionary] = []
@@ -49,7 +53,6 @@ var _effects: Array[Node3D] = []
 var _numbers: Array[Dictionary] = []
 var _hero_sprite: Sprite3D
 var _hud: Control
-var _status: Label
 var _buttons: Dictionary[String, Button] = {}
 var _focus_paused: bool = false
 var _previous_camera_distance: float = 11.0
@@ -82,6 +85,8 @@ func _initialize() -> void:
 			_spawn_enemy(spawn)
 	_sync_loot()
 	ready_for_combat = true
+	automation.set_enabled(true, self)
+	_update_hud()
 
 func _spawn_enemy(spawn: Dictionary) -> void:
 	var art: String = str(spawn.get("art", "eclipse_mage" if spawn.caster else "moss_wolf"))
@@ -237,6 +242,7 @@ func can_hit(from: Vector3, to: Vector3, reach: float) -> bool:
 func _physics_process(delta: float) -> void:
 	var active: bool = GameState.mode == GameState.Mode.EXPLORE and not _focus_paused
 	_hud.visible = GameState.mode == GameState.Mode.EXPLORE
+	_auto_controls.visible = _hud.visible
 	_update_hud()
 	if not ready_for_combat or not active:
 		return
@@ -537,81 +543,123 @@ func _build_hud() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 12
 	add_child(layer)
-	_hud = PanelContainer.new()
-	_hud.add_to_group("camera_touch_blocker")
+	var mobile: bool = MobileControls.is_mobile_device()
+	var row := HBoxContainer.new()
+	_hud = row
 	_hud.theme = GameState.ui_theme
 	layer.add_child(_hud)
 	_hud.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
 	_hud.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_hud.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_hud.offset_left = -280
-	_hud.offset_right = 280
-	_hud.offset_top = -24
+	_hud.offset_left = -172
+	_hud.offset_right = 172
+	_hud.offset_top = -104
 	_hud.offset_bottom = -24
-	var mobile: bool = MobileControls.is_mobile_device()
 	if mobile:
-		# The touch viewport is 960 px wide; reserve the expanded stick hit area.
+		# Leave the joystick, auto toggle and interaction button separate.
 		_hud.anchor_left = 0.0
 		_hud.anchor_right = 1.0
-		_hud.offset_left = 270
+		_hud.offset_left = 366
 		_hud.offset_right = -204
-	_hud.add_theme_stylebox_override("panel", HudTheme.panel(8 if mobile else 12))
-	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 8)
-	_hud.add_child(column)
-	_status = Label.new()
-	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_status.add_theme_font_size_override("font_size", 17)
-	column.add_child(_status)
-	var options := HBoxContainer.new()
-	options.alignment = BoxContainer.ALIGNMENT_CENTER
-	options.add_theme_constant_override("separation", 8)
-	column.add_child(options)
-	_auto_button = Button.new()
-	_auto_button.focus_mode = Control.FOCUS_NONE
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 8)
+	for action: String in ["attack", "skill", "dodge", "potion"]:
+		var button := IconButton.new()
+		button.custom_minimum_size = Vector2(80, 80)
+		button.caption = {"attack": "普攻", "skill": "技能", "dodge": "閃避", "potion": "藥水"}[action]
+		button.hotkey = {"attack": "J", "skill": "K", "dodge": "Shift", "potion": "H"}[action]
+		button.accent = Color("e9c47f") if action == "attack" else Color("9feaff") if action == "skill" else Color("9ee6bd") if action == "potion" else Color("bbc9df")
+		button.pressed.connect(func() -> void: perform(action))
+		row.add_child(button)
+		button.add_to_group("camera_touch_blocker")
+		_buttons[action] = button
+
+	_auto_controls = Control.new()
+	_auto_controls.theme = GameState.ui_theme
+	_auto_controls.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(_auto_controls)
+	_auto_controls.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_auto_button = IconButton.new()
+	_auto_button.name = "AutoBattle"
+	_auto_button.glyph = "auto"
+	_auto_button.hotkey = "B"
+	_auto_button.toggle_mode = true
 	_auto_button.pressed.connect(func() -> void: automation.set_enabled(not automation.enabled, self))
-	options.add_child(_auto_button)
+	_auto_controls.add_child(_auto_button)
+	_auto_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	_auto_button.offset_left = 270 if mobile else 24
+	_auto_button.offset_top = -96
+	_auto_button.size = Vector2(72, 72)
+	_auto_button.add_to_group("camera_touch_blocker")
+	_auto_settings_button = IconButton.new()
+	_auto_settings_button.name = "AutoSettings"
+	_auto_settings_button.glyph = "settings"
+	_auto_settings_button.show_caption = false
+	_auto_settings_button.hotkey = ""
+	_auto_settings_button.tooltip_text = "自動戰鬥設定"
+	_auto_settings_button.toggle_mode = true
+	_auto_settings_button.toggled.connect(_set_auto_settings_expanded)
+	_auto_controls.add_child(_auto_settings_button)
+	_auto_settings_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	_auto_settings_button.offset_left = 282 if mobile else 36
+	_auto_settings_button.offset_top = -152
+	_auto_settings_button.size = Vector2(48, 48)
+	_auto_settings_button.add_to_group("camera_touch_blocker")
+	_auto_options = PanelContainer.new()
+	_auto_options.add_theme_stylebox_override("panel", HudTheme.panel(12))
+	_auto_controls.add_child(_auto_options)
+	_auto_options.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	_auto_options.offset_left = 342 if mobile else 96
+	_auto_options.offset_top = -328
+	_auto_options.offset_right = _auto_options.offset_left + 232
+	_auto_options.offset_bottom = -172
+	_auto_options.add_to_group("camera_touch_blocker")
+	var options := VBoxContainer.new()
+	_auto_options.add_child(options)
+	var title := Label.new()
+	title.text = "自動戰鬥設定"
+	options.add_child(title)
 	var skills := CheckButton.new()
 	skills.text = "使用技能"
+	skills.custom_minimum_size = Vector2(208, 48)
 	skills.button_pressed = automation.use_skills
 	skills.focus_mode = Control.FOCUS_NONE
 	skills.toggled.connect(func(value: bool) -> void: automation.use_skills = value)
 	options.add_child(skills)
 	var potions := CheckButton.new()
 	potions.text = "低血量喝藥"
+	potions.custom_minimum_size.y = 48
 	potions.focus_mode = Control.FOCUS_NONE
 	potions.toggled.connect(func(value: bool) -> void: automation.use_potions = value)
 	options.add_child(potions)
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 8)
-	column.add_child(row)
-	for action: String in ["attack", "skill", "dodge", "potion"]:
-		var button := Button.new()
-		button.custom_minimum_size = Vector2(110 if mobile else 124, 48)
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.focus_mode = Control.FOCUS_NONE
-		button.add_theme_font_size_override("font_size", 15 if mobile else 17)
-		button.pressed.connect(func() -> void: perform(action))
-		row.add_child(button)
-		_buttons[action] = button
+	_auto_options.hide()
+	_update_hud()
+
+func _set_auto_settings_expanded(expanded: bool) -> void:
+	_auto_options.visible = expanded
 
 func _update_hud() -> void:
-	_auto_button.text = "自動：開 B" if automation.enabled else "自動：關 B"
+	_auto_button.set_pressed_no_signal(automation.enabled)
+	_auto_button.caption = "自動・開" if automation.enabled else "自動・關"
+	_auto_button.accent = Color("8affce") if automation.enabled else Color("8394a7")
+	_auto_button.tooltip_text = "自動戰鬥：%s [B]，點擊切換；移動或出招可接手" % ("開" if automation.enabled else "關")
 	_auto_button.disabled = not ready_for_combat
-	_status.text = "Lv.%d  EXP %d/%d   HP %d/%d   MP %d/%d\n%s・月苔 ×%d" % [GameState.player_level, GameState.player_xp, GameState.xp_to_next_level(), GameState.player_hp, GameState.player_max_hp, GameState.player_mp, GameState.player_max_mp, area_title, int(GameState.inventory.get("moon_moss", 0))]
-	if compact_hud:
-		_status.text = "Lv.%d  HP %d/%d   MP %d/%d" % [GameState.player_level, GameState.player_hp, GameState.player_max_hp, GameState.player_mp, GameState.player_max_mp]
+	_auto_button.queue_redraw()
+	var profile: Dictionary = GameState.class_profile()
 	var cooldowns: Dictionary = {"attack": attack_cooldown, "skill": skill_cooldown, "dodge": dodge_cooldown, "potion": 0.0}
-	var labels: Dictionary = {"attack": "普攻 J / 1", "skill": str(GameState.class_profile().skill) + " %d MP" % int(GameState.class_profile().cost), "dodge": "閃避 Shift", "potion": "藥水 H ×%d" % int(GameState.inventory.get("potion", 0))}
-	if MobileControls.is_mobile_device():
-		labels.skill = "%s\n%d MP" % [GameState.class_profile().skill, GameState.class_profile().cost]
-	if GameState.player_class != "traveler":
-		labels.attack = ("射擊" if GameState.player_class == "archer" else "魔力彈" if GameState.player_class == "mage" else "雙刃") + " J / 1"
+	var durations: Dictionary = {"attack": maxf(0.55, float(profile.interval)), "skill": float(profile.cooldown), "dodge": float(profile.dodge), "potion": 1.0}
 	for action: String in _buttons:
+		var button: Button = _buttons[action]
 		var cooldown: float = cooldowns[action]
-		_buttons[action].text = "%s %.1f" % [labels[action], cooldown] if cooldown > 0 else labels[action]
-		_buttons[action].disabled = not ready_for_combat or cooldown > 0 or (action == "skill" and GameState.player_mp < int(GameState.class_profile().cost)) or (action == "potion" and (GameState.player_hp == GameState.player_max_hp or int(GameState.inventory.get("potion", 0)) == 0))
+		button.glyph = str(profile.glyph) if action == "skill" or (action == "attack" and GameState.player_class != "traveler") else action
+		button.cooldown = cooldown
+		button.cooldown_fraction = clampf(cooldown / durations[action], 0.0, 1.0)
+		button.badge = str(GameState.inventory.get("potion", 0)) if action == "potion" else "%d MP" % int(profile.cost) if action == "skill" else ""
+		button.tooltip_text = "%s [%s]" % [button.caption, button.hotkey]
+		if action == "skill":
+			button.tooltip_text = "%s · %d MP [K]" % [profile.skill, profile.cost]
+		button.disabled = not ready_for_combat or cooldown > 0 or (action == "skill" and GameState.player_mp < int(profile.cost)) or (action == "potion" and (GameState.player_hp == GameState.player_max_hp or int(GameState.inventory.get("potion", 0)) == 0))
+		button.queue_redraw()
 
 func _pause_focus() -> void:
 	_focus_paused = true

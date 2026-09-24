@@ -165,6 +165,15 @@ func _draw() -> void:
 	if _main_target_visible:
 		_draw_main_target(_world_to_map(_main_target_world_position))
 	_draw_player_marker(_world_to_map(_player_world_position))
+	if not interactive:
+		# An inset expansion mark makes the whole mini-map's open action discoverable.
+		var corner := size - Vector2(22, 22)
+		draw_circle(corner, 13, PANEL_COLOR)
+		for direction: Vector2 in [Vector2.ONE, -Vector2.ONE]:
+			var tip := corner + direction * 7
+			draw_line(corner + direction * 2, tip, EXIT_COLOR, 1.5, true)
+			draw_line(tip, tip - Vector2(direction.x * 6, 0), EXIT_COLOR, 1.5, true)
+			draw_line(tip, tip - Vector2(0, direction.y * 6), EXIT_COLOR, 1.5, true)
 	if interactive and not _hovered_destination.is_empty():
 		var title := "點擊前往・" + str(_hovered_destination.title)
 		var font := get_theme_default_font()

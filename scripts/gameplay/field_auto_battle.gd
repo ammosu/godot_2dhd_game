@@ -20,7 +20,8 @@ func direction(field: Node3D, delta: float) -> Vector3:
 	var at: Vector3 = player.global_position
 	var graph: AStar3D = field.navigation.graph
 	if graph.get_point_count() == 0 or at.distance_to(graph.get_point_position(graph.get_closest_point(at))) > 1.2:
-		set_enabled(false, field)
+		# Stay armed at the road entrance without walking outside sampled ground.
+		path.clear()
 		return Vector3.ZERO
 	if use_potions and GameState.player_hp <= GameState.player_max_hp * 0.3:
 		field.perform("potion", true)
