@@ -4,6 +4,7 @@ const IconButton = preload("res://scripts/ui/battle_icon_button.gd")
 const HudTheme = preload("res://scripts/ui/presentation_theme.gd")
 const Automation = preload("res://scripts/gameplay/field_auto_battle.gd")
 const Terrain = preload("res://scripts/gameplay/field_terrain.gd")
+const Awareness = preload("res://scripts/gameplay/enemy_awareness.gd")
 const Navigation = preload("res://scripts/gameplay/field_navigation.gd")
 const Art = preload("res://scripts/gameplay/action_sprite_library.gd")
 const Facing = preload("res://scripts/gameplay/eight_way_facing.gd")
@@ -15,7 +16,7 @@ const DeathEffect = preload("res://scripts/gameplay/enemy_death_effect.gd")
 const Effect = preload("res://scripts/gameplay/world_combat_effect.gd")
 const SPAWNS: Array[Dictionary] = [
 	{"id": "road_wolf_west", "at": Vector3(-4, 0.05, 10), "caster": false},
-	{"id": "road_wolf_ramp", "at": Vector3(2, 0.41, 10.5), "caster": false},
+	{"id": "road_wolf_ramp", "at": Vector3(2, 0.41, 10.5), "caster": false, "elite": true},
 	{"id": "road_mage_terrace", "at": Vector3(10, 1.85, 10.5), "caster": true},
 	{"id": "road_bat_south", "at": Vector3(-5, 0.05, 12.5), "caster": false, "art": "dusk_bat"},
 ]
@@ -121,13 +122,18 @@ func _spawn_enemy(spawn: Dictionary) -> void:
 	body.add_child(presentation)
 	presentation.setup(body, art, sprite, label, bar)
 	var bat: bool = art == "dusk_bat"
-	var hp: int = 28 if bat else 46 if spawn.caster else 38
+	# Fixed encounter tiers preserve the value of leveling and better equipment.
+	var elite: bool = bool(spawn.get("elite", false))
+	var hp: int = 100 if elite else 42 if bat else 54 if spawn.caster else 72
 	enemies.append({"id": spawn.id, "body": body, "sprite": sprite, "bar": bar, "label": label,
 		"presentation": presentation, "warning": warning, "caster": spawn.caster, "art": art,
-		"title": "暮翼蝙蝠" if bat else "月蝕術士" if spawn.caster else "苔原狼",
-		"speed": 3.15 if bat else 2.35, "attack_power": 10 if bat else 16 if spawn.caster else 12,
-		"attack_windup": 0.6 if bat else 1.0 if spawn.caster else 0.75,
-		"attack_interval": 1.35 if bat else 2.2 if spawn.caster else 1.6, "hp": hp, "max_hp": hp,
+		"title": "苔原狼・精英" if elite else "暮翼蝙蝠・輕型" if bat else "月蝕術士・術法" if spawn.caster else "苔原狼・鬥士",
+		"stagger_cooldown": 0.0, "attack_cycle": 0, "charged_attack": false,
+		"basic_attacks": 3 if bat else 1 if elite else 2,
+		"speed": 3.15 if bat else 1.9 if spawn.caster else 2.35, "attack_power": 14 if elite else 11 if bat else 18 if spawn.caster else 13,
+		"attack_windup": 0.45 if bat else 0.65 if spawn.caster else 0.60 if elite else 0.55,
+		"attack_interval": 1.1 if bat else 1.7 if spawn.caster else 1.25 if elite else 1.35, "hp": hp, "max_hp": hp,
+		"last_seen": spawn.at, "lost_sight": 0.0, "target_visible": false,
 		"home": spawn.at, "state": "patrol", "facing": Vector3.FORWARD, "hurt": 0.0,
 		"cooldown": 0.7, "windup": 0.0, "swing": 0.0, "aim": Vector3.ZERO,
 		"path": PackedVector3Array(), "repath": 0.0, "patrol": 1.0})
@@ -347,17 +353,26 @@ func _strike() -> void:
 func _damage_enemy(enemy: Dictionary, damage: int) -> void:
 	if int(enemy.hp) <= 0:
 		return
+	Awareness.engage(self, enemy)
 	enemy.hp = maxi(0, int(enemy.hp) - damage)
 	enemy.hurt = 0.25
-	enemy.windup = 0.0
-	enemy.warning.hide()
-	enemy.state = "chase"
-	enemy.cooldown = maxf(float(enemy.cooldown), 0.55)
+	# Light enemies stagger to basic hits; fighters/casters require a skill.
+	# Recovery also prevents fast attacks from permanently suppressing a bat.
+	var interrupt: bool = (enemy.art == "dusk_bat" or skill_pending) and float(enemy.get("stagger_cooldown", 0.0)) <= 0.0
+	if interrupt and float(enemy.windup) > 0.0:
+		enemy.windup = 0.0
+		enemy.warning.hide()
+		enemy.stagger_cooldown = 1.5
+		if bool(enemy.get("charged_attack", false)):
+			enemy.attack_cycle = 0
+		enemy.cooldown = maxf(float(enemy.cooldown), 0.55)
 	_number(enemy.body.global_position, str(damage), Color("fff0ad"))
 	var hit_effect: String = "arrow_hit" if GameState.player_class == "archer" else "frost_hit" if GameState.player_class == "mage" else "shadow_hit" if GameState.player_class == "thief" else "impact"
 	_effect(hit_effect, enemy.body.global_position)
 	if int(enemy.hp) == 0:
 		enemy.state = "dead"
+		enemy.windup = 0.0
+		enemy.warning.hide()
 		var death := DeathEffect.new()
 		add_child(death)
 		death.configure(enemy.body, enemy.sprite, player)
@@ -368,6 +383,7 @@ func _damage_enemy(enemy: Dictionary, damage: int) -> void:
 func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 	var body: CharacterBody3D = enemy.body
 	var at: Vector3 = body.global_position
+	enemy.stagger_cooldown = maxf(0.0, float(enemy.get("stagger_cooldown", 0.0)) - delta)
 	enemy.hurt = maxf(0, float(enemy.hurt) - delta)
 	enemy.swing = maxf(0, float(enemy.swing) - delta)
 	enemy.cooldown = maxf(0, float(enemy.cooldown) - delta)
@@ -377,14 +393,7 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 		enemy.presentation.advance(clock, "defeated", 0.0, 0.0, 0.0)
 		enemy.label.hide()
 		return
-	var distance: float = at.distance_to(player.global_position)
-	var can_chase: bool = navigation.contains(player.global_position) and player.global_position.distance_to(enemy.home) < 9.0
-	if enemy.state == "patrol" and can_chase and distance < 5.2:
-		enemy.state = "chase"
-	if enemy.state == "chase" and (not can_chase or at.distance_to(enemy.home) > 10.0):
-		enemy.state = "return"
-		enemy.windup = 0.0
-		enemy.warning.hide()
+	Awareness.update(self, enemy, delta)
 	var movement := Vector3.ZERO
 	if float(enemy.windup) > 0:
 		enemy.windup = maxf(0, float(enemy.windup) - delta)
@@ -393,21 +402,24 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 	elif float(enemy.hurt) == 0:
 		var target: Vector3 = enemy.home
 		if enemy.state == "chase":
-			target = player.global_position
+			target = enemy.last_seen
 			var reach: float = 4.8 if enemy.caster else 1.35
-			if can_hit(at, target, reach):
+			if enemy.target_visible and can_hit(at, target, reach):
 				if float(enemy.cooldown) == 0:
 					enemy.aim = target if enemy.caster else at + (target - at).normalized() * 0.8
 					enemy.facing = (target - at).normalized()
-					enemy.windup = enemy.attack_windup
-					enemy.cooldown = enemy.attack_interval
+					enemy.charged_attack = int(enemy.attack_cycle) == int(enemy.basic_attacks)
+					enemy.windup = float(enemy.attack_windup) if enemy.charged_attack else 0.22 if enemy.caster else 0.16
+					enemy.cooldown = float(enemy.attack_interval) * (1.2 if enemy.charged_attack else 0.85)
 					enemy.warning.position = enemy.aim + Vector3.UP * 0.04
-					enemy.warning.show()
+					enemy.warning.visible = enemy.charged_attack
 				target = at
 		elif enemy.state == "return":
 			if at.distance_to(target) < 0.5:
 				enemy.state = "patrol"
 				enemy.hp = enemy.max_hp
+				enemy.attack_cycle = 0
+				enemy.charged_attack = false
 		else:
 			target += Vector3(0, 0, float(enemy.patrol) * 0.8)
 			if at.distance_to(target) < 0.45:
@@ -429,21 +441,24 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 	body.velocity.z = movement.z * slow_factor * (float(enemy.speed) if enemy.state == "chase" else 1.1)
 	body.velocity.y = -0.5 if body.is_on_floor() else body.velocity.y - 18.0 * delta
 	body.move_and_slide()
-	var pose: String = "hurt" if float(enemy.hurt) > 0 else "cast" if enemy.caster and float(enemy.windup) > 0 else "windup" if float(enemy.windup) > 0 else "attack" if float(enemy.swing) > 0 else Art.Movement.walk_pose(clock + float(enemy.home.x) * 0.17 + float(enemy.home.z) * 0.11) if not movement.is_zero_approx() else "idle"
+	var pose: String = "hurt" if float(enemy.hurt) > 0 else "cast" if enemy.caster and enemy.charged_attack and float(enemy.windup) > 0 else "windup" if enemy.charged_attack and float(enemy.windup) > 0 else "attack" if float(enemy.windup) > 0 or float(enemy.swing) > 0 else Art.Movement.walk_pose(clock + float(enemy.home.x) * 0.17 + float(enemy.home.z) * 0.11) if not movement.is_zero_approx() else "idle"
 	if enemy.art == "dusk_bat" and pose == "idle":
 		pose = ["walk_a", "idle", "walk_b", "idle"][int(clock * 10.0) % 4]
 	_art(enemy.sprite, enemy.art, pose, enemy.facing)
-	enemy.presentation.advance(clock, pose, float(enemy.hurt), float(enemy.windup), float(enemy.swing))
+	enemy.presentation.advance(clock, pose, float(enemy.hurt), float(enemy.windup) if enemy.charged_attack else 0.0, float(enemy.swing))
 	enemy.label.text = str(enemy.title) + ("  !" if enemy.state == "chase" else "  ↩" if enemy.state == "return" else "")
 
 func _enemy_strike(enemy: Dictionary) -> void:
 	enemy.warning.hide()
 	enemy.swing = 0.22
+	# Count released attacks even when dodged; interrupted basics do not count.
+	enemy.attack_cycle = (int(enemy.attack_cycle) + 1) % (int(enemy.basic_attacks) + 1)
 	_effect("bolt" if enemy.caster else "claw", enemy.aim)
 	var reach: float = 5.2 if enemy.caster else 1.8
 	var radius: float = 1.15 if enemy.caster else 0.95
 	if invulnerable <= 0 and can_hit(enemy.body.global_position, player.global_position, reach) and player.global_position.distance_to(enemy.aim) < radius:
-		var damage: int = maxi(1, int(enemy.attack_power) - GameState.player_defense)
+		var power: int = int(enemy.attack_power) if enemy.charged_attack else roundi(float(enemy.attack_power) * 0.75)
+		var damage: int = maxi(1, power - GameState.player_defense)
 		GameState.damage_player(damage)
 		invulnerable = 0.45
 		_number(player.global_position, "−%d" % damage, Color("ff9985"))

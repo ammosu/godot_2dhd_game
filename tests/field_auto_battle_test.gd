@@ -47,9 +47,11 @@ func _run() -> void:
 	var wolf: Dictionary = field.enemies[0]
 	wolf.aim = player.position
 	wolf.windup = 0.2
+	wolf.charged_attack = true
 	field.movement_velocity(Vector3.ZERO, 1.0 / 60.0)
 	assert(field.dodge_time > 0 and field.invulnerable > 0)
 	wolf.windup = 0
+	wolf.charged_attack = false
 	field.dodge_time = 0
 	field.dodge_cooldown = 0
 	state.player_hp = state.player_max_hp

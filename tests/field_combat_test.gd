@@ -23,6 +23,11 @@ func _run() -> void:
 	field.set_physics_process(false)
 	_check_hero_art(field, player)
 	assert(field.enemies.size() == 4)
+	assert(field.enemies[1].max_hp > field.enemies[0].max_hp, "Elite wolf is tougher")
+	assert(field.enemies[2].max_hp < field.enemies[0].max_hp, "Caster trades durability for damage")
+	assert(field.enemies[2].attack_power > field.enemies[1].attack_power)
+	for enemy: Dictionary in field.enemies:
+		assert(enemy.hp > state.player_attack * 2, "Starting enemies survive two basic attacks")
 	assert(field.navigation.graph.get_point_count() > 200)
 	# The path from below the south cliff must go round to the west ramp.
 	var path: PackedVector3Array = field.navigation.path(Vector3(9, 0, 7), Vector3(9, 1.8, 10))
@@ -73,18 +78,18 @@ func _run() -> void:
 	assert(wolf.body.position.y < 0.9, "Wolf must follow down ramp")
 	player.position = Vector3(-12, 0.1, 5)
 	field._advance_enemy(wolf, 1.0 / 60.0)
-	assert(wolf.state == "return", "Leaving clearing ends chase")
-	# Delayed melee hit, cooldown and interruption of an enemy's telegraph.
+	assert(wolf.state in ["return", "patrol"], "Leaving clearing ends chase, including enemies already home after losing sight")
+	# Delayed melee hit; a fighter survives and completes its telegraph.
 	player.position = Vector3(-4, 0.02, 9)
 	var first: Dictionary = field.enemies[0]
 	first.body.position = Vector3(-4, 0.02, 10)
 	first.windup = 0.7
 	assert(field.perform("attack"))
-	assert(first.hp == 38)
+	assert(first.hp == 72)
 	assert(not field.perform("attack"))
 	field._physics_process(0.13)
-	assert(first.hp == 38 - state.player_attack)
-	assert(first.windup == 0)
+	assert(first.hp == 72 - state.player_attack)
+	assert(first.windup > 0, "Basic attacks cannot suppress a fighter")
 	# Dodge avoids the locked target strike and pauses respect GameState mode.
 	first.aim = player.position
 	field.windup = 0.0
@@ -105,6 +110,9 @@ func _run() -> void:
 	assert(field.perform("skill"))
 	assert(state.player_mp == mp - 5)
 	field._physics_process(0.19)
+	assert(first.hp > 0, "A fighter survives one basic attack plus one skill")
+	assert(first.windup == 0, "Skills interrupt a fighter's telegraph")
+	field._damage_enemy(first, 999)
 	assert(first.hp == 0)
 	assert(state.player_xp == 18)
 	assert(state.field_defeated.has(first.id))
@@ -116,7 +124,7 @@ func _run() -> void:
 	field._physics_process(0.4)
 	assert(death.age == death_age, "Death particles pause with combat")
 	state.set_mode(state.Mode.EXPLORE)
-	death.advance(0.4)
+	death.advance(0.6)
 	assert(not first.body.visible, "Corpse disappears after the short fade")
 	player.position += Vector3(2, 0, 0)
 	death.advance(0.45)
@@ -153,19 +161,23 @@ func _run() -> void:
 	assert(not state.collect_field_loot("road_wolf_ramp"))
 	# Bat telegraph, hover, interruption, rewards and persistence use the real adapter.
 	var bat: Dictionary = field.enemies[1]
-	assert(bat.art == "dusk_bat" and bat.hp == 28)
+	assert(bat.art == "dusk_bat" and bat.hp == 42)
 	player.position = bat.body.position + Vector3(0, 0, -0.8)
 	bat.cooldown = 0.0
 	field._advance_enemy(bat, 0.02)
-	assert(bat.windup > 0 and bat.warning.visible, "Bat must telegraph its attack")
+	assert(bat.windup > 0 and not bat.warning.visible, "Basic bite has a short startup without a skill warning")
 	assert(bat.sprite.position.y > 0.4, "Living bat hovers above its ground anchor")
 	field.invulnerable = 0.0
 	var before_bite: int = state.player_hp
 	field._advance_enemy(bat, 0.61)
-	assert(state.player_hp == before_bite - maxi(1, 10 - state.player_defense))
+	assert(state.player_hp == before_bite - maxi(1, roundi(11 * 0.75) - state.player_defense))
 	bat.windup = 0.5
 	field._damage_enemy(bat, 1)
 	assert(bat.windup == 0 and not bat.warning.visible, "Hit interrupts bat windup")
+	bat.windup = 0.5
+	bat.warning.show()
+	field._damage_enemy(bat, 1)
+	assert(bat.windup > 0 and bat.warning.visible, "Stagger recovery prevents permanent interruption")
 	field._damage_enemy(bat, 999)
 	field._advance_enemy(bat, 0.02)
 	assert(bat.sprite.position.y < 0.1, "Defeated bat rests on ground")
@@ -226,13 +238,14 @@ func _check_hero_art(field: Node3D, player: CharacterBody3D) -> void:
 				var standing := art.texture as AtlasTexture
 				var pixel_size: float = art.pixel_size
 				var idle_head: float = (_head_center(standing) - standing.get_width() * 0.5 + art.offset.x) * pixel_size
-				assert(is_equal_approx(standing.get_height() * pixel_size, 1.45 * factor), "Field art must match exploration standing height")
+				assert(is_equal_approx(float(standing.get_meta("body_height", standing.get_height())) * pixel_size, 1.45 * factor), "Field art must match exploration standing height")
 				for pose: String in ["walk_a", "walk_b", "windup", "attack", "dodge_a", "dodge_b", "idle"]:
 					field.clock = 0.0 if pose == "walk_a" else 0.2
 					player.velocity = direction if pose.begins_with("walk") else Vector3.ZERO
 					field.windup = 0.1 if pose == "windup" else 0.0
 					field.swing = 0.1 if pose == "attack" else 0.0
 					field.dodge_time = 0.2 if pose == "dodge_a" else 0.1 if pose == "dodge_b" else 0.0
+					field.set("_locomotion_requested", pose.begins_with("walk"))
 					field.call("_update_hero_art")
 					assert(art.visible and not player.get_node("Sprite3D").visible, "Never swap body atlases at impact or recovery")
 					assert(art.texture.get_meta("pose") == pose)
