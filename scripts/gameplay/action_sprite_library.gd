@@ -3,6 +3,7 @@ extends RefCounted
 const Appearance = preload("res://scripts/gameplay/equipment_appearance.gd")
 const Movement = preload("res://scripts/gameplay/enemy_movement_art.gd")
 const DATA: Dictionary = preload("res://assets/generated/action/regions.gd").DATA
+const ARMED_WALK: Dictionary = preload("res://assets/generated/action/armed_walk_anchors.gd").DATA
 const POSES: Array[String] = ["idle", "walk_a", "walk_b", "windup", "attack", "recover", "cast", "release", "dodge_a", "dodge_b", "hurt", "defeated"]
 static var _cache: Dictionary[String, AtlasTexture] = {}
 
@@ -63,6 +64,10 @@ static func texture_for(actor: String, pose_name: String, facing: int, loadout: 
 	texture.filter_clip = true
 	texture.set_meta("ground_y", float(box[3]))
 	texture.set_meta("anchor_x", float(box[4]) if box.size() > 4 else float(box[2]) * 0.5)
+	# A swinging foot/sword is not a body pivot. Keep the walking head on the
+	# idle axis; weapon-equipped exploration and arena share these textures.
+	if actor == "wanderer" and pose_name in ["idle", "walk_a", "walk_b"] and ARMED_WALK.has(sheet):
+		texture.set_meta("anchor_x", float(ARMED_WALK[sheet].anchors[facing][POSES.find(pose_name)]))
 	# Normalize against standing body height within this facing, not the weapon
 	# reach or crouched/dead frame height. Defeat must not grow to standing size.
 	var idle: Array = data.frames[facing * 12]

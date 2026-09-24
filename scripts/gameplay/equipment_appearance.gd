@@ -4,6 +4,7 @@ extends RefCounted
 const ClassArt = preload("res://scripts/gameplay/class_art.gd")
 const Grounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 const WALK: SpriteFrames = preload("res://assets/generated/wanderer_frames.tres")
+const STEADY_WALK: SpriteFrames = preload("res://assets/generated/wanderer_steady_frames.tres")
 const POSES: Array[String] = ["idle", "windup", "attack", "recover", "hurt", "guard", "defeated"]
 const PAD := Vector2(48, 40)
 static var _textures: Dictionary[String, Texture2D] = {}
@@ -91,7 +92,7 @@ static func walking_frames(loadout: Dictionary) -> SpriteFrames:
 		return ClassArt.walking_frames(loadout)
 	var id := variant(loadout)
 	if id.is_empty():
-		return WALK
+		return STEADY_WALK
 	if _frames.has(id):
 		return _frames[id]
 	var frames := SpriteFrames.new()

@@ -729,6 +729,10 @@ to existing combat/equipment art. New original atlases and generation prompts li
 
 斜向步伐修正：四套旅人外觀的第 4 幀共用 `diagonal_contact_b.png` 中各自的反側接地姿勢，第 3 幀回到收腳姿勢。`tools/art/repair_diagonal_stride.py` 可重建裁切資訊；`player_art_test.gd` 檢查腳底與方向，`equipment_replacement_test.gd` 檢查各裝備的姿勢來源。美術的左右腳交替仍需在實際遊戲中目視確認。
 
+預設旅人頭部穩定修正：四個直向改用 `wanderer_steady_walk.png` 與 `wanderer_steady_frames.tres`，統一頭部方向並依頭部軸心對齊；八方向使用 352 × 352 畫布與 y=316 腳底基準。以 `python3 tools/art/build_steady_wanderer_frames.py` 重建資源，原圖不做像素加工。`player_art_test.gd`、`grounding_test.gd` 與 `equipment_replacement_test.gd` 驗證換格、腳底、換裝；`player_motion_capture.gd` 用於雙 renderer 目視對照。素材與生成提示見 `assets/generated/STEADY_WALK.md`。
+
+城鎮外持武器步行使用另一套 `action` 圖集與 `FieldCombat._hero_sprite`，不會套用城內的 `wanderer_steady_frames.tres`。`tools/art/build_armed_walk_anchors.py` 量測四套旅人裝備、四個方向的頭部中軸，寫入 `assets/generated/action/armed_walk_anchors.gd`；`action_sprite_library.gd` 讓 walk_a／walk_b 對齊 idle 的頭部位置，避免單腳或劍尖改變水平軸心。PNG、腳底高度、角色比例及其他戰鬥姿勢保留。`field_combat_test.gd` 直接檢查野外實際角色在四方向、四套裝備與兩種比例下的換格頭部位置；`action_art_test.gd` 檢查量測資料與來源圖的雜湊一致。
+
 男弓箭手斜走：`godot --headless --path . --script tests/archer_diagonal_test.gd` 驗證四個斜向、兩種弓、獨立素材、步伐順序、固定身體軸心／比例及停止姿勢；保留女弓箭手與開門動作的既有來源，不寫存檔。實際 renderer 對照可執行 `godot --path . --rendering-method forward_plus --script tests/player_motion_capture.gd -- --class=archer --capture-dir=/existing/path`，並改用 `gl_compatibility` 重複。對照圖只代表畫格檢查，不取代連續動畫的目視驗證。
 
 停止朝向：`godot --headless --path . --script tests/player_stop_facing_test.gd` 使用實際 Input 與玩家物理處理，涵蓋四斜向、兩種放鍵順序、相差 1／3／5 幀、持續單鍵轉向與重新起步；`class_field_test.gd` 另檢查野外可見待機姿勢。斜向鬆開一軸時只有朝向等待最多 0.10 秒，移動／減速仍立即依原輸入處理。完全放開後保留原朝向，重新按鍵立即轉身。

@@ -31,7 +31,8 @@ func _run() -> void:
 				var art := frames.get_frame_texture(direction, frame) as AtlasTexture
 				check(art != null, "Missing walking atlas")
 				if index == 0:
-					check(art == base, "Original loadout not restored exactly")
+					check(art == Appearance.STEADY_WALK.get_frame_texture(direction, frame), "Default loadout did not restore steady walking art")
+					_check_bounds(art)
 				else:
 					if base.has_meta("diagonal_frame") and frame == 3:
 						check(art.atlas.resource_path.ends_with("diagonal_contact_b.png") and art.get_meta("contact_variant", "") == names[index], "Wrong opposite-foot outfit")

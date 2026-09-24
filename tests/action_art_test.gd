@@ -13,6 +13,8 @@ func check(value: bool, message: String) -> void:
 		push_error(message)
 
 func _run() -> void:
+	for sheet: String in Art.ARMED_WALK:
+		check(Art.ARMED_WALK[sheet].sha256 == FileAccess.get_sha256("res://assets/generated/action/%s.png" % sheet), "Armed walking pivots require remeasurement: " + sheet)
 	for actor_id: String in ["wanderer", "noah", "elder"]:
 		for armor: bool in [false, true]:
 			for weapon: bool in [false, true]:

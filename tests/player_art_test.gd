@@ -39,7 +39,7 @@ func _run() -> void:
 			var animation: StringName = DIRECTIONS[column]
 			_check(sprite.sprite_frames.get_frame_count(animation) == 4, "Each direction needs four poses")
 			var frame := sprite.sprite_frames.get_frame_texture(animation, row) as AtlasTexture
-			_check(frame.get_size() == (Vector2(320, 320) if column < 4 else Vector2(352, 352)), "All poses need the same presentation canvas")
+			_check(frame.get_size() == Vector2(352, 352), "All poses need the same presentation canvas")
 			atlas_image = frame.atlas.get_image()
 			var region := Rect2i(frame.region)
 			_check(Rect2i(Vector2i.ZERO, atlas_image.get_size()).encloses(region), "Frame outside source image")
@@ -52,7 +52,7 @@ func _run() -> void:
 						bottom = maxi(bottom, y - region.position.y + 1)
 						_check(x > region.position.x and x < region.end.x - 1 and y > region.position.y and y < region.end.y - 1, "Visible silhouette clipped by frame")
 			_check(visible_pixels > 1000, "Empty or incomplete player pose")
-			_check(is_equal_approx(float(bottom) + frame.margin.position.y, 300.0 if column < 4 else 316.0), "Player feet must share a baseline")
+			_check(is_equal_approx(float(bottom) + frame.margin.position.y, 316.0), "Player feet must share a baseline")
 	var directions: Array[Vector2] = INPUTS
 	for column: int in range(DIRECTIONS.size()):
 		player.set("_walk_time", 0.0)

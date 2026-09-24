@@ -225,6 +225,7 @@ func _check_hero_art(field: Node3D, player: CharacterBody3D) -> void:
 				field.call("_update_hero_art")
 				var standing := art.texture as AtlasTexture
 				var pixel_size: float = art.pixel_size
+				var idle_head: float = (_head_center(standing) - standing.get_width() * 0.5 + art.offset.x) * pixel_size
 				assert(is_equal_approx(standing.get_height() * pixel_size, 1.45 * factor), "Field art must match exploration standing height")
 				for pose: String in ["walk_a", "walk_b", "windup", "attack", "dodge_a", "dodge_b", "idle"]:
 					field.clock = 0.0 if pose == "walk_a" else 0.2
@@ -238,8 +239,29 @@ func _check_hero_art(field: Node3D, player: CharacterBody3D) -> void:
 					assert((art.texture as AtlasTexture).atlas == standing.atlas)
 					assert(is_equal_approx(art.pixel_size, pixel_size), "Sword reach and crouching must not rescale the body")
 					assert(is_zero_approx(art.offset.y - art.texture.get_height() * 0.5), "Every field pose stays foot anchored")
+					if pose.begins_with("walk") or pose == "idle":
+						var head: float = (_head_center(art.texture) - art.texture.get_width() * 0.5 + art.offset.x) * art.pixel_size
+						assert(absf(head - idle_head) < 0.018 * factor, "Armed walking shifts the head with the forward foot or sword")
 	state.equipped = loadout
 	player.call("set_presentation_scale", 1.0)
 	player.velocity = Vector3.ZERO
 	field.facing = Vector3.FORWARD
 	field.call("_update_hero_art")
+
+
+func _head_center(texture: AtlasTexture) -> float:
+	# Inspect actual upper-head pixels through the live field sprite, using a
+	# different sampling band from the metadata builder. No screenshot required.
+	var image: Image = texture.atlas.get_image()
+	if image.is_compressed():
+		image.decompress()
+	var region := Rect2i(texture.region)
+	var total: float = 0.0
+	var count: int = 0
+	for y: int in range(region.position.y + int(region.size.y * 0.10), region.position.y + int(region.size.y * 0.27)):
+		for x: int in range(region.position.x, region.end.x):
+			if image.get_pixel(x, y).a >= 0.3:
+				total += x - region.position.x
+				count += 1
+	assert(count > 0, "Head measurement is empty")
+	return total / float(count)
