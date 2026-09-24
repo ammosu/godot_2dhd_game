@@ -1110,7 +1110,8 @@ func _add_actor_interactable(interaction_id: String, prompt: String, world_posit
 		sprite.set("visible_height", 1.4 * HouseCatalog.INTERIOR_CHARACTER_SCALE)
 	sprite.texture = _art_texture(texture_path)
 	sprite.pixel_size = pixel_size
-	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	# Match the upright player: camera pitch must foreshorten every world actor alike.
+	sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	sprite.modulate = tint

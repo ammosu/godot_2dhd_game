@@ -32,8 +32,8 @@ func _ready() -> void:
 	_sprite = ResidentArt.new()
 	_sprite.name = "CharacterArt"
 	_sprite.resident_id = resident_id
-	_sprite.visible_height = 1.3
-	_sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	# Use the resident's default body height outdoors as well as inside homes.
+	_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	_sprite.alpha_scissor_threshold = 0.25

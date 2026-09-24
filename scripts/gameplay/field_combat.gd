@@ -479,7 +479,8 @@ func _sync_loot() -> void:
 
 func _sprite(parent: Node3D) -> Sprite3D:
 	var sprite := Sprite3D.new()
-	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	# Allies and enemies stand in the same vertical plane as the player.
+	sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	sprite.alpha_scissor_threshold = 0.3
