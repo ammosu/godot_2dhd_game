@@ -13,6 +13,8 @@ static var _cache: Dictionary[String, SpriteFrames] = {}
 
 
 static func frames(loadout: Dictionary) -> SpriteFrames:
+	if not Appearance.ClassArt.vocation(loadout).is_empty():
+		return Appearance.ClassArt.walking_frames(loadout, true)
 	var outfit := Appearance.variant(loadout)
 	var key := "base" if outfit.is_empty() else outfit
 	if _cache.has(key):

@@ -45,6 +45,13 @@ func _ready() -> void:
 	_create_interaction_detector()
 	GameState.state_changed.connect(_refresh_equipment)
 	_refresh_equipment()
+	sprite.frame_changed.connect(_refresh_style)
+	sprite.animation_changed.connect(_refresh_style)
+	_refresh_style()
+
+
+func _refresh_style() -> void:
+	GameState.HeroStyle.apply_sprite(sprite, sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame), GameState.player_style)
 
 
 func set_presentation_scale(factor: float) -> void:
@@ -60,15 +67,17 @@ func presentation_height() -> float:
 
 
 func _refresh_equipment() -> void:
-	var key := EquipmentAppearance.variant(GameState.equipped) + (":door" if _door_pose >= 0 else "")
+	_refresh_style()
+	var key := EquipmentAppearance.variant(GameState.get_visual_loadout()) + (":door" if _door_pose >= 0 else "")
 	if key == _appearance_key:
 		return
 	_appearance_key = key
 	var direction := sprite.animation
 	var frame := sprite.frame
-	sprite.sprite_frames = DoorActionArt.frames(GameState.equipped) if _door_pose >= 0 else EquipmentAppearance.walking_frames(GameState.equipped)
+	sprite.sprite_frames = DoorActionArt.frames(GameState.get_visual_loadout()) if _door_pose >= 0 else EquipmentAppearance.walking_frames(GameState.get_visual_loadout())
 	sprite.animation = direction
 	sprite.frame = mini(frame, sprite.sprite_frames.get_frame_count(direction) - 1)
+	_refresh_style()
 
 
 func _physics_process(delta: float) -> void:
@@ -226,9 +235,13 @@ func _update_sprite(input_vector: Vector2, move_direction: Vector3, delta: float
 		var texture := sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame)
 		sprite.pixel_size = _base_pixel_size * _presentation_scale * 290.0 / float(texture.get_meta("body_height"))
 		sprite.offset = Vector2(texture.get_width() * 0.5 - float(texture.get_meta("foot_center")), float(texture.get_meta("ground_y")) - texture.get_height() * 0.5)
+		sprite.flip_h = bool(texture.get_meta("flip_h", false))
+		if sprite.flip_h:
+			sprite.offset.x *= -1.0
 		return
 	sprite.pixel_size = _base_pixel_size * _presentation_scale
 	sprite.offset = _walking_offset
+	sprite.flip_h = false
 	if not move_direction.is_zero_approx():
 		_walk_time += delta * 8.0
 		if not _door_facing_locked:
@@ -244,6 +257,11 @@ func _update_sprite(input_vector: Vector2, move_direction: Vector3, delta: float
 		sprite.position.y = move_toward(sprite.position.y, _sprite_rest_height, delta * 0.5)
 		sprite.rotation.z = move_toward(sprite.rotation.z, 0.0, delta * 0.5)
 	_refresh_equipment()
+	if not EquipmentAppearance.ClassArt.vocation(GameState.get_visual_loadout()).is_empty():
+		var texture := sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame)
+		sprite.pixel_size = presentation_height() / float(texture.get_meta("body_height"))
+		SpriteGrounding.anchor(sprite, texture, float(texture.get_meta("ground_y")))
+		sprite.offset.x = texture.get_width() * 0.5 - float(texture.get_meta("anchor_x"))
 
 
 func reach_for_door() -> void:

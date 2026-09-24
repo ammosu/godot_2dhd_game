@@ -272,7 +272,7 @@ func refresh(delta: float) -> void:
 		var motion: Vector2 = Vector2(actor.position) - _last_positions[index]
 		var facing: Vector2 = Facing.screen_direction(Vector3(actor.facing.x, 0, actor.facing.y), camera)
 		var pose: String = Art.pose(actor, motion.length() > 0.002, _clock)
-		var art: AtlasTexture = Art.directional_texture(str(actor.art), pose, facing, sprites[index], GameState.get_loadout(str(actor.art)) if index < 3 else {})
+		var art: AtlasTexture = Art.directional_texture(str(actor.art), pose, facing, sprites[index], GameState.get_visual_loadout(str(actor.art)) if index < 3 else {})
 		poses[index] = pose
 		sprites[index].texture = art
 		sprites[index].pixel_size = float(art.get_meta("pixel_size"))
@@ -284,6 +284,8 @@ func refresh(delta: float) -> void:
 		_last_positions[index] = actor.position
 		_update_charge(index, actor, facing)
 		sprites[index].modulate = Color("737a8c") if int(actor.hp) <= 0 else Color(2.2, 2.2, 2.2) if float(actor.hurt) > 0.10 else Color("b2efff") if float(actor.invulnerable) > 0 else Color.WHITE
+		if index == 0:
+			GameState.HeroStyle.apply_sprite(sprites[index], art, GameState.player_style)
 		if enemy_presentations[index] != null:
 			enemy_presentations[index].advance(_clock, pose, float(actor.hurt), float(actor.windup), float(actor.swing))
 		labels[index].text = ("▶ " if index == int(session.controlled) else "") + str(actor.name)
@@ -318,10 +320,10 @@ func advance_effects(delta: float) -> void:
 
 func _update_charge(index: int, actor: Dictionary, facing: Vector2) -> void:
 	var charge: Sprite3D = _charges[index]
-	charge.visible = index in [2, 5] and int(actor.hp) > 0 and float(actor.windup) > 0.0
+	charge.visible = (index in [2, 5] or (index == 0 and GameState.player_class == "mage")) and int(actor.hp) > 0 and float(actor.windup) > 0.0
 	if not charge.visible:
 		return
-	var frost: bool = index == 2 and actor.intent == "skill"
+	var frost: bool = index in [0, 2] and actor.intent == "skill"
 	var sheet: Texture2D = preload("res://assets/generated/frost_nova.png") if frost else preload("res://assets/generated/moon_bolt.png")
 	var texture := AtlasTexture.new()
 	texture.atlas = sheet
@@ -350,12 +352,32 @@ func _effect(kind: String, point: Vector2, radius: float = 1.0, direction: Vecto
 
 func show_event(event: Dictionary) -> void:
 	var index: int = int(event.index)
+	if event.kind == "projectile":
+		var effect := Effects.new()
+		add_child(effect)
+		var from := Vector3(event.origin.x, 0.16, event.origin.y)
+		var to := Vector3(event.aim.x, 0.16, event.aim.y)
+		effect.configure("piercing_arrow" if event.piercing else "arrow", from, 0.45, (Vector2(event.aim) - Vector2(event.origin)).normalized(), get_viewport().get_camera_3d())
+		effect.launch(from, to, float(event.duration))
+		_effects.append(effect)
+		return
+	if event.kind == "chill":
+		_effect("chill", session.actors[index].position, 0.6, Vector2.RIGHT)
+		_effects.back().follow_target = bodies[index]
+		return
 	if event.kind == "swing":
 		var kind: String = "frost" if index == 2 and event.intent == "skill" else "bolt" if index in [2, 5] else "moon_slash" if index == 0 and event.intent == "skill" else "spear" if index == 1 else "claw" if index == 4 else "slash"
+		if index == 0 and GameState.player_class != "traveler":
+			kind = str(GameState.class_profile().effect) if event.intent == "skill" else "arrow" if GameState.player_class == "archer" else "bolt" if GameState.player_class == "mage" else "slash"
+		if index == 0 and GameState.player_class == "archer":
+			return
 		_effect(kind, event.aim, float(event.radius), event.facing)
 		return
 	if event.kind == "hit":
-		_effect("impact", session.actors[index].position)
+		var hit_effect: String = "impact"
+		if int(event.get("source", -1)) == 0:
+			hit_effect = "arrow_hit" if GameState.player_class == "archer" else "frost_hit" if GameState.player_class == "mage" else "shadow_hit" if GameState.player_class == "thief" else "impact"
+		_effect(hit_effect, session.actors[index].position)
 		if index == int(session.controlled) or index >= 3:
 			rig.add_combat_impact(clampf(float(event.amount) / 140.0, 0.035, 0.12))
 	if event.kind == "ward":

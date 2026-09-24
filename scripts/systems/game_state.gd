@@ -4,10 +4,17 @@ signal state_changed
 signal map_change_requested(map_id: String, spawn_id: String)
 signal notification_requested(message: String)
 
-enum Mode { EXPLORE, DIALOGUE, BATTLE, EQUIPMENT, TRANSITION, MAP }
+enum Mode { EXPLORE, DIALOGUE, BATTLE, EQUIPMENT, TRANSITION, MAP, CLASS_SELECTION }
 enum QuestState { NOT_STARTED, ACTIVE, READY_TO_TURN_IN, COMPLETE }
 
-const SAVE_VERSION := 5
+const SAVE_VERSION := 9
+const HERO_BODIES: Array[String] = ["male", "female"]
+var player_body: String = "male"
+const HeroStyle = preload("res://scripts/gameplay/hero_style.gd")
+var player_style: String = "original"
+const ClassEquipment = preload("res://scripts/systems/class_equipment.gd")
+const HeroClasses = preload("res://scripts/systems/hero_classes.gd")
+var player_class: String = "traveler"
 const PartyEquipment = preload("res://scripts/systems/party_equipment.gd")
 const SAVE_PATH := "user://wanderlight_save.json"
 const BASE_ATTACK := 14
@@ -66,6 +73,11 @@ func begin_party_battle(enemy: Dictionary) -> RefCounted:
 		var stats := equipment_stats(get_loadout(actor), actor)
 		battle_session.actors[index].attack = stats.x
 		battle_session.actors[index].defense = stats.y
+	battle_session.actors[0].hero_class = player_class
+	battle_session.actors[0].hero_style = player_style
+	battle_session.actors[0].hero_body = player_body
+	battle_session.actors[0].name = str(class_profile().name)
+	battle_session.actors[0].speed = 26 if player_class == "thief" else 18
 	battle_session.actors[0].max_hp = player_max_hp
 	battle_session.actors[0].max_mp = player_max_mp
 	set_mode(Mode.BATTLE)
@@ -78,8 +90,11 @@ func begin_action_battle(enemy: Dictionary) -> RefCounted:
 	battle_session = ActionBattle.new()
 	battle_session.setup(player_hp, player_mp, player_attack, player_defense, enemy)
 	for index: int in range(3):
-		for stat: String in ["attack", "defense", "max_hp", "max_mp"]:
+		for stat: String in ["attack", "defense", "max_hp", "max_mp", "name", "speed"]:
 			battle_session.actors[index][stat] = initial[index][stat]
+	battle_session.actors[0].hero_class = player_class
+	battle_session.actors[0].hero_style = player_style
+	battle_session.actors[0].hero_body = player_body
 	return battle_session
 
 
@@ -157,7 +172,10 @@ func _ready() -> void:
 		ThemeDB.fallback_font = ui_font
 
 
-func reset_new_game(announce: bool = true) -> void:
+func reset_new_game(announce: bool = true, class_id: String = "traveler", style_id: String = "original", body_id: String = "male") -> void:
+	player_body = body_id if body_id in HERO_BODIES else "male"
+	player_style = style_id if HeroStyle.DATA.has(style_id) else "original"
+	player_class = class_id if HeroClasses.DATA.has(class_id) else "traveler"
 	clear_party_battle()
 	_last_battle_layout.clear()
 	mode = Mode.EXPLORE
@@ -172,7 +190,7 @@ func reset_new_game(announce: bool = true) -> void:
 	field_defeated = {}
 	field_loot = {}
 	owned_equipment = _starter_equipment()
-	equipped = {"weapon": "traveler_blade", "armor": "traveler_coat"}
+	equipped = ClassEquipment.defaults(player_class)
 	companion_equipped = {"noah": PartyEquipment.defaults("noah"), "elder": PartyEquipment.defaults("elder")}
 	_refresh_equipment_stats()
 	flags = {}
@@ -193,13 +211,28 @@ func set_mode(new_mode: Mode) -> void:
 func _equipment_catalog() -> Dictionary:
 	var catalog := TRAVELER_EQUIPMENT.duplicate(true)
 	catalog.merge(PartyEquipment.ITEMS)
+	catalog.merge(ClassEquipment.ITEMS)
 	return catalog
 
 
 func _starter_equipment() -> Array[String]:
 	var result: Array[String] = []
-	result.assign(_equipment_catalog().keys())
+	for item_id: String in _equipment_catalog():
+		if not ClassEquipment.ITEMS.has(item_id) or str(ClassEquipment.ITEMS[item_id].get("class", "")) == player_class:
+			result.append(item_id)
 	return result
+
+
+## Presentation-only metadata, kept out of owned equipment and stat calculations.
+func visual_loadout(loadout: Dictionary, actor: String = "wanderer") -> Dictionary:
+	var result := loadout.duplicate(true)
+	if actor == "wanderer":
+		result["hero_body"] = player_body
+	return result
+
+
+func get_visual_loadout(actor: String = "wanderer") -> Dictionary:
+	return visual_loadout(get_loadout(actor), actor)
 
 
 func get_loadout(actor: String = "wanderer") -> Dictionary:
@@ -207,7 +240,16 @@ func get_loadout(actor: String = "wanderer") -> Dictionary:
 
 
 func can_equip(item_id: String, actor: String) -> bool:
-	return actor in PartyEquipment.ACTORS and item_id in owned_equipment and EQUIPMENT_CATALOG.has(item_id) and str(EQUIPMENT_CATALOG[item_id].get("actor", "wanderer")) == actor
+	return item_id in owned_equipment and equipment_matches_actor(item_id, actor)
+
+
+func equipment_matches_actor(item_id: String, actor: String) -> bool:
+	if actor not in PartyEquipment.ACTORS or not EQUIPMENT_CATALOG.has(item_id):
+		return false
+	var item: Dictionary = EQUIPMENT_CATALOG[item_id]
+	if str(item.get("actor", "wanderer")) != actor:
+		return false
+	return actor != "wanderer" or str(item.get("class", "traveler")) == player_class
 
 
 func equipment_for_slot(slot: String, actor: String = "wanderer") -> Array[String]:
@@ -241,9 +283,12 @@ func get_equipment_item(item_id: String) -> Dictionary:
 
 func equipment_stats(loadout: Dictionary, actor: String = "wanderer") -> Vector2i:
 	var result: Vector2i = PartyEquipment.BASE_STATS.get(actor, Vector2i.ZERO)
+	if actor == "wanderer":
+		var profile := class_profile()
+		result = Vector2i(int(profile.attack) + (player_level - 1) * 2, int(profile.defense) + player_level - 1)
 	for slot: String in EQUIPMENT_SLOTS:
 		var item: Dictionary = EQUIPMENT_CATALOG.get(str(loadout.get(slot, "")), {})
-		if str(item.get("slot", "")) == slot and str(item.get("actor", "wanderer")) == actor:
+		if str(item.get("slot", "")) == slot and equipment_matches_actor(str(loadout.get(slot, "")), actor):
 			result += Vector2i(int(item.get("attack", 0)), int(item.get("defense", 0)))
 	return result
 
@@ -266,11 +311,16 @@ func equip_loadout(loadout: Dictionary, actor: String = "wanderer") -> bool:
 	return true
 
 
+func class_profile() -> Dictionary:
+	return HeroClasses.profile(player_class)
+
+
 func _refresh_equipment_stats() -> void:
-	player_max_hp = 100 + (player_level - 1) * 12
-	player_max_mp = 20 + (player_level - 1) * 3
-	player_attack = BASE_ATTACK + (player_level - 1) * 2
-	player_defense = BASE_DEFENSE + (player_level - 1)
+	var profile := class_profile()
+	player_max_hp = int(profile.hp) + (player_level - 1) * 12
+	player_max_mp = int(profile.mp) + (player_level - 1) * 3
+	player_attack = int(profile.attack) + (player_level - 1) * 2
+	player_defense = int(profile.defense) + (player_level - 1)
 	for slot: String in EQUIPMENT_SLOTS:
 		var item_id := str(equipped.get(slot, ""))
 		var item: Dictionary = EQUIPMENT_CATALOG.get(item_id, {})
@@ -421,9 +471,15 @@ func load_game(path: String = SAVE_PATH, announce: bool = true) -> bool:
 		return false
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	file.close()
-	if not parsed is Dictionary or int(parsed.get("version", 0)) not in [1, 2, 3, 4, SAVE_VERSION]:
+	if not parsed is Dictionary or int(parsed.get("version", 0)) not in [1, 2, 3, 4, 5, 6, 7, 8, SAVE_VERSION]:
 		if announce:
 			notification_requested.emit("存檔格式不相容")
+		return false
+	if int(parsed.version) >= 9 and (not parsed.get("player_body") is String or str(parsed.player_body) not in HERO_BODIES):
+		return false
+	if int(parsed.version) >= 8 and (not parsed.get("player_style") is String or not HeroStyle.DATA.has(parsed.player_style)):
+		return false
+	if int(parsed.version) >= 6 and (not parsed.get("player_class") is String or not HeroClasses.DATA.has(parsed.player_class)):
 		return false
 	if not parsed.get("owned_equipment", []) is Array or not parsed.get("equipped", {}) is Dictionary:
 		if announce:
@@ -456,6 +512,9 @@ func load_game(path: String = SAVE_PATH, announce: bool = true) -> bool:
 func _serialize() -> Dictionary:
 	return {
 		"version": SAVE_VERSION,
+		"player_class": player_class,
+		"player_style": player_style,
+		"player_body": player_body,
 		"player_level": player_level,
 		"player_xp": player_xp,
 		"field_defeated": field_defeated.duplicate(true),
@@ -476,6 +535,11 @@ func _serialize() -> Dictionary:
 
 
 func _apply_save(data: Dictionary) -> void:
+	# v1–v7 retain their existing original palette.
+	player_body = str(data.get("player_body", "male")) if int(data.get("version", 1)) >= 9 else "male"
+	player_style = str(data.get("player_style", "original")) if int(data.get("version", 1)) >= 8 else "original"
+	# v1–v5 retain the original traveler stats and equipment.
+	player_class = str(data.get("player_class", "traveler")) if int(data.get("version", 1)) >= 6 else "traveler"
 	clear_party_battle()
 	_last_battle_layout.clear()
 	mode = Mode.EXPLORE
@@ -494,11 +558,16 @@ func _apply_save(data: Dictionary) -> void:
 		var typed_id := str(item_id)
 		if EQUIPMENT_CATALOG.has(typed_id) and typed_id not in owned_equipment:
 			owned_equipment.append(typed_id)
+	# v6 vocations shared traveler gear. Grant their proper starting wardrobe.
+	if int(data.get("version", 1)) < 7 and player_class != "traveler":
+		for item_id: String in ClassEquipment.ITEMS:
+			if str(ClassEquipment.ITEMS[item_id].get("class", "")) == player_class and item_id not in owned_equipment:
+				owned_equipment.append(item_id)
 	equipped = Dictionary(data.get("equipped", {"weapon": "traveler_blade", "armor": "traveler_coat"})).duplicate(true)
 	for slot: String in EQUIPMENT_SLOTS:
 		var item_id := str(equipped.get(slot, ""))
 		if not can_equip(item_id, "wanderer") or str(Dictionary(EQUIPMENT_CATALOG.get(item_id, {})).get("slot", "")) != slot:
-			equipped[slot] = "traveler_blade" if slot == "weapon" else "traveler_coat"
+			equipped[slot] = ClassEquipment.defaults(player_class)[slot]
 			if str(equipped[slot]) not in owned_equipment:
 				owned_equipment.append(str(equipped[slot]))
 	# v1/v2 did not contain companion equipment. Grant the new starter choices

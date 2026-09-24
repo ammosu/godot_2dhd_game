@@ -14,7 +14,7 @@ func _ready() -> void:
 
 
 func dress(base: Texture2D, pose: String, loadout: Dictionary, actor: String = "wanderer") -> void:
-	if "--layered-equipment" in OS.get_cmdline_user_args() and actor in ["wanderer", "noah", "elder"] and pose in LayeredActor.POSES:
+	if (actor != "wanderer" or GameState.player_style == "original") and not Appearance.variant(loadout, actor).begins_with("class_") and "--layered-equipment" in OS.get_cmdline_user_args() and actor in ["wanderer", "noah", "elder"] and pose in LayeredActor.POSES:
 		_dress_layered(base, pose, loadout, actor)
 		return
 	if is_instance_valid(_layered):

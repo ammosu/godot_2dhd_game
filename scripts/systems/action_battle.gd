@@ -40,6 +40,8 @@ func setup(hp: int, mp: int, attack: int, defense: int, enemy: Dictionary) -> vo
 		actor.aim = Vector2.ZERO
 		actor.radius = 0.0
 		actor.ward = 0.0
+		actor.slow = 0.0
+		actor.skill_target = -1
 	_check_end()
 
 func switch_actor() -> void:
@@ -58,7 +60,7 @@ func command(action: String) -> bool:
 	if action == "dodge":
 		if float(actor.dodge_cd) > 0.0:
 			return false
-		actor.dodge_cd = 1.1
+		actor.dodge_cd = float(hero_profile(controlled).dodge) if controlled == 0 else 1.1
 		actor.dash = 0.22
 		actor.invulnerable = 0.30
 		actor.windup = 0.0
@@ -91,12 +93,23 @@ func wants_auto_potion() -> bool:
 	var actor: Dictionary = actors[controlled]
 	return int(actor.hp) > 0 and float(actor.hp) / maxf(float(actor.max_hp), 1.0) <= auto_potion_threshold
 
+func skill_cost(index: int) -> int:
+	return int(hero_profile(index).cost) if index == 0 else 5
+
+func skill_cooldown(index: int) -> float:
+	return float(hero_profile(index).cooldown) if index == 0 else 3.0
+
 func _use_skill(index: int) -> bool:
 	var actor: Dictionary = actors[index]
-	if float(actor.skill_cd) > 0.0 or int(actor.mp) < 5:
+	if float(actor.skill_cd) > 0.0 or int(actor.mp) < skill_cost(index):
 		return false
-	actor.mp = int(actor.mp) - 5
-	actor.skill_cd = 3.0
+	if index == 0 and str(actor.get("hero_class", "")) == "thief":
+		var target: int = nearest_enemy(index)
+		if target < 0 or Vector2(actor.position).distance_to(actors[target].position) > 2.8 or not _visible(index, target, actors[target].position):
+			return false
+		actor.skill_target = target
+	actor.mp = int(actor.mp) - skill_cost(index)
+	actor.skill_cd = skill_cooldown(index)
 	if index == 1:
 		for ally: int in living(0):
 			actors[ally].ward = 3.0
@@ -147,7 +160,7 @@ func step(delta: float, movement: Vector2) -> void:
 		var actor: Dictionary = actors[index]
 		if int(actor.hp) <= 0:
 			continue
-		for timer: String in ["cooldown", "skill_cd", "dodge_cd", "invulnerable", "hurt", "swing", "ward", "recovery", "support_cast"]:
+		for timer: String in ["cooldown", "skill_cd", "dodge_cd", "invulnerable", "hurt", "swing", "ward", "recovery", "support_cast", "slow"]:
 			actor[timer] = maxf(0.0, float(actor[timer]) - dt)
 		if index == controlled and auto_enabled:
 			_auto_dodge()
@@ -173,7 +186,7 @@ func step(delta: float, movement: Vector2) -> void:
 	_check_end()
 
 func _move(index: int, offset: Vector2) -> void:
-	var point: Vector2 = actors[index].position + offset
+	var point: Vector2 = actors[index].position + offset * (0.5 if float(actors[index].get("slow", 0.0)) > 0 else 1.0)
 	point = point.clamp(bounds.position, bounds.end)
 	actors[index].position = movement_resolver.call(index, point) if movement_resolver.is_valid() else point
 
@@ -206,8 +219,8 @@ func _ai(index: int, dt: float) -> void:
 	if target < 0:
 		return
 	var diff: Vector2 = actors[target].position - actor.position
-	var ranged: bool = index in [2, 5]
-	var reach: float = 5.0 if ranged else 1.35
+	var ranged: bool = index in [2, 5] or (index == 0 and bool(hero_profile(index).ranged))
+	var reach: float = float(hero_profile(index).reach) - 0.3 if index == 0 else 5.0 if ranged else 1.35
 	actor.facing = diff.normalized()
 	if diff.length() > reach or not _visible(index, target, actors[target].position):
 		var direction: Vector2 = steering_resolver.call(index, target) if steering_resolver.is_valid() else diff.normalized()
@@ -235,16 +248,31 @@ func _ai(index: int, dt: float) -> void:
 
 func _start_attack(index: int, special: bool) -> void:
 	var actor: Dictionary = actors[index]
-	var ranged: bool = index in [2, 5]
+	var ranged: bool = index in [2, 5] or (index == 0 and bool(hero_profile(index).ranged))
 	actor.intent = "skill" if special else "attack"
 	actor.windup = 0.18 if index == controlled else 0.45 if index < 3 else 0.85
 	actor.radius = 2.2 if special else 1.2 if ranged else 0.9
 	actor.aim = Vector2(actor.position) + Vector2(actor.facing) * (1.4 if index == 1 else 1.0)
 	if ranged:
 		var target: int = nearest_enemy(index)
-		if target >= 0 and Vector2(actor.position).distance_to(actors[target].position) <= 6.0:
+		if target >= 0 and Vector2(actor.position).distance_to(actors[target].position) <= (float(hero_profile(index).reach) if index == 0 else 6.0):
 			actor.aim = actors[target].position
-	actor.cooldown = 0.55 if index == controlled else 1.6 if index < 3 else 2.2
+			if index == 0:
+				actor.facing = (Vector2(actor.aim) - Vector2(actor.position)).normalized()
+	actor.cooldown = (float(hero_profile(index).interval) if index == 0 and str(actor.get("hero_class", "traveler")) != "traveler" else 0.55) if index == controlled else 1.6 if index < 3 else 2.2
+	if index == 0:
+		var profile := hero_profile(index)
+		if special:
+			actor.radius = float(profile.radius)
+		elif bool(profile.ranged):
+			actor.radius = 0.45
+		if special and str(actor.get("hero_class", "")) == "thief":
+			actor.aim = actors[int(actor.skill_target)].position
+			actor.facing = (Vector2(actor.aim) - Vector2(actor.position)).normalized()
+			actor.invulnerable = 0.25
+		if str(actor.get("hero_class", "")) == "archer":
+			var end: Vector2 = Vector2(actor.position) + Vector2(actor.facing) * float(profile.reach) if special else Vector2(actor.aim)
+			events.append({"kind": "projectile", "index": index, "origin": Vector2(actor.position), "aim": end, "duration": float(actor.windup), "piercing": special})
 
 func _impact(index: int) -> void:
 	var actor: Dictionary = actors[index]
@@ -253,11 +281,26 @@ func _impact(index: int) -> void:
 	events.append({"kind": "swing", "index": index, "amount": 0, "aim": Vector2(actor.aim), "intent": str(actor.intent), "facing": Vector2(actor.facing), "radius": float(actor.radius)})
 	for target: int in living(1 - int(actor.team)):
 		var victim: Dictionary = actors[target]
-		if Vector2(victim.position).distance_to(actor.aim) > float(actor.radius) + 0.3 or float(victim.invulnerable) > 0.0:
+		var thief: bool = index == 0 and str(actor.get("hero_class", "")) == "thief" and actor.intent == "skill"
+		if thief and (target != int(actor.skill_target) or Vector2(actor.position).distance_to(victim.position) > 2.8):
+			continue
+		var distance: float = Vector2(victim.position).distance_to(actor.aim)
+		if index == 0 and str(actor.get("hero_class", "")) == "archer" and actor.intent == "skill":
+			var end: Vector2 = Vector2(actor.position) + Vector2(actor.facing) * float(hero_profile(index).reach)
+			distance = Vector2(victim.position).distance_to(Geometry2D.get_closest_point_to_segment(victim.position, actor.position, end))
+		if distance > float(actor.radius) + 0.3 or float(victim.invulnerable) > 0.0:
 			continue
 		if not _visible(index, target, actor.aim):
 			continue
-		var amount: int = maxi(1, int(actor.attack) + (12 if actor.intent == "skill" else 0) - int(victim.defense))
+		var bonus: int = (int(hero_profile(index).power) if index == 0 else 12) if actor.intent == "skill" else 0
+		var amount: int = maxi(1, int(actor.attack) + bonus - int(victim.defense))
+		if thief:
+			var behind: bool = Vector2(victim.facing).dot((Vector2(actor.position) - Vector2(victim.position)).normalized()) < -0.35
+			if behind:
+				amount *= 2
+		if index == 0 and str(actor.get("hero_class", "")) == "mage" and actor.intent == "skill":
+			victim.slow = 3.0
+			events.append({"kind": "chill", "index": target, "amount": 0})
 		if float(victim.ward) > 0.0:
 			amount = maxi(1, amount / 2)
 		victim.hp = maxi(0, int(victim.hp) - amount)
@@ -267,7 +310,7 @@ func _impact(index: int) -> void:
 		victim.windup = 0.0
 		victim.cooldown = maxf(float(victim.cooldown), 0.35)
 		_move(target, (Vector2(victim.position) - Vector2(actor.position)).normalized() * 0.30)
-		events.append({"kind": "hit", "index": target, "amount": amount})
+		events.append({"kind": "hit", "index": target, "amount": amount, "source": index})
 
 func _check_end() -> void:
 	if living(0).is_empty():

@@ -40,6 +40,7 @@ var invulnerable: float = 0.0
 var windup: float = 0.0
 var swing: float = 0.0
 var skill_pending: bool = false
+var skill_target: Dictionary = {}
 var facing := Vector3.FORWARD
 var dodge_direction := Vector3.FORWARD
 var attack_direction := Vector3.FORWARD
@@ -176,29 +177,51 @@ func perform(action: String, automated: bool = false) -> bool:
 		dodge_direction = facing
 		dodge_time = 0.22
 		invulnerable = 0.30
-		dodge_cooldown = 1.0
+		dodge_cooldown = float(GameState.class_profile().dodge)
 		player.get("auto_walk").cancel()
 		return true
 	if action not in ["attack", "skill"] or attack_cooldown > 0:
 		return false
-	if action == "skill" and (skill_cooldown > 0 or GameState.player_mp < 5):
+	if action == "skill" and (skill_cooldown > 0 or GameState.player_mp < int(GameState.class_profile().cost)):
 		return false
+	skill_target = {}
+	if action == "skill" and GameState.player_class == "thief":
+		var nearest: float = 2.8
+		for enemy: Dictionary in enemies:
+			var at: Vector3 = enemy.body.global_position
+			if int(enemy.hp) > 0 and player.global_position.distance_to(at) < nearest and can_hit(player.global_position, at, 2.8):
+				nearest = player.global_position.distance_to(at)
+				skill_target = enemy
+		if skill_target.is_empty():
+			if not automated:
+				GameState.notification_requested.emit("影襲需要近距離、無障礙的目標")
+			return false
+		invulnerable = maxf(invulnerable, 0.25)
 	player.get("auto_walk").cancel()
 	skill_pending = action == "skill"
 	if skill_pending:
-		GameState.spend_mp(5)
-		skill_cooldown = 3.5
-	attack_cooldown = 0.55 if skill_pending else 0.38
+		GameState.spend_mp(int(GameState.class_profile().cost))
+		skill_cooldown = float(GameState.class_profile().cooldown)
+	attack_cooldown = 0.55 if skill_pending else float(GameState.class_profile().interval)
 	windup = 0.18 if skill_pending else 0.12
 	attack_direction = facing
-	var closest: float = 3.0
+	var aim_reach: float = maxf(3.0, float(GameState.class_profile().reach))
+	var closest: float = aim_reach
 	for enemy: Dictionary in enemies:
 		var at: Vector3 = enemy.body.global_position
 		var distance: float = player.global_position.distance_to(at)
-		if int(enemy.hp) > 0 and distance < closest and can_hit(player.global_position, at, 3.0):
+		if int(enemy.hp) > 0 and distance < closest and can_hit(player.global_position, at, aim_reach):
 			closest = distance
 			attack_direction = (at - player.global_position) * Vector3(1, 0, 1)
 			attack_direction = attack_direction.normalized()
+	if not skill_target.is_empty():
+		attack_direction = ((skill_target.body.global_position - player.global_position) * Vector3(1, 0, 1)).normalized()
+	if GameState.player_class == "archer":
+		var projectile := Effect.new()
+		add_child(projectile)
+		projectile.configure("piercing_arrow" if skill_pending else "arrow", player.global_position, 0.45, Vector2(attack_direction.x, attack_direction.z), get_viewport().get_camera_3d())
+		projectile.launch(player.global_position, player.global_position + attack_direction * float(GameState.class_profile().reach), windup)
+		_effects.append(projectile)
 	facing = attack_direction
 	player.call("face_world_position", player.global_position + facing)
 	return true
@@ -227,6 +250,7 @@ func _physics_process(delta: float) -> void:
 		if windup == 0:
 			_strike()
 	for enemy: Dictionary in enemies:
+		enemy.slow = maxf(0.0, float(enemy.get("slow", 0.0)) - delta)
 		_advance_enemy(enemy, delta)
 		if GameState.mode != GameState.Mode.EXPLORE:
 			return
@@ -258,21 +282,54 @@ func _update_hero_art() -> void:
 	if dodge_time > 0:
 		pose = "dodge_a" if dodge_time > 0.11 else "dodge_b"
 	elif windup > 0:
-		pose = "windup"
+		pose = "cast" if GameState.player_class == "mage" else "windup"
 	elif swing > 0:
-		pose = "attack"
+		pose = "release" if GameState.player_class == "mage" else "attack"
 	_art(_hero_sprite, "wanderer", pose, facing)
 
 func _strike() -> void:
 	swing = 0.20
-	var radius: float = 2.6 if skill_pending else 1.65
-	_effect("moon_slash" if skill_pending else "slash", player.global_position, radius, attack_direction)
-	GameAudio.play_cue(&"moon_slash" if skill_pending else &"slash")
+	var profile := GameState.class_profile()
+	var ranged: bool = bool(profile.ranged)
+	var radius: float = float(profile.reach) if ranged else 2.6 if skill_pending else 1.65
+	var origin: Vector3 = player.global_position
+	var aim: Vector3 = origin + attack_direction * radius
+	var closest: float = radius + 0.01
 	for enemy: Dictionary in enemies:
-		var offset: Vector3 = enemy.body.global_position - player.global_position
+		var at: Vector3 = enemy.body.global_position
+		var forward: float = attack_direction.dot(((at - origin) * Vector3(1, 0, 1)).normalized())
+		if int(enemy.hp) > 0 and forward > 0.7 and can_hit(origin, at, radius) and origin.distance_to(at) < closest:
+			closest = origin.distance_to(at)
+			aim = at
+	var effect: String = str(profile.effect) if skill_pending else "arrow" if GameState.player_class == "archer" else "bolt" if ranged else "slash"
+	if GameState.player_class != "archer":
+		_effect(effect, skill_target.body.global_position if not skill_target.is_empty() else aim if ranged else origin, float(profile.radius) if skill_pending else radius, attack_direction)
+	GameAudio.play_cue(StringName(profile.cue) if skill_pending else &"spear_thrust" if GameState.player_class == "archer" else &"moon_bolt" if ranged else &"slash")
+	for enemy: Dictionary in enemies:
+		var at: Vector3 = enemy.body.global_position
+		var offset: Vector3 = at - origin
 		var forward: float = attack_direction.dot((offset * Vector3(1, 0, 1)).normalized())
-		if int(enemy.hp) > 0 and (skill_pending or forward >= 0.15) and can_hit(player.global_position, enemy.body.global_position, radius):
-			_damage_enemy(enemy, GameState.player_attack * 2 if skill_pending else GameState.player_attack)
+		var hit: bool = (skill_pending or forward >= 0.15) and can_hit(origin, at, radius)
+		if ranged:
+			var target_distance: float = at.distance_to(aim)
+			if GameState.player_class == "archer" and skill_pending:
+				target_distance = at.distance_to(Geometry3D.get_closest_point_to_segment(at, origin, origin + attack_direction * radius))
+			hit = target_distance <= (2.2 if GameState.player_class == "mage" and skill_pending else 0.6) and can_hit(origin, at, radius)
+		if skill_pending and GameState.player_class == "thief":
+			hit = enemy == skill_target and can_hit(origin, at, 2.8)
+		if int(enemy.hp) > 0 and hit:
+			var damage: int = GameState.player_attack + (int(profile.power) if skill_pending else 0)
+			if skill_pending and GameState.player_class == "traveler":
+				damage = GameState.player_attack * 2
+			if skill_pending and GameState.player_class == "thief":
+				var behind: bool = Vector3(enemy.facing).dot(((origin - at) * Vector3(1, 0, 1)).normalized()) < -0.35
+				if behind:
+					damage *= 2
+			if skill_pending and GameState.player_class == "mage":
+				enemy.slow = 3.0
+				var chill := _effect("chill", at, 0.6)
+				chill.follow_target = enemy.body
+			_damage_enemy(enemy, damage)
 
 func _damage_enemy(enemy: Dictionary, damage: int) -> void:
 	if int(enemy.hp) <= 0:
@@ -284,7 +341,8 @@ func _damage_enemy(enemy: Dictionary, damage: int) -> void:
 	enemy.state = "chase"
 	enemy.cooldown = maxf(float(enemy.cooldown), 0.55)
 	_number(enemy.body.global_position, str(damage), Color("fff0ad"))
-	_effect("impact", enemy.body.global_position)
+	var hit_effect: String = "arrow_hit" if GameState.player_class == "archer" else "frost_hit" if GameState.player_class == "mage" else "shadow_hit" if GameState.player_class == "thief" else "impact"
+	_effect(hit_effect, enemy.body.global_position)
 	if int(enemy.hp) == 0:
 		enemy.state = "dead"
 		var death := DeathEffect.new()
@@ -353,8 +411,9 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 			if not path.is_empty():
 				movement = ((path[0] - at) * Vector3(1, 0, 1)).normalized()
 				enemy.facing = movement
-	body.velocity.x = movement.x * (float(enemy.speed) if enemy.state == "chase" else 1.1)
-	body.velocity.z = movement.z * (float(enemy.speed) if enemy.state == "chase" else 1.1)
+	var slow_factor: float = 0.5 if float(enemy.get("slow", 0.0)) > 0 else 1.0
+	body.velocity.x = movement.x * slow_factor * (float(enemy.speed) if enemy.state == "chase" else 1.1)
+	body.velocity.z = movement.z * slow_factor * (float(enemy.speed) if enemy.state == "chase" else 1.1)
 	body.velocity.y = -0.5 if body.is_on_floor() else body.velocity.y - 18.0 * delta
 	body.move_and_slide()
 	var pose: String = "hurt" if float(enemy.hurt) > 0 else "cast" if enemy.caster and float(enemy.windup) > 0 else "windup" if float(enemy.windup) > 0 else "attack" if float(enemy.swing) > 0 else Art.Movement.walk_pose(clock + float(enemy.home.x) * 0.17 + float(enemy.home.z) * 0.11) if not movement.is_zero_approx() else "idle"
@@ -429,17 +488,19 @@ func _sprite(parent: Node3D) -> Sprite3D:
 func _art(sprite: Sprite3D, actor: String, pose: String, direction: Vector3) -> void:
 	var screen: Vector2 = Facing.screen_direction(direction, get_viewport().get_camera_3d())
 	var column: int = Art.direction(screen)
-	var texture: AtlasTexture = Art.directional_texture(actor, pose, screen, sprite, GameState.equipped if actor == "wanderer" else {})
+	var texture: AtlasTexture = Art.directional_texture(actor, pose, screen, sprite, GameState.get_visual_loadout() if actor == "wanderer" else {})
 	sprite.texture = texture
 	sprite.pixel_size = float(texture.get_meta("pixel_size"))
 	if actor == "wanderer":
-		var standing: AtlasTexture = Art.texture_for(actor, "idle", column, GameState.equipped)
-		sprite.pixel_size = float(player.call("presentation_height")) / float(standing.get_height())
+		var standing: AtlasTexture = Art.texture_for(actor, "idle", column, GameState.get_visual_loadout())
+		sprite.pixel_size = float(player.call("presentation_height")) / float(texture.get_meta("body_height", standing.get_height()))
 	Grounding.anchor(sprite, texture, float(texture.get_meta("ground_y")))
 	sprite.offset.x = texture.get_width() * 0.5 - float(texture.get_meta("anchor_x"))
 	sprite.flip_h = bool(texture.get_meta("flip_h", false))
 	if sprite.flip_h:
 		sprite.offset.x *= -1
+	if actor == "wanderer":
+		GameState.HeroStyle.apply_sprite(sprite, texture, GameState.player_style)
 
 func _label(parent: Node3D, text: String, at: Vector3) -> Label3D:
 	var label := Label3D.new()
@@ -458,11 +519,12 @@ func _number(at: Vector3, text: String, color: Color) -> void:
 	label.modulate = color
 	_numbers.append({"node": label, "life": 0.8})
 
-func _effect(kind: String, at: Vector3, radius: float = 1, direction: Vector3 = Vector3.FORWARD) -> void:
+func _effect(kind: String, at: Vector3, radius: float = 1, direction: Vector3 = Vector3.FORWARD) -> Node3D:
 	var effect := Effect.new()
 	add_child(effect)
 	effect.configure(kind, at + Vector3.UP * 0.05, radius, Vector2(direction.x, direction.z), get_viewport().get_camera_3d())
 	_effects.append(effect)
+	return effect
 
 func _build_hud() -> void:
 	var layer := CanvasLayer.new()
@@ -522,11 +584,13 @@ func _update_hud() -> void:
 	if compact_hud:
 		_status.text = "Lv.%d  HP %d/%d   MP %d/%d" % [GameState.player_level, GameState.player_hp, GameState.player_max_hp, GameState.player_mp, GameState.player_max_mp]
 	var cooldowns: Dictionary = {"attack": attack_cooldown, "skill": skill_cooldown, "dodge": dodge_cooldown, "potion": 0.0}
-	var labels: Dictionary = {"attack": "普攻 J / 1", "skill": "月影斬 K / 2", "dodge": "閃避 Shift", "potion": "藥水 H ×%d" % int(GameState.inventory.get("potion", 0))}
+	var labels: Dictionary = {"attack": "普攻 J / 1", "skill": str(GameState.class_profile().skill) + " %d MP" % int(GameState.class_profile().cost), "dodge": "閃避 Shift", "potion": "藥水 H ×%d" % int(GameState.inventory.get("potion", 0))}
+	if GameState.player_class != "traveler":
+		labels.attack = ("射擊" if GameState.player_class == "archer" else "魔力彈" if GameState.player_class == "mage" else "雙刃") + " J / 1"
 	for action: String in _buttons:
 		var cooldown: float = cooldowns[action]
 		_buttons[action].text = "%s %.1f" % [labels[action], cooldown] if cooldown > 0 else labels[action]
-		_buttons[action].disabled = not ready_for_combat or cooldown > 0 or (action == "skill" and GameState.player_mp < 5) or (action == "potion" and (GameState.player_hp == GameState.player_max_hp or int(GameState.inventory.get("potion", 0)) == 0))
+		_buttons[action].disabled = not ready_for_combat or cooldown > 0 or (action == "skill" and GameState.player_mp < int(GameState.class_profile().cost)) or (action == "potion" and (GameState.player_hp == GameState.player_max_hp or int(GameState.inventory.get("potion", 0)) == 0))
 
 func _pause_focus() -> void:
 	_focus_paused = true

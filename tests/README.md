@@ -702,4 +702,18 @@ to existing combat/equipment art. New original atlases and generation prompts li
 `assets/generated/enemy_movement/`; regenerate metadata with
 `python3 tools/art/inspect_enemy_movement.py`.
 
+## 初始職業回歸
+
+`godot --headless --path . --script tests/hero_class_test.gd`
+
+成功標記：`HERO_CLASS_TEST_PASS selection stats equipment combat save migration`。涵蓋四職業能力、裝備與升級疊加、實際近遠程命中、技能 MP、穿射／範圍命中、盜賊閃避、v8 存讀與 v5／v6 遷移、非法職業拒絕，以及選單預覽不修改遊戲。使用獨立 `user://hero_class_test_*.json` 後刪除。移除 `--headless` 並加 `-- --class-capture` 可輸出 `/tmp/wanderlight-class-selection.png`。
+
+職業野外整合：`godot --headless --path . --script tests/class_field_test.gd`，成功標記 `CLASS_FIELD_TEST_PASS gear effects piercing frost slow single_target backstab`。在實際地圖驗證穿透命中、範圍緩速、背刺加倍、單體限制及職業圖集；移除 `--headless` 並加 `-- --class-capture` 可擷取三職業的實際技能畫面至 `/tmp/wanderlight-class-skill-*.png`。`hero_class_test.gd` 另驗證專屬裝備限制、v6→v7 換裝遷移、技能成本與冷卻、144 姿勢裁切、裝備清單；`--class-capture` 也輸出三個裝備畫面。
+
+職業主線動作戰鬥：`godot --headless --path . --script tests/class_arena_test.gd`。成功標記 `CLASS_ARENA_TEST_PASS wardrobe projectile frost shadow costs glyphs`；實機加 `-- --class-capture` 輸出 `/tmp/wanderlight-class-arena-*.png`。
+
+選角動作與樣式：`godot --headless --path . --script tests/hero_selection_test.gd`，成功標記 `HERO_SELECTION_TEST_PASS actions directions pause palettes save migration`。覆蓋四職業 × 三配色 × 四方向 × 五動作的全部預覽畫格、暫停、預覽不污染進度、樣式存讀、v7 原色遷移與非法樣式拒絕。移除 `--headless` 並加 `-- --capture` 可輸出 `/tmp/wanderlight-selection-{original,frost,ember}.png`；野外與主線戰鬥測試可加 `-- --class-capture --style-capture` 驗證栗髮赤衣的 3D 材質。
+
 怪物退場回歸：`godot --headless --path . --script tests/field_combat_test.gd`，涵蓋擊殺後解除碰撞、倒地淡出、追蹤移動主角的光點、暫停與清理，以及經驗不重複入帳。可用 `-- --field-preview` 進入狩獵地目視確認效果。
+
+女性主角：`hero_selection_test.gd` 覆蓋男女 × 四職業 × 三配色的全部動作預覽、能力一致性、v9 存讀、v8 性別遷移與非法性別拒絕。`class_field_test.gd`／`class_arena_test.gd` 加 `-- --female --class-capture` 可驗證女性探索／開門、野外及主線戰鬥；`--style-capture` 可合併檢查配色。

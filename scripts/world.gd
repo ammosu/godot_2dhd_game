@@ -169,8 +169,7 @@ func _ready() -> void:
 		player.global_position = Vector3(0.0, 0.1, 6.0)
 		($CameraRig/Camera3D as Camera3D).fov = 45.0
 	elif not bool(GameState.flags.get("intro_seen", false)):
-		GameState.flags["intro_seen"] = true
-		_show_intro.call_deferred()
+		_show_class_selection.call_deferred()
 	print("Wanderlight playable slice loaded with Godot %s" % Engine.get_version_info().get("string", "unknown"))
 
 
@@ -207,6 +206,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("load_game"):
 		GameState.load_game()
 		get_viewport().set_input_as_handled()
+
+
+func _show_class_selection() -> void:
+	var selection := preload("res://scripts/ui/class_selection.gd").new()
+	selection.journey_started.connect(_show_intro)
+	add_child(selection)
 
 
 func _show_intro() -> void:

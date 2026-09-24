@@ -1,5 +1,6 @@
 extends PanelContainer
 ## Portrait crops reuse the party's original combat art, without new bitmap assets.
+const ClassArt = preload("res://scripts/gameplay/class_art.gd")
 const FACES: Dictionary = {
 	"wanderer": Rect2(216, 96, 224, 224),
 	"noah": Rect2(190, 76, 200, 200),
@@ -65,13 +66,22 @@ func _ready() -> void:
 
 func display_actor(actor: Dictionary, controlled: bool) -> void:
 	var art: String = str(actor.art)
-	if _art != art:
-		_art = art
+	var vocation: String = str(actor.get("hero_class", "traveler"))
+	var female: bool = str(actor.get("hero_body", "male")) == "female"
+	var key: String = art + ":" + vocation + (":female" if female else ":male")
+	if _art != key:
+		_art = key
 		var face := AtlasTexture.new()
 		face.atlas = load("res://assets/generated/%s_combat.png" % art) as Texture2D
 		face.region = FACES[art]
+		if art == "wanderer" and (vocation != "traveler" or female):
+			var source := ClassArt.texture_for("female_" + vocation if female else vocation, "idle")
+			var side: float = source.region.size.y * 0.52
+			face.atlas = source.atlas
+			face.region = Rect2(source.region.position + Vector2(float(source.get_meta("anchor_x")) - side * 0.5, 0), Vector2.ONE * side)
 		face.filter_clip = true
 		portrait.texture = face
+	GameState.HeroStyle.apply_canvas(portrait, portrait.texture, str(actor.get("hero_style", "original")))
 	hp.max_value = actor.max_hp
 	hp.value = actor.hp
 	mp.max_value = actor.max_mp

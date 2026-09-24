@@ -135,8 +135,10 @@ func advance_combat(delta: float, movement: Vector2) -> void:
 		if kind == "swing":
 			var index: int = int(event.index)
 			var cue: StringName = &"frost_impact" if index == 2 and event.intent == "skill" else &"moon_bolt" if index in [2, 5] else &"moon_slash" if index == 0 and event.intent == "skill" else &"spear_thrust" if index == 1 else &"claw_swipe" if index == 4 else &"slash"
+			if index == 0 and GameState.player_class != "traveler":
+				cue = StringName(GameState.class_profile().cue) if event.intent == "skill" else &"moon_bolt" if GameState.player_class == "mage" else &"spear_thrust" if GameState.player_class == "archer" else &"slash"
 			GameAudio.play_cue(cue)
-		else:
+		elif kind not in ["projectile", "chill"]:
 			GameAudio.play_cue(&"moon_heal" if kind == "heal" else &"protect" if kind == "ward" else &"impact")
 	session.events.clear()
 	encounter.refresh(delta)
@@ -156,7 +158,7 @@ func choose_action(action: String) -> void:
 		session.switch_actor()
 	else:
 		if not session.command(action):
-			_hint.text = "動作尚未就緒，或 MP 不足。"
+			_hint.text = "請靠近可命中的目標，並確認 MP 與冷卻。" if action == "skill" and int(session.controlled) == 0 and GameState.player_class == "thief" else "動作尚未就緒，或 MP 不足。"
 	_refresh()
 
 func _toggle_auto() -> void:
@@ -283,17 +285,20 @@ func _refresh() -> void:
 	_auto_button.set_pressed_no_signal(bool(session.auto_enabled))
 	_auto_button.text = "自動戰鬥：開 [B]" if session.auto_enabled else "自動戰鬥：關 [B]"
 	_layout_button.disabled = _resolved or _preparing
-	var skill_name: String = ["月影斬", "守護", "霜星爆"][int(session.controlled)]
+	var skill_name: String = [str(GameState.class_profile().skill), "守護", "霜星爆"][int(session.controlled)]
 	for action: String in _buttons:
 		var button: Button = _buttons[action]
 		var cooldown: float = float(actor.skill_cd) if action == "skill" else float(actor.dodge_cd) if action == "dodge" else float(actor.cooldown) if action in ["attack", "potion"] else 0.0
 		button.caption = skill_name if action == "skill" else RadialDock.CAPTIONS[action]
-		button.glyph = ["moon", "ward", "frost"][int(session.controlled)] if action == "skill" else action
+		button.glyph = [str(GameState.class_profile().glyph), "ward", "frost"][int(session.controlled)] if action == "skill" else action
+		if action == "attack" and int(session.controlled) == 0 and GameState.player_class != "traveler":
+			button.glyph = str(GameState.class_profile().glyph)
+			button.caption = "射擊" if GameState.player_class == "archer" else "魔力彈" if GameState.player_class == "mage" else "雙刃"
 		button.cooldown = cooldown
-		button.cooldown_fraction = clampf(cooldown / (3.0 if action == "skill" else 1.1 if action == "dodge" else 0.6), 0.0, 1.0)
+		button.cooldown_fraction = clampf(cooldown / (session.skill_cooldown(int(session.controlled)) if action == "skill" else 1.1 if action == "dodge" else 0.6), 0.0, 1.0)
 		button.badge = "×%d" % int(GameState.inventory.get("potion", 0)) if action == "potion" else ""
-		button.tooltip_text = "%s [%s]%s" % [button.caption, RadialDock.KEYS[action], " · 消耗 5 MP" if action == "skill" else ""]
-		button.disabled = _resolved or bool(session.paused) or cooldown > 0.0 or (action == "skill" and int(actor.mp) < 5) or (action == "potion" and (int(GameState.inventory.get("potion", 0)) <= 0 or int(actor.hp) >= int(actor.max_hp)))
+		button.tooltip_text = "%s [%s]%s" % [button.caption, RadialDock.KEYS[action], " · 消耗 %d MP" % session.skill_cost(int(session.controlled)) if action == "skill" else ""]
+		button.disabled = _resolved or bool(session.paused) or cooldown > 0.0 or (action == "skill" and int(actor.mp) < session.skill_cost(int(session.controlled))) or (action == "potion" and (int(GameState.inventory.get("potion", 0)) <= 0 or int(actor.hp) >= int(actor.max_hp)))
 		if button.disabled:
 			button.tooltip_text += " · " + ("戰鬥結束" if _resolved else "已暫停" if session.paused else "冷卻 %.1f 秒" % cooldown if cooldown > 0 else "MP 不足" if action == "skill" else "藥水不足或 HP 已滿")
 		button.queue_redraw()

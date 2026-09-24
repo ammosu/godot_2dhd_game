@@ -64,6 +64,14 @@ func _draw_glyph(ink: Color) -> void:
 			draw_colored_polygon(PackedVector2Array([Vector2(-9, 8), Vector2(9, -17), Vector2(20, -23), Vector2(17, -11), Vector2(-3, 13)]), ink)
 			_line([Vector2(-16, 2), Vector2(3, 19)], ink, 4)
 			_line([Vector2(-9, 12), Vector2(-18, 23)], ink, 5)
+		"arrow":
+			_line([Vector2(-21, 16), Vector2(21, -16)], ink, 4)
+			_line([Vector2(6, -16), Vector2(21, -16), Vector2(18, -1)], ink, 4)
+			_line([Vector2(-22, 5), Vector2(-13, 9), Vector2(-11, 20)], ink, 3)
+		"daggers":
+			for sign_x: float in [-1.0, 1.0]:
+				_line([Vector2(-19 * sign_x, -20), Vector2(11 * sign_x, 13), Vector2(19 * sign_x, 21)], ink, 4)
+				_line([Vector2(4 * sign_x, 16), Vector2(15 * sign_x, 6)], ink, 3)
 		"moon":
 			draw_arc(Vector2(1, -1), 21, -1.3, 1.7, 32, ink, 7, true)
 			_line([Vector2(-20, 17), Vector2(20, -20)], Color("f0fbff"), 3)

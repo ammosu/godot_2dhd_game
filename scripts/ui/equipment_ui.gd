@@ -65,6 +65,7 @@ func open() -> void:
 		return
 	_drafts.clear()
 	pending = GameState.get_loadout(selected_actor)
+	_selected = str(pending.weapon)
 	visible = true
 	GameState.set_mode(GameState.Mode.EQUIPMENT)
 	_refresh()
@@ -138,14 +139,21 @@ func set_preview_pose(pose: String) -> void:
 
 
 func _refresh_portrait() -> void:
+	var visual := GameState.visual_loadout(pending, selected_actor)
 	var base: Texture2D
 	if _pose.begins_with("walk_"):
 		base = WalkFrames.get_frame_texture(StringName(_pose.trim_prefix("walk_")), maxi(_last_frame, 0) if _animate else 0)
 	else:
 		base = load("res://assets/generated/%s_combat_%s.tres" % [selected_actor, _pose]) as Texture2D
-	_portrait.call("dress", base, _pose, pending, selected_actor)
+	_portrait.call("dress", base, _pose, visual, selected_actor)
+	if selected_actor == "wanderer" and _pose.begins_with("walk_") and not Appearance.ClassArt.vocation(visual).is_empty():
+		_portrait.texture = Appearance.ClassArt.walking_frames(visual).get_frame_texture(StringName(_pose.trim_prefix("walk_")), maxi(_last_frame, 0) if _animate else 0)
 	var ratio := (420.0 if _pose.begins_with("walk_") else 390.0) / base.get_height()
+	GameState.HeroStyle.apply_canvas(_portrait, _portrait.texture, GameState.player_style if selected_actor == "wanderer" else "original")
 	var shown := _portrait.texture
+	_portrait.flip_h = bool(shown.get_meta("flip_h", false))
+	if selected_actor == "wanderer" and not Appearance.ClassArt.vocation(visual).is_empty():
+		ratio = 335.0 / float(shown.get_meta("body_height"))
 	var padding: Vector2 = shown.get_meta("canvas_padding", Vector2.ZERO)
 	_portrait.size = shown.get_size() * ratio
 	_portrait.position = Vector2(600 - _portrait.size.x / 2.0, (107.0 if _pose.begins_with("walk_") else 128.0) - padding.y * ratio)
@@ -160,6 +168,7 @@ func _refresh() -> void:
 	_confirm.disabled = not changed
 	var context := "探索與戰鬥" if selected_actor == "wanderer" else "村莊與戰鬥"
 	_status.text = "試穿中 · 確認後套用到%s" % context if changed else "目前穿戴 · %s外觀已同步" % context
+	_actor_buttons["wanderer"].text = str(GameState.class_profile().name)
 	for actor: String in _actor_buttons:
 		_actor_buttons[actor].set_pressed_no_signal(actor == selected_actor)
 		_actor_buttons[actor].add_theme_stylebox_override("normal", _style(Color("304e59") if actor == selected_actor else Color("203343"), GOLD if actor == selected_actor else Color("48606a")))
@@ -167,12 +176,13 @@ func _refresh() -> void:
 		button.visible = selected_actor == "wanderer"
 	_walk_button.visible = selected_actor == "wanderer"
 	_actor_note.visible = selected_actor != "wanderer"
+	_actor_note.text = "初始職業 · " + str(GameState.class_profile().name) if selected_actor == "wanderer" else "援軍 · 可檢查七種戰鬥姿勢"
 	var positions := {"weapon": 0, "armor": 0}
 	var selected := GameState.get_equipment_item(_selected)
 	_description_label.text = "%s\n%s" % [selected.get("name", ""), selected.get("description", "")]
 	for item_id: String in _buttons:
 		var item := GameState.get_equipment_item(item_id)
-		_buttons[item_id].visible = str(item.get("actor", "wanderer")) == selected_actor
+		_buttons[item_id].visible = GameState.equipment_matches_actor(item_id, selected_actor)
 		if not _buttons[item_id].visible:
 			continue
 		_buttons[item_id].position.y = 181 + int(positions[item.slot]) * 106
@@ -270,6 +280,8 @@ func _build_ui() -> void:
 				var cell := PartyIcons.get_size() / Vector2(4, 2)
 				icon.region = Rect2(Vector2(PARTY_ICON_CELLS[item_id]) * cell, cell)
 				_buttons[item_id].icon = icon
+			if item_id in GameState.ClassEquipment.ITEMS:
+				_buttons[item_id].icon = load("res://assets/icons/classes/%s.svg" % GameState.ClassEquipment.ITEMS[item_id].icon)
 			_buttons[item_id].expand_icon = true
 			_buttons[item_id].add_theme_constant_override("icon_max_width", 58)
 			_buttons[item_id].add_theme_font_size_override("font_size", 16)

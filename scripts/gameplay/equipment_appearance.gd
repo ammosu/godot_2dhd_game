@@ -1,6 +1,7 @@
 extends RefCounted
 ## Complete outfit/sword replacement atlases, shared by preview, exploration
 ## and battle. No original gear is rendered underneath a selected variant.
+const ClassArt = preload("res://scripts/gameplay/class_art.gd")
 const Grounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 const WALK: SpriteFrames = preload("res://assets/generated/wanderer_frames.tres")
 const POSES: Array[String] = ["idle", "windup", "attack", "recover", "hurt", "guard", "defeated"]
@@ -10,6 +11,8 @@ static var _frames: Dictionary[String, SpriteFrames] = {}
 
 
 static func variant(loadout: Dictionary, actor: String = "wanderer") -> String:
+	if actor == "wanderer" and not ClassArt.vocation(loadout).is_empty():
+		return "class_" + ClassArt.vocation(loadout)
 	if actor != "wanderer":
 		var armor := str(loadout.get("armor", "")) == ("dawn_plate" if actor == "noah" else "astral_robe")
 		var weapon := str(loadout.get("weapon", "")) == ("dawn_partisan" if actor == "noah" else "astral_staff")
@@ -23,6 +26,8 @@ static func variant(loadout: Dictionary, actor: String = "wanderer") -> String:
 
 static func texture_for(base: Texture2D, pose: String, loadout: Dictionary, actor: String = "wanderer") -> Texture2D:
 	var id := variant(loadout, actor)
+	if id.begins_with("class_"):
+		return ClassArt.texture_for(id.trim_prefix("class_"), "idle" if pose.begins_with("walk_") or pose == "guard" else pose, int(ClassArt.FACINGS.get(pose.trim_prefix("walk_"), 0)))
 	if id.is_empty():
 		return base
 	var original := base as AtlasTexture
@@ -82,6 +87,8 @@ static func texture_for(base: Texture2D, pose: String, loadout: Dictionary, acto
 
 
 static func walking_frames(loadout: Dictionary) -> SpriteFrames:
+	if not ClassArt.vocation(loadout).is_empty():
+		return ClassArt.walking_frames(loadout)
 	var id := variant(loadout)
 	if id.is_empty():
 		return WALK

@@ -12,6 +12,11 @@ var _sparks: Array[Sprite3D] = []
 var _wave: MeshInstance3D
 var _radius: float = 1.0
 var _halo: MeshInstance3D
+var follow_target: Node3D
+var _flying: bool = false
+var _from := Vector3.ZERO
+var _to := Vector3.ZERO
+var _trail: MeshInstance3D
 var _tint := Color("ffe5a1")
 
 func configure(effect: String, point: Vector3, radius: float, direction: Vector2, camera: Camera3D) -> void:
@@ -25,6 +30,24 @@ func configure(effect: String, point: Vector3, radius: float, direction: Vector2
 	sprite.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var size: float = 1.8
 	match kind:
+		"arrow", "piercing_arrow":
+			sheet = preload("res://assets/icons/classes/arrow.svg")
+			lifetime = 0.24
+			size = 1.35
+		"arrow_hit":
+			sheet = preload("res://assets/icons/classes/arrow_hit.svg")
+			lifetime = 0.20
+			size = 0.7
+		"shadow", "shadow_hit":
+			sheet = preload("res://assets/icons/classes/shadow.svg")
+			lifetime = 0.38
+			size = 0.75 if kind == "shadow_hit" else 2.5
+		"chill", "frost_hit":
+			sheet = preload("res://assets/generated/frost_nova.png")
+			animated = true
+			first_frame = 3
+			lifetime = 0.28 if kind == "frost_hit" else 3.0
+			size = 1.0
 		"impact":
 			sheet = preload("res://assets/generated/sword_slash.png")
 			lifetime = 0.28
@@ -54,9 +77,14 @@ func configure(effect: String, point: Vector3, radius: float, direction: Vector2
 		sprite.position.y = 0.7
 	var screen: Vector2 = Facing.screen_direction(Vector3(direction.x, 0, direction.y), camera)
 	sprite.flip_h = screen.x < 0
+	if kind in ["arrow", "piercing_arrow"]:
+		sprite.rotation.z = -screen.angle()
 	_tint = Color("9feaff") if kind in ["moon_slash", "frost", "bolt"] else Color("9fffc8") if kind == "heal" else Color("b8ceff") if kind == "ward" else Color("ffe5a1")
-	_build_sparks()
-	if kind in ["moon_slash", "frost", "heal", "ward"]:
+	if kind in ["shadow", "shadow_hit"]:
+		_tint = Color("cd9dff")
+	if kind not in ["arrow", "piercing_arrow"]:
+		_build_sparks()
+	if kind in ["moon_slash", "frost", "heal", "ward", "shadow", "chill"]:
 		_wave = preload("res://scripts/gameplay/combat_ground_ring.gd").new()
 		_wave.configure(radius, _tint, 0.07)
 		add_child(_wave)
@@ -66,15 +94,46 @@ func configure(effect: String, point: Vector3, radius: float, direction: Vector2
 		add_child(_halo)
 	_update_frame()
 
+func launch(from: Vector3, to: Vector3, duration: float) -> void:
+	_flying = true
+	_from = from + Vector3.UP * 0.05
+	_to = to + Vector3.UP * 0.05
+	position = _from
+	lifetime = maxf(0.08, duration)
+	if kind == "piercing_arrow":
+		_trail = MeshInstance3D.new()
+		var mesh := CylinderMesh.new()
+		mesh.top_radius = 0.025
+		mesh.bottom_radius = 0.025
+		mesh.height = maxf(0.01, _from.distance_to(_to))
+		_trail.mesh = mesh
+		var material := StandardMaterial3D.new()
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.albedo_color = Color(0.6, 1.0, 0.77, 0.65)
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_trail.material_override = material
+		add_child(_trail)
+		var axis: Vector3 = (_to - _from).normalized()
+		if axis.length() > 0:
+			_trail.quaternion = Quaternion(Vector3.UP, axis)
+		_trail.position = (_to - _from) * 0.5 + Vector3.UP * 0.7
+
 func advance(delta: float) -> void:
 	age += delta
+	if is_instance_valid(follow_target):
+		global_position = follow_target.global_position + Vector3.UP * 0.05
 	if age >= lifetime:
 		queue_free()
 		return
 	_update_frame()
 	var progress: float = age / lifetime
+	if _flying:
+		position = _from.lerp(_to, progress)
+		if is_instance_valid(_trail):
+			_trail.position = (_to + _from) * 0.5 - position + Vector3.UP * 0.7
+			(_trail.material_override as StandardMaterial3D).albedo_color.a = (1.0 - progress) * 0.65
 	sprite.modulate.a = clampf((lifetime - age) / 0.16, 0.0, 1.0)
-	if kind in ["slash", "moon_slash", "spear", "claw", "impact"]:
+	if kind in ["slash", "moon_slash", "spear", "claw", "impact", "shadow"]:
 		sprite.scale = Vector3.ONE * lerpf(0.75, 1.18, sin(progress * PI * 0.5))
 	for index: int in range(_sparks.size()):
 		var angle: float = TAU * float(index) / float(_sparks.size()) + float(index % 3) * 0.19

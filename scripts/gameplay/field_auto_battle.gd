@@ -58,7 +58,7 @@ func direction(field: Node3D, delta: float) -> Vector3:
 	if not found:
 		set_enabled(false, field)
 		return Vector3.ZERO
-	if not target_enemy.is_empty() and field.can_hit(at, target, 1.3):
+	if not target_enemy.is_empty() and field.can_hit(at, target, float(GameState.class_profile().reach) - 0.35):
 		field.facing = ((target - at) * Vector3(1, 0, 1)).normalized()
 		if not use_skills or not field.perform("skill", true):
 			field.perform("attack", true)

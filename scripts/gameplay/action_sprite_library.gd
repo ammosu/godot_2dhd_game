@@ -31,7 +31,7 @@ static func pose(actor: Dictionary, moving: bool, clock: float) -> String:
 		return "dodge_a" if float(actor.dash) > 0.11 else "dodge_b"
 	if float(actor.get("support_cast", 0.0)) > 0:
 		return "release"
-	var magic: bool = str(actor.art) in ["elder", "eclipse_mage"]
+	var magic: bool = str(actor.art) in ["elder", "eclipse_mage"] or str(actor.get("hero_class", "")) == "mage"
 	if float(actor.windup) > 0:
 		return "cast" if magic else "windup"
 	if float(actor.swing) > 0:
@@ -44,6 +44,8 @@ static func pose(actor: Dictionary, moving: bool, clock: float) -> String:
 
 static func texture_for(actor: String, pose_name: String, facing: int, loadout: Dictionary = {}) -> AtlasTexture:
 	var variant: String = Appearance.variant(loadout, actor) if actor in ["wanderer", "noah", "elder"] else ""
+	if variant.begins_with("class_"):
+		return Appearance.ClassArt.texture_for(variant.trim_prefix("class_"), pose_name, facing)
 	var sheet: String = variant if not variant.is_empty() else actor
 	var frame: int = facing * 12 + maxi(0, POSES.find(pose_name))
 	var key := "%s:%d" % [sheet, frame]

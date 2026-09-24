@@ -107,7 +107,7 @@ func run() -> void:
 		ui.call("select_actor", actor)
 		for item_id: String in ui.get("_buttons"):
 			var button: Button = ui.get("_buttons")[item_id]
-			check(button.visible == (str(state.call("get_equipment_item", item_id).get("actor", "wanderer")) == actor), "Wrong character items visible")
+			check(button.visible == bool(state.call("equipment_matches_actor", item_id, actor)), "Wrong character items visible")
 		ui.call("select_item", upgrades[actor].weapon)
 		await screenshot(actor + "-weapon")
 		ui.call("select_item", upgrades[actor].armor)
@@ -119,7 +119,11 @@ func run() -> void:
 			check(str(npc.get("texture").get_meta("variant", "")) == Appearance.variant(upgrades[actor], actor), "Village NPC did not update")
 	ui.call("close")
 	await screenshot("village")
-	var battle: Node = world.get_node("BattleUI")
+	# The legacy turn-based UI is tested independently of the action-world HUD.
+	world.queue_free()
+	await process_frame
+	var battle: Node = load("res://scripts/ui/party_battle_ui.gd").new()
+	root.add_child(battle)
 	battle.call("start_battle", {"name": "隊伍換裝測試", "max_hp": 1000, "attack": 14, "defense": 3})
 	for index: int in range(3):
 		var actor := Catalog.ACTORS[index]
@@ -155,7 +159,7 @@ func run() -> void:
 	check(battle.call("can_accept_action"), "Enemy round failed to finish")
 	if capture:
 		await gallery()
-	world.queue_free()
+	battle.queue_free()
 	await process_frame
 	state.set("battle_session", null)
 	state.call("reset_new_game", false)

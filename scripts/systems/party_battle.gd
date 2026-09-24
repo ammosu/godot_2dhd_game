@@ -1,5 +1,6 @@
 extends RefCounted
 ## Encounter-local authoritative combat state, owned by GameState.
+const HeroClasses = preload("res://scripts/systems/hero_classes.gd")
 const AreaSkill = preload("res://scripts/gameplay/area_skill.gd")
 const SKILLS: Dictionary = {
 	"attack": {"name": "攻擊", "cost": 0, "power": 0, "radius": 0.0},
@@ -186,7 +187,7 @@ func _set_row(index: int, row: int) -> void:
 
 
 func attack_reach(action: String) -> int:
-	if action not in ["attack", "slash"]:
+	if bool(hero_profile(current).ranged) or action not in ["attack", "slash"]:
 		return 3
 	return 2 if action == "slash" or str(actors[current].art) == "noah" else 1
 
@@ -208,7 +209,13 @@ func valid_targets(action: String) -> Array[int]:
 	return result
 
 
+func hero_profile(index: int) -> Dictionary:
+	return HeroClasses.profile(str(actors[index].get("hero_class", "traveler")))
+
+
 func available_actions() -> Array[String]:
+	if str(actors[current].get("hero_class", "")) == "mage":
+		return ["attack", "skill", "magic", "guard", "potion"]
 	match str(actors[current].art):
 		"wanderer": return ["attack", "slash", "guard", "potion"]
 		"noah": return ["attack", "protect", "guard", "potion"]

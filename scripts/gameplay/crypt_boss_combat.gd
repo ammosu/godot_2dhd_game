@@ -145,7 +145,7 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 			enemy.path = path
 			if not path.is_empty():
 				movement = ((path[0] - body.position) * Vector3(1, 0, 1)).normalized()
-	body.velocity = movement * (2.2 if enemy.enraged else 1.7) + Vector3.DOWN * 2
+	body.velocity = movement * (0.5 if float(enemy.get("slow", 0.0)) > 0 else 1.0) * (2.2 if enemy.enraged else 1.7) + Vector3.DOWN * 2
 	body.move_and_slide()
 	if not movement.is_zero_approx():
 		enemy.facing = movement
