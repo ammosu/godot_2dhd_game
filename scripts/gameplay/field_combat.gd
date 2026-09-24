@@ -9,6 +9,7 @@ const Grounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 const Presentation = preload("res://scripts/gameplay/enemy_presentation.gd")
 const HealthBar = preload("res://scripts/gameplay/world_health_bar.gd")
 const Ring = preload("res://scripts/gameplay/combat_ground_ring.gd")
+const DeathEffect = preload("res://scripts/gameplay/enemy_death_effect.gd")
 const Effect = preload("res://scripts/gameplay/world_combat_effect.gd")
 const SPAWNS: Array[Dictionary] = [
 	{"id": "road_wolf_west", "at": Vector3(-4, 0.05, 10), "caster": false},
@@ -286,7 +287,10 @@ func _damage_enemy(enemy: Dictionary, damage: int) -> void:
 	_effect("impact", enemy.body.global_position)
 	if int(enemy.hp) == 0:
 		enemy.state = "dead"
-		enemy.body.collision_layer = 0
+		var death := DeathEffect.new()
+		add_child(death)
+		death.configure(enemy.body, enemy.sprite, player)
+		_effects.append(death)
 		GameState.defeat_field_enemy(enemy.id, enemy.body.global_position, enemy.caster)
 		_sync_loot()
 

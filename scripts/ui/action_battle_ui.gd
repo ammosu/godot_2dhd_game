@@ -261,7 +261,7 @@ func _process(delta: float) -> void:
 	if is_resolved():
 		encounter.advance_effects(delta)
 		_result_time += delta
-		if _result_time >= 1.2:
+		if _result_time >= 1.8:
 			_finish_battle()
 
 

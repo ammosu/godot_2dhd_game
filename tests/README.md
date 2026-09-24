@@ -701,3 +701,5 @@ transparent source art, ground metadata, camera rotation, turn hysteresis, and f
 to existing combat/equipment art. New original atlases and generation prompts live in
 `assets/generated/enemy_movement/`; regenerate metadata with
 `python3 tools/art/inspect_enemy_movement.py`.
+
+怪物退場回歸：`godot --headless --path . --script tests/field_combat_test.gd`，涵蓋擊殺後解除碰撞、倒地淡出、追蹤移動主角的光點、暫停與清理，以及經驗不重複入帳。可用 `-- --field-preview` 進入狩獵地目視確認效果。

@@ -6,6 +6,7 @@ const Facing = preload("res://scripts/gameplay/eight_way_facing.gd")
 const Art = preload("res://scripts/gameplay/action_sprite_library.gd")
 const Presentation = preload("res://scripts/gameplay/enemy_presentation.gd")
 const HealthBar = preload("res://scripts/gameplay/world_health_bar.gd")
+const DeathEffect = preload("res://scripts/gameplay/enemy_death_effect.gd")
 const Effects = preload("res://scripts/gameplay/world_combat_effect.gd")
 const COURT := Rect2(-8.0, -13.0, 16.0, 14.0)
 const CELL: float = 0.5
@@ -35,6 +36,7 @@ var _paths: Dictionary = {}
 var _numbers: Array[Dictionary] = []
 var _last_positions: Array[Vector2] = []
 var _effects: Array[Node3D] = []
+var _defeated: Dictionary = {}
 var _charges: Array[Sprite3D] = []
 
 func setup(model: RefCounted, traveler: CharacterBody3D, camera_rig: Node3D, original: Node3D) -> void:
@@ -261,6 +263,12 @@ func refresh(delta: float) -> void:
 	var camera: Camera3D = get_viewport().get_camera_3d()
 	for index: int in range(6):
 		var actor: Dictionary = session.actors[index]
+		if index >= 3 and int(actor.hp) <= 0 and not _defeated.has(index):
+			_defeated[index] = true
+			var death := DeathEffect.new()
+			add_child(death)
+			death.configure(bodies[index], sprites[index], player)
+			_effects.append(death)
 		var motion: Vector2 = Vector2(actor.position) - _last_positions[index]
 		var facing: Vector2 = Facing.screen_direction(Vector3(actor.facing.x, 0, actor.facing.y), camera)
 		var pose: String = Art.pose(actor, motion.length() > 0.002, _clock)
@@ -330,9 +338,11 @@ func _update_charge(index: int, actor: Dictionary, facing: Vector2) -> void:
 
 func _effect(kind: String, point: Vector2, radius: float = 1.0, direction: Vector2 = Vector2.RIGHT) -> void:
 	if _effects.size() >= 32:
-		var oldest: Node3D = _effects.pop_front()
-		if is_instance_valid(oldest):
-			oldest.queue_free()
+		for oldest: Node3D in _effects:
+			if is_instance_valid(oldest) and not oldest is DeathEffect:
+				_effects.erase(oldest)
+				oldest.queue_free()
+				break
 	var effect := Effects.new()
 	add_child(effect)
 	effect.configure(kind, Vector3(point.x, 0.16, point.y), radius, direction, get_viewport().get_camera_3d())
