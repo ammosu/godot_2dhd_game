@@ -1,6 +1,5 @@
 extends SceneTree
 ## Actual player movement crosses every optional road mouth, without interact().
-const Routes = preload("res://scripts/gameplay/outskirts.gd")
 var _failures: int = 0
 var _changes: int = 0
 
@@ -14,11 +13,12 @@ func _run() -> void:
 	state.map_change_requested.connect(func(_map: String, _spawn: String) -> void: _changes += 1)
 	var world := (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	root.add_child(world)
+	var routes: GDScript = load("res://scripts/gameplay/outskirts.gd")
 	var player := world.get_node("Player") as CharacterBody3D
 	player.set_physics_process(false)
 	var directions: Dictionary = {"forest_to_mountain": Vector3.FORWARD, "mountain_to_forest": Vector3.BACK, "mountain_to_gorge": Vector3.FORWARD, "gorge_to_steps": Vector3.BACK, "gorge_to_highland": Vector3.FORWARD, "highland_to_gorge": Vector3.BACK, "travel_caravan": Vector3.RIGHT, "travel_caravan_back": Vector3.BACK, "travel_city": Vector3.FORWARD, "travel_city_home": Vector3.BACK, "travel_east": Vector3.RIGHT, "travel_home": Vector3.LEFT, "travel_forest": Vector3.FORWARD, "travel_road": Vector3.BACK}
-	for id: String in Routes.EXITS:
-		var route: Array = Routes.EXITS[id]
+	for id: String in directions:
+		var route: Array = routes.EXITS[id]
 		for lane: float in [-1.15, 0.0, 1.15]:
 			world.call("_load_map", route[0], "default")
 			var area := (world.get("_map_root") as Node).get_node(id) as Area3D

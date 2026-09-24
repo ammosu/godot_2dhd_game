@@ -350,6 +350,10 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 		target_position.y = maxf(target_position.y, float(landscape.soil_height(Vector2(target_position.x, target_position.z))) + 0.1)
 	player.global_position = target_position
 	player.velocity = Vector3.ZERO
+	var recovery_position := _get_spawn_position(GameState.current_map, "default")
+	if landscape != null:
+		recovery_position.y = maxf(recovery_position.y, float(landscape.soil_height(Vector2(recovery_position.x, recovery_position.z))) + 0.1)
+	player.ground_safety.reset(recovery_position)
 	player.release_door_facing()
 	player.reset_automatic_interaction()
 	($CameraRig as Hd2dCameraRig).snap_to_target()

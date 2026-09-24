@@ -15,6 +15,7 @@ const DoorActionArt = preload("res://scripts/gameplay/door_action_art.gd")
 const TownAppearance = preload("res://scripts/gameplay/town_appearance.gd")
 const CONVERSATION_DISTANCE: float = 1.35
 var auto_walk := preload("res://scripts/gameplay/map_navigation.gd").new()
+var ground_safety := preload("res://scripts/gameplay/ground_safety.gd").new()
 var field_combat: Node
 var _appearance_key: String = ""
 
@@ -38,6 +39,8 @@ var _walking_offset: Vector2
 
 
 func _ready() -> void:
+	ground_safety.player = self
+	add_child(ground_safety)
 	add_child(auto_walk)
 	auto_walk.player = self
 	_last_step_position = global_position

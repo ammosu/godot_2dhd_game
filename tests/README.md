@@ -20,6 +20,9 @@
 
 # Playthrough smoke test
 
+地圖防墜落回歸：`godot --headless --path . --script tests/ground_safety_test.gd`。
+成功標記 `GROUND_SAFETY_TEST_PASS maps edge_movement velocity invalid_save`。角色踩到沒有實體地面的位置時會回到本張地圖最近的安全點、停止移動；地圖外的舊存檔位置會回復到本圖出生點。測試涵蓋十一張地圖、村莊北側佈景地面與無效讀檔座標，不寫正式存檔。正常出口另跑 `tests/road_exit_test.gd`。
+
 道路自動戰鬥回歸：`godot --headless --path . --fixed-fps 60 --script tests/field_auto_battle_test.gd`。
 成功標記為 `FIELD_AUTO_BATTLE_TEST_PASS takeover potion pause dodge ramp combat loot ramp_sides`；包含完整戰鬥／拾取，以及從坡道兩側、崖下與平台接近固定掉落物，確認不會卡在坡道側壁。測試不寫正式存檔。
 
