@@ -3,6 +3,8 @@ const Proportions = preload("res://scripts/gameplay/character_proportions.gd")
 ## Four camera-relative facings, measured RGBA regions; presentation only.
 const Appearance = preload("res://scripts/gameplay/equipment_appearance.gd")
 const Movement = preload("res://scripts/gameplay/enemy_movement_art.gd")
+const EightWayFacing = preload("res://scripts/gameplay/eight_way_facing.gd")
+const CARDINAL_COLUMNS: Array[int] = [0, 2, 3, 1, 3, 1, 2, 2]
 const DATA: Dictionary = preload("res://assets/generated/action/regions.gd").DATA
 const ARMED_WALK: Dictionary = preload("res://assets/generated/action/armed_walk_anchors.gd").DATA
 const POSES: Array[String] = ["idle", "walk_a", "walk_b", "windup", "attack", "recover", "cast", "release", "dodge_a", "dodge_b", "hurt", "defeated"]
@@ -24,9 +26,10 @@ static func directional_texture(actor: String, pose_name: String, screen: Vector
 	return texture_for(actor, pose_name, direction(screen), loadout)
 
 static func direction(facing: Vector2) -> int:
-	if absf(facing.y) > absf(facing.x):
-		return 0 if facing.y >= 0 else 2
-	return 1 if facing.x >= 0 else 3
+	# Diagonal keyboard input sits exactly on abs(x) == abs(y). Camera-space
+	# roundoff must not alternate front/side art on successive physics ticks.
+	# Match exploration's eight-way sectors before choosing four-way fallback art.
+	return CARDINAL_COLUMNS[EightWayFacing.direction_index(facing)]
 
 static func pose(actor: Dictionary, moving: bool, clock: float) -> String:
 	if int(actor.hp) <= 0:

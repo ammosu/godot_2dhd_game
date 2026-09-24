@@ -37,7 +37,7 @@ func run() -> void:
 		if id == "archer" and "--female" not in OS.get_cmdline_user_args():
 			for screen: Vector2 in [Vector2(-1, 1), Vector2(1, 1), Vector2(-1, -1), Vector2(1, -1)]:
 				field.facing = player.call("_camera_relative_direction", screen)
-				player.velocity = field.facing * 4.2
+				player.velocity = field.movement_velocity(field.facing * 4.2)
 				for phase: int in range(4):
 					field.clock = float(phase) * 0.1
 					field.call("_update_hero_art")
@@ -96,21 +96,33 @@ func run() -> void:
 
 func _check_staggered_release(player: CharacterBody3D, field: Node3D) -> void:
 	var pairs: Array[Array] = [[&"move_left", &"move_back"], [&"move_right", &"move_back"], [&"move_left", &"move_forward"], [&"move_right", &"move_forward"]]
+	var visible_sprite: Sprite3D = field.get("_hero_sprite")
 	for pair: Array in pairs:
 		for first: int in range(2):
-			player.position = Vector3(-6, 0.06, 8)
-			for action: StringName in pair:
-				Input.action_press(action)
-			for frame: int in range(8):
-				player.call("_physics_process", 1.0 / 60.0)
-			var heading: Vector3 = field.facing
-			Input.action_release(pair[first])
-			for frame: int in range(3):
-				player.call("_physics_process", 1.0 / 60.0)
-			Input.action_release(pair[1 - first])
-			for frame: int in range(20):
-				player.call("_physics_process", 1.0 / 60.0)
-			field.call("_update_hero_art")
-			check(heading.is_equal_approx(field.facing), "Field idle changed diagonal after staggered release")
-			var texture: AtlasTexture = field.get("_hero_sprite").texture
-			check(texture.atlas.resource_path.ends_with("archer_diagonal_walk.png") and texture.get_meta("pose") == "idle", "Visible field idle lost diagonal art")
+			for gap: int in [0, 1, 3, 5]:
+				for phase: int in range(4):
+					player.position = Vector3(-6, 0.06, 8)
+					for action: StringName in pair:
+						Input.action_press(action)
+					for frame: int in range(8):
+						player.call("_physics_process", 1.0 / 60.0)
+					field.clock = float(phase) * 0.1
+					field.call("_update_hero_art")
+					var heading: Vector3 = field.facing
+					var direction: StringName = visible_sprite.texture.get_meta("direction", &"")
+					Input.action_release(pair[first])
+					for frame: int in range(gap):
+						player.call("_physics_process", 1.0 / 60.0)
+						field.clock += 1.0 / 60.0
+						field.call("_update_hero_art")
+						check(visible_sprite.texture.get_meta("direction", &"") == direction, "Release flashed a cardinal pose")
+					Input.action_release(pair[1 - first])
+					for frame: int in range(20):
+						player.call("_physics_process", 1.0 / 60.0)
+						field.clock += 1.0 / 60.0
+						field.call("_update_hero_art")
+						check(heading.is_equal_approx(field.facing), "Field idle changed diagonal after staggered release")
+						var texture: AtlasTexture = visible_sprite.texture
+						check(texture.get_meta("direction", &"") == direction, "Stopping flashed a cardinal pose")
+						check(texture.get_meta("pose") == "idle", "Released input restarted a walking pose during deceleration")
+						check(visible_sprite.visible and not player.get_node("Sprite3D").visible, "Stopping exposed the exploration sprite")

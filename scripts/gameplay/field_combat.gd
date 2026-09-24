@@ -47,6 +47,7 @@ var swing: float = 0.0
 var skill_pending: bool = false
 var skill_target: Dictionary = {}
 var facing := Vector3.FORWARD
+var _locomotion_requested: bool = false
 var dodge_direction := Vector3.FORWARD
 var attack_direction := Vector3.FORWARD
 var _effects: Array[Node3D] = []
@@ -132,6 +133,7 @@ func _spawn_enemy(spawn: Dictionary) -> void:
 		"path": PackedVector3Array(), "repath": 0.0, "patrol": 1.0})
 
 func movement_velocity(requested: Vector3, delta: float = 0.0, manual_facing: Vector3 = Vector3.ZERO) -> Vector3:
+	_locomotion_requested = false
 	if _focus_paused:
 		return Vector3.ZERO
 	if not requested.is_zero_approx():
@@ -139,6 +141,7 @@ func movement_velocity(requested: Vector3, delta: float = 0.0, manual_facing: Ve
 	else:
 		requested = automation.direction(self, delta) * player.move_speed
 		manual_facing = Vector3.ZERO
+	_locomotion_requested = not requested.is_zero_approx()
 	if not requested.is_zero_approx():
 		facing = manual_facing.normalized() if not manual_facing.is_zero_approx() else requested.normalized()
 	if dodge_time > 0:
@@ -285,7 +288,9 @@ func _update_hero_art() -> void:
 	# exploration atlas has a different silhouette and cannot be swapped per hit.
 	_hero_sprite.show()
 	player.get_node("Sprite3D").hide()
-	var moving: bool = Vector2(player.velocity.x, player.velocity.z).length() > 0.05
+	# Braking can outlast a standing frame in the walk cycle. Once movement
+	# ends, stay idle instead of flashing another stride during deceleration.
+	var moving: bool = _locomotion_requested and Vector2(player.velocity.x, player.velocity.z).length() > 0.05
 	var pose: String = ["walk_a", "idle", "walk_b", "idle"][int(clock * 10.0) % 4] if moving else "idle"
 	if dodge_time > 0:
 		pose = "dodge_a" if dodge_time > 0.11 else "dodge_b"
