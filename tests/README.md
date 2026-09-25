@@ -654,7 +654,7 @@ godot --headless --path . --rendering-method gl_compatibility --script tests/sta
 
 壁爐動態回歸：`godot --path . --rendering-method forward_plus --script tests/hearth_art_test.gd`，另以 `gl_compatibility` 執行。檢查側火舌根部對齊、呼吸縮放後的火焰高度、火星大小與橫樑界線；MultiMesh 位置檢查需要實際 GPU，headless 只執行其他檢查。
 
-`house_door_test.gd` 也驗證進出後回身關門、關門期間鎖定操作、門扇完全閉合與主角姿態復原。
+`house_door_test.gd` 也驗證進屋抵達後立即解鎖操作、不回身關門與主角姿態復原；出屋仍驗證回身關門、關門期間鎖定操作與門扇完全閉合。
 
 路面變化沿用 `garden_art_test.gd` 驗證村莊道路邊界與植栽；`footsteps_test.gd` 額外檢查東行土路及商道多邊形採用泥地音效。渲染檢查需使用 Forward+ 與 Compatibility 實際查看村莊、東行舊道、螢光森林、風丘商道與星灣城，確認路面分級與草地斑駁。
 
@@ -682,7 +682,7 @@ godot --path . --script tests/door_action_art_test.gd -- --capture-dir=/absolute
 - `starbay_test.gd` 現在額外檢查所有 26 條門前小徑的角色膠囊通行與地板。搭配 `city_house_test.gd` 驗證實際進出房屋。
 - `starbay_ground.gdshader` 和 `mountain_ground.gdshader` 使用 nearest + mipmaps 控制遠距閃爍；其他原有材質仍保留原有取樣方式。岩體新材質及生成提示記錄於 `assets/generated/terrain/README.md`。
 - 可用 `godot --path . -- --city-preview` 與 `godot --path . -- --mountain-preview` 直接檢查兩個區域；預覽不會自動載入或覆寫正常存檔。渲染修改需重新執行兩種 renderer 的測試及 Web export。
-- 房屋測試以最多 12 秒的有界等待確認換圖及輸入解鎖，涵蓋抵達後關門動畫，不再以固定 2.6／0.85 秒推測流程結束。
+- 房屋測試以最多 12 秒的有界等待確認換圖及輸入解鎖，涵蓋出屋抵達後關門動畫，不再以固定 2.6／0.85 秒推測流程結束。
 
 ### 樹木遮擋與城外坡地（2026-09-23）
 

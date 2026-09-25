@@ -719,7 +719,7 @@ func _open_house_door(destination: String) -> void:
 		return
 	if is_instance_valid(source_map) and source_map == _map_root and GameState.current_map == HouseCatalog.parent_map(destination):
 		GameState.request_map(destination, "entry")
-		await _close_arrival_door(destination)
+		await map_presented
 	if GameState.mode == GameState.Mode.TRANSITION:
 		GameState.set_mode(GameState.Mode.EXPLORE)
 

@@ -41,7 +41,9 @@ func _run() -> void:
 		await create_timer(0.30).timeout
 		_check(state.get("current_map") == "village", "Repeated input skipped opening")
 		_check(hinge.rotation.y < 0.0 and hinge.rotation.y > -PI * 0.48, "Door must swing away progressively after contact")
-		await _wait_until(func() -> bool: return not state.call("is_input_locked"))
+		await _wait_until(func() -> bool: return state.get("current_map") == home.id)
+		_check(not bool(player.get("_door_facing_locked")), "Indoor arrival must not turn back to close door")
+		_check(player.get("_door_pose") == -1, "Indoor arrival must finish the entry action")
 		_check(state.get("current_map") == home.id, "Opening entered wrong home")
 		_check(not state.call("is_input_locked"), "Entry must restore controls")
 		_check_facing(world, player.global_position + Vector3.FORWARD, "Arrival indoors must face into room")
