@@ -25,6 +25,8 @@ const StreetLantern = preload("res://scripts/gameplay/street_lantern.gd")
 const ForegroundCutaway = preload("res://scripts/gameplay/foreground_cutaway.gd")
 const MoonShard = preload("res://scripts/gameplay/moon_shard.gd")
 const MoonSeal = preload("res://scripts/gameplay/moon_seal.gd")
+const CutscenePlayer = preload("res://scripts/gameplay/cutscene_player.gd")
+const OpeningCutscene = preload("res://scripts/story/opening_cutscene.gd")
 
 const PALETTE := {
 	"stone": Color("686176"),
@@ -173,6 +175,10 @@ func _ready() -> void:
 		GameState.flags["intro_seen"] = true
 		player.global_position = HouseCatalog.return_position("house_02")
 		($CameraRig as Hd2dCameraRig).snap_to_target()
+	elif "--opening-preview" in OS.get_cmdline_user_args():
+		_test_mode = true # Preview never writes normal autosaves.
+		GameState.flags["intro_seen"] = true
+		_play_opening.call_deferred()
 	elif "--village-preview" in OS.get_cmdline_user_args():
 		GameState.flags["intro_seen"] = true
 		player.global_position = Vector3(0.0, 0.1, 6.0)
@@ -220,8 +226,72 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _show_class_selection() -> void:
 	var selection := preload("res://scripts/ui/class_selection.gd").new()
-	selection.journey_started.connect(_show_intro)
+	selection.journey_started.connect(_play_opening)
 	add_child(selection)
+
+
+func _play_opening() -> CutscenePlayer:
+	var film := CutscenePlayer.new()
+	film.host = self
+	film.actor = player
+	film.hidden_layers.assign([$HUD, $MobileControls, $Notices])
+	film.pause_on_focus_loss = not _test_mode
+	add_child(film)
+	film.finished.connect(func(_skipped: bool) -> void: _show_intro())
+	film.play(OpeningCutscene.shots())
+	return film
+
+
+func cutscene_load_map(map_id: String, spawn_id: String) -> void:
+	_load_map(map_id, spawn_id)
+	_hide_film_clutter()
+	# Field enemies attach their bars after the map finishes building.
+	_hide_film_clutter.call_deferred()
+
+
+## Floating guide text and health bars are gameplay UI; the concluding reload restores them.
+func _hide_film_clutter() -> void:
+	if not is_instance_valid(_map_root):
+		return
+	var health_bar_script: Script = preload("res://scripts/gameplay/world_health_bar.gd")
+	for node: Node in _map_root.find_children("*", "Node3D", true, false):
+		if (node is Label3D and (node as Label3D).billboard != BaseMaterial3D.BILLBOARD_DISABLED) or node.get_script() == health_bar_script:
+			(node as Node3D).visible = false
+
+
+func cutscene_ground(point: Vector3) -> Vector3:
+	var landscape: Node = _map_root.get_node_or_null("OutdoorLandscape") if is_instance_valid(_map_root) else null
+	var height := 0.1
+	if landscape != null:
+		height = maxf(height, float(landscape.soil_height(Vector2(point.x, point.z))) + 0.1)
+	return Vector3(point.x, height, point.z)
+
+
+func cutscene_event(event_id: String) -> void:
+	match event_id:
+		"gate_glow":
+			if not is_instance_valid(_village_gate_light):
+				return
+			var pulse := create_tween()
+			pulse.tween_property(_village_gate_light, "light_energy", 3.2, 0.9).set_trans(Tween.TRANS_SINE)
+			pulse.tween_property(_village_gate_light, "light_energy", 0.15, 1.6).set_trans(Tween.TRANS_SINE)
+		"road_whisper":
+			var glow := OmniLight3D.new()
+			glow.name = "WhisperGlow"
+			glow.light_color = Color("a9d8ff")
+			glow.omni_range = 5.0
+			glow.light_energy = 0.0
+			_map_root.add_child(glow)
+			glow.global_position = player.global_position + Vector3(-2.6, 1.3, -0.4)
+			var flash := glow.create_tween()
+			flash.tween_property(glow, "light_energy", 2.4, 0.7).set_trans(Tween.TRANS_SINE)
+			flash.tween_property(glow, "light_energy", 0.0, 1.8).set_trans(Tween.TRANS_SINE)
+			flash.tween_callback(glow.queue_free)
+
+
+func cutscene_conclude() -> void:
+	_load_map("village", "default")
+	player.face_world_position(player.global_position + Vector3.FORWARD)
 
 
 func _show_intro() -> void:
@@ -1174,9 +1244,15 @@ func _add_quest_marker(actor: Interactable3D, interaction_id: String, marker_kin
 
 
 func _update_quest_markers() -> void:
+	var filming: bool = GameState.mode == GameState.Mode.CUTSCENE
+	if is_instance_valid(_village_gate_marker):
+		_village_gate_marker.visible = not filming
 	for interaction_id: String in _quest_markers:
 		var marker := _quest_markers[interaction_id] as Label3D
 		if not is_instance_valid(marker):
+			continue
+		if filming:
+			marker.visible = false
 			continue
 		match interaction_id:
 			"elder":

@@ -253,6 +253,9 @@ func _physics_process(delta: float) -> void:
 	_hud.visible = GameState.mode == GameState.Mode.EXPLORE
 	_auto_controls.visible = _hud.visible
 	_update_hud()
+	if GameState.mode == GameState.Mode.CUTSCENE:
+		_present_scripted_walk(delta)
+		return
 	if not ready_for_combat or not active:
 		return
 	clock += delta
@@ -287,6 +290,17 @@ func _physics_process(delta: float) -> void:
 		if number.life <= 0:
 			number.node.queue_free()
 	_numbers = _numbers.filter(func(number: Dictionary) -> bool: return number.life > 0)
+	_update_hero_art()
+
+## Cutscenes move the traveler directly; keep the field silhouette stepping and facing its route.
+func _present_scripted_walk(delta: float) -> void:
+	clock += delta
+	var planar := Vector3(player.velocity.x, 0.0, player.velocity.z)
+	_locomotion_requested = planar.length() > 0.05
+	if _locomotion_requested:
+		facing = planar.normalized()
+	elif player.has_meta("cutscene_facing"):
+		facing = player.get_meta("cutscene_facing")
 	_update_hero_art()
 
 func _update_hero_art() -> void:

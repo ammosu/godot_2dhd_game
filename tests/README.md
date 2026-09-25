@@ -18,6 +18,12 @@
 
 設計參考：[Riot 職業定位說明](https://support-leagueoflegends.riotgames.com/hc/en-us/articles/201752864-Choosing-the-Right-Champion)，借用耐久、機動與傷害的取捨，數值依本遊戲節奏調整。
 
+## 開場影片
+
+`godot --headless --path . --fixed-fps 60 --script tests/opening_cutscene_test.gd`
+驗證選角後的開場影片：完整播放會經過東行舊道與暮光村、主角沿舊道向西走、播放期間鎖定輸入並隱藏 HUD；單次按鍵只顯示跳過提示，逾時不跳過，兩次確認才跳過；走位中跳過會停止腳本路徑；三種結束方式都回到暮光村出生點、恢復探索鏡頭與 HUD，接上原本的旁白，且不寫正式存檔。成功標記 `OPENING_CUTSCENE_TEST_PASS natural skip_confirm skip_mid_walk final_state no_save shots=8`。
+移除 `--headless` 並加 `-- --capture-dir=/absolute/existing/directory` 可在每個鏡頭 25%／55%／85% 各存一張截圖；分別以 `--rendering-method forward_plus` 與 `gl_compatibility` 檢查。
+
 # Playthrough smoke test
 
 地圖防墜落回歸：`godot --headless --path . --script tests/ground_safety_test.gd`。

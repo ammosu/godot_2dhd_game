@@ -36,6 +36,10 @@ var _automatic_interaction_armed: bool = false
 var _door_pose: int = -1
 var _presentation_scale: float = 1.0
 var _walking_offset: Vector2
+## Cutscene-owned route; only followed while GameState is in CUTSCENE mode.
+var scripted_path := PackedVector3Array()
+var scripted_speed: float = 2.4
+var scripted_hold: bool = false
 
 
 func _ready() -> void:
@@ -101,6 +105,9 @@ func _physics_process(delta: float) -> void:
 	if _footstep_map != GameState.current_map or global_position.distance_to(_last_step_position) > 2.0:
 		_footsteps.advance(0.0, false, false, true)
 		_footstep_map = GameState.current_map
+	if GameState.mode == GameState.Mode.CUTSCENE:
+		_follow_scripted_path(delta)
+		return
 	if GameState.is_input_locked():
 		_movement_facing.update(Vector2.ZERO, delta)
 		_footsteps.advance(0.0, false, false, true)
@@ -147,6 +154,46 @@ func _physics_process(delta: float) -> void:
 	_update_sprite(facing_input, move_direction, delta)
 	if not auto_walk.is_active():
 		_update_automatic_interaction()
+
+
+func play_scripted_walk(points: PackedVector3Array, speed: float) -> void:
+	scripted_path = points.duplicate()
+	scripted_speed = speed
+	scripted_hold = false
+
+
+func stop_scripted_walk() -> void:
+	scripted_path.clear()
+	scripted_hold = false
+	velocity = Vector3.ZERO
+
+
+func is_scripted_walking() -> bool:
+	return not scripted_path.is_empty()
+
+
+func _follow_scripted_path(delta: float) -> void:
+	var flat := Vector3(global_position.x, 0.0, global_position.z)
+	while not scripted_path.is_empty() and flat.distance_to(Vector3(scripted_path[0].x, 0.0, scripted_path[0].z)) < 0.08:
+		scripted_path.remove_at(0)
+	var move_direction := Vector3.ZERO
+	if not scripted_hold and not scripted_path.is_empty():
+		move_direction = (Vector3(scripted_path[0].x, 0.0, scripted_path[0].z) - flat).normalized()
+	velocity.x = move_direction.x * scripted_speed
+	velocity.z = move_direction.z * scripted_speed
+	if not is_on_floor():
+		velocity.y -= _gravity * delta
+	else:
+		velocity.y = -0.1
+	var before_move := global_position
+	move_and_slide()
+	var traveled := Vector2(global_position.x - before_move.x, global_position.z - before_move.z).length()
+	var moving := not move_direction.is_zero_approx()
+	if _footsteps.advance(traveled, is_on_floor(), moving, false):
+		GameAudio.play_cue(_footsteps.next_cue(Footsteps.surface_at(get_tree(), global_position)))
+	_last_step_position = global_position
+	var screen := EightWayFacing.screen_direction(move_direction, get_viewport().get_camera_3d()) if moving else Vector2.ZERO
+	_update_sprite(screen, move_direction, delta)
 
 
 func reset_automatic_interaction() -> void:

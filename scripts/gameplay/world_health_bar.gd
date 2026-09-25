@@ -13,6 +13,11 @@ func configure(enemy: bool, species: String = "") -> void:
 	_fill.render_priority = 1
 	_fill.region_enabled = true
 
+func _process(_delta: float) -> void:
+	# Story films hide gameplay UI; the next set_health call restores it.
+	if GameState.mode == GameState.Mode.CUTSCENE and visible:
+		visible = false
+
 func set_health(current: int, maximum: int) -> void:
 	visible = current > 0
 	var width: float = 100.0 * clampf(float(current) / maxi(maximum, 1), 0.0, 1.0)
