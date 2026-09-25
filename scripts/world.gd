@@ -339,6 +339,7 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 		($Moonlight as DirectionalLight3D).light_energy = 0.70
 		($Moonlight as DirectionalLight3D).light_color = Color("91b3ed")
 
+	preload("res://scripts/gameplay/flower_clearance.gd").apply(_map_root)
 	($CameraRig as Hd2dCameraRig).set_dungeon(CryptLayout.NAMES.has(map_id))
 	var target_position := _get_spawn_position(GameState.current_map, spawn_id)
 	if spawn_id == "saved_position" and GameState.has_saved_position:

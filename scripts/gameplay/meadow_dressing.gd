@@ -150,6 +150,7 @@ static func _build_groundcover(map_root: Node3D) -> void:
 	var instance := MultiMeshInstance3D.new()
 	instance.name = "GardenGroundcover"
 	instance.multimesh = batch
+	instance.set_meta("foliage_transforms", transforms)
 	instance.custom_aabb = AABB(Vector3(-13, -0.1, -11), Vector3(27, 1.2, 27))
 	map_root.add_child(instance)
 

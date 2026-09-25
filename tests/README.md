@@ -782,3 +782,5 @@ Repeat with `gl_compatibility`. Checks wood/gravel presence and the tilted/repai
 `godot --headless --path . --script tests/camera_settle_test.gd` 驗證 30／60／120 FPS 行走、旋轉後鏡頭確實停止；成功標記 `CAMERA_SETTLE_TEST_PASS`。花朵的連續移動畫面仍需分別以 Forward+ 與 Compatibility 目視確認。
 
 村莊道路交界：`godot --headless --path . --script tests/village_road_overlap_test.gd` 檢查廣場、十字路、環村步道與出村道路的所有同高重疊區，每處必須恰有一張路面顯示。村莊建立時由實際 BoxMesh 範圍產生 shader 排除區，先建立的路面擁有交界，保留原本路高與碰撞。成功標記 `VILLAGE_ROAD_OVERLAP_TEST_PASS`；移除 `--headless` 並分別使用 `--rendering-method forward_plus`／`gl_compatibility`，會擷取 `/tmp/village-road-overlap-<renderer>.png`，供東側交界目視檢查。
+
+花草互相閃爍：`godot --headless --path . --script tests/flower_clearance_test.gd` 驗證村莊、東行舊道、螢光森林、商道、星灣城與重載後，直立花叢和草／灌木／批次地被的圓形佔位不相交；成功標記 `FLOWER_CLEARANCE_TEST_PASS`。地圖完成佈置後，`flower_clearance.gd` 以花朵自帶的葉叢為優先，移除會穿入花叢的額外草片，保留花叢、門口淨空、碰撞及存檔。草與花園灌木啟用 nearest-with-mipmaps；地被保留 CPU transform，讓 headless 和實際渲染採用同一配置。有視窗時分別指定 `--rendering-method forward_plus`／`gl_compatibility`，擷取村莊與舊道的 0／45／90 度畫面至 `/tmp/flower-clearance-<renderer>-<map>-<angle>.png`。草量會因花叢佔位降低；新複合花草美術仍必須遵循相同間距規則。

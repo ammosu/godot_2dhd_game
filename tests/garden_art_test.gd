@@ -57,7 +57,7 @@ func _run() -> void:
 			grass_count += 1
 			grass_variants[grass.texture.resource_path] = true
 			_check(grass.shaded and grass.billboard == BaseMaterial3D.BILLBOARD_FIXED_Y, "Grass must be shaded upright billboards")
-			_check(grass.texture_filter == BaseMaterial3D.TEXTURE_FILTER_NEAREST and grass.alpha_cut == SpriteBase3D.ALPHA_CUT_DISCARD, "Grass filtering or transparency regressed")
+			_check(grass.texture_filter == BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS and grass.alpha_cut == SpriteBase3D.ALPHA_CUT_DISCARD, "Grass filtering or transparency regressed")
 			_check(is_equal_approx(grass.position.y - 328.0 * grass.pixel_size, 0.01), "Grass roots not grounded")
 			_check(grass.pixel_size >= 0.00065 - 0.00000001 and grass.pixel_size <= 0.001 + 0.00000001, "Grass scale outside art bounds")
 			_check(grass.get_child_count() == 0, "Grass must remain visual-only")
@@ -70,7 +70,7 @@ func _run() -> void:
 			_check(is_equal_approx(flower.position.y - 300.0 * flower.pixel_size, 0.01), "Flower roots not grounded")
 			_check(flower.get_child_count() == 0, "Flowers should remain visual-only sprites")
 	_check(count == 12 and variants.size() == 3, "Village needs twelve clumps across three variants")
-	_check(grass_count == 305 and grass_variants.size() == 3, "Village needs 305 grass clumps across three variants")
+	_check(grass_count > 100 and grass_count < 305 and grass_variants.size() == 3, "Village retains three grass variants around reserved flower beds")
 	world.queue_free()
 	await process_frame
 	for singleton: String in ["GameAudio", "GameMusic", "GameAmbience"]:
@@ -86,6 +86,7 @@ func _check_grass_atlas() -> void:
 		var atlas := load("res://assets/generated/grass_%s.tres" % variant) as AtlasTexture
 		_check(atlas.get_size() == Vector2(704, 704), "Grass canvas must be 704 square")
 		var image := atlas.atlas.get_image()
+		_check(image.has_mipmaps(), "Grass needs mipmaps for stable minification")
 		_check(image.detect_alpha() != Image.ALPHA_NONE, "Grass needs transparent background")
 		var region := Rect2i(atlas.region)
 		_check(Rect2i(Vector2i.ZERO, image.get_size()).encloses(region), "Grass crop outside image")
@@ -183,23 +184,25 @@ func _check_understory(map_root: Node3D) -> void:
 	_check(points == MeadowDressing.sample(blocked), "Understory must be deterministic")
 	_check(points.size() > 100 and points.size() < 500, "Understory density outside expected budget")
 	var dressing := map_root.get_node("MeadowUnderstory") as Node3D
-	_check(dressing.get_child_count() == points.size(), "Understory instances disagree with layout")
-	for index: int in range(points.size()):
-		var point := points[index]
+	_check(dressing.get_child_count() > 50 and dressing.get_child_count() <= points.size(), "Understory retains spaced foliage")
+	for index: int in range(dressing.get_child_count()):
+		var planted := dressing.get_child(index) as Sprite3D
+		var point := Vector3(planted.position.x, 0.01, planted.position.z)
+		_check(points.has(point), "Understory must retain deterministic sample positions")
 		for rectangle: Rect2 in blocked:
 			_check(not rectangle.has_point(Vector2(point.x, point.z)), "Understory intrudes into map clearance")
 		var sprite := dressing.get_child(index) as Sprite3D
 		_check(sprite != null and sprite.get_child_count() == 0, "Understory must remain visual-only")
 		_check(sprite.shaded and sprite.billboard == BaseMaterial3D.BILLBOARD_FIXED_Y, "Understory lighting or billboard regressed")
-		_check(sprite.texture_filter == BaseMaterial3D.TEXTURE_FILTER_NEAREST, "Understory requires nearest filtering")
+		_check(sprite.texture_filter == BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS, "Understory requires nearest filtering")
 		_check(is_equal_approx(sprite.position.y - 328.0 * sprite.pixel_size, 0.01), "Understory is not grounded")
 		_check(is_equal_approx(sprite.position.x, point.x) and is_equal_approx(sprite.position.z, point.z), "Understory position changed")
-	print("UNDERSTORY_INSTANCES ", points.size())
+	print("UNDERSTORY_INSTANCES ", dressing.get_child_count())
 
 
 func _check_borders(map_root: Node3D) -> void:
 	var borders := map_root.get_node("GardenBorders")
-	_check(borders.get_child_count() > 300 and borders.get_child_count() < 1100, "Border planting budget")
+	_check(borders.get_child_count() > 150 and borders.get_child_count() < 1100, "Border planting budget")
 	var blocked := MeadowDressing.exclusions(map_root, 0.04)
 	var variants: Dictionary = {}
 	for child: Node in borders.get_children():
@@ -223,7 +226,7 @@ func _check_borders(map_root: Node3D) -> void:
 			variants[texture.region] = true
 		_check(is_equal_approx(sprite.position.y - (baseline - texture.get_height() * 0.5) * sprite.pixel_size, 0.01), "Border roots drifted")
 		_check(sprite.shaded and sprite.billboard == BaseMaterial3D.BILLBOARD_FIXED_Y, "Border shading and upright view")
-		var expected_filter: int = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS if texture.resource_path.begins_with("res://assets/generated/flowers_") else BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		var expected_filter: int = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 		_check(sprite.alpha_cut == SpriteBase3D.ALPHA_CUT_DISCARD and sprite.texture_filter == expected_filter, "Border alpha and filtering")
 		for rectangle: Rect2 in blocked:
 			_check(not rectangle.grow(texture.get_width() * sprite.pixel_size * 0.5 - 0.00001).has_point(Vector2(sprite.position.x, sprite.position.z)), "Border silhouette enters clearance")
@@ -234,11 +237,11 @@ func _check_borders(map_root: Node3D) -> void:
 func _check_groundcover(map_root: Node3D) -> void:
 	var instance := map_root.get_node("GardenGroundcover") as MultiMeshInstance3D
 	var batch := instance.multimesh
-	_check(batch.instance_count > 1000 and batch.instance_count < 4000, "Groundcover density budget")
+	_check(batch.instance_count > 400 and batch.instance_count < 4000, "Groundcover density budget")
 	var quad := batch.mesh as QuadMesh
 	var material := quad.material as StandardMaterial3D
 	_check(material.billboard_mode == BaseMaterial3D.BILLBOARD_FIXED_Y and material.billboard_keep_scale, "Batched grass must stay upright and preserve scale")
-	_check(material.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR and material.texture_filter == BaseMaterial3D.TEXTURE_FILTER_NEAREST, "Groundcover alpha/filtering")
+	_check(material.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR and material.texture_filter == BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS, "Groundcover alpha/filtering")
 	_check(is_equal_approx(quad.center_offset.y - quad.size.y * 0.5 + quad.size.y * 4.0 / 349.0, 0.0), "Groundcover alpha baseline")
 	if DisplayServer.get_name() != "headless":
 		var blocked := MeadowDressing.exclusions(map_root, 0.04)
