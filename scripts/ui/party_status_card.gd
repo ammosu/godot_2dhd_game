@@ -1,11 +1,6 @@
 extends PanelContainer
 ## Portrait crops reuse the party's original combat art, without new bitmap assets.
-const ClassArt = preload("res://scripts/gameplay/class_art.gd")
-const FACES: Dictionary = {
-	"wanderer": Rect2(216, 96, 224, 224),
-	"noah": Rect2(190, 76, 200, 200),
-	"elder": Rect2(245, 62, 258, 258),
-}
+const Faces = preload("res://scripts/ui/portrait_faces.gd")
 var portrait: TextureRect
 var compact: bool = false
 var title: Label
@@ -17,6 +12,10 @@ var _mp_text: Label
 var _style: StyleBoxFlat
 var _portrait_style: StyleBoxFlat
 var _art: String = ""
+## Pale bar that lingers at the previous HP and drains after a hit.
+var _hp_trail: ColorRect
+var _trail_ratio: float = -1.0
+var _trail_tween: Tween
 
 func _ready() -> void:
 	custom_minimum_size.y = 54 if compact else 74
@@ -61,6 +60,13 @@ func _ready() -> void:
 	heading.add_child(status)
 	hp = _bar(Color("4dad81"), 14 if compact else 19)
 	info.add_child(hp)
+	_hp_trail = ColorRect.new()
+	_hp_trail.color = Color("b8513c")
+	_hp_trail.show_behind_parent = true
+	_hp_trail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hp.add_child(_hp_trail)
+	hp.move_child(_hp_trail, 1)
+	hp.resized.connect(_place_trail)
 	_hp_text = _bar_label(hp, 11 if compact else 13)
 	mp = _bar(Color("4a84c7"), 12 if compact else 16)
 	info.add_child(mp)
@@ -73,19 +79,11 @@ func display_actor(actor: Dictionary, controlled: bool) -> void:
 	var key: String = art + ":" + vocation + (":female" if female else ":male")
 	if _art != key:
 		_art = key
-		var face := AtlasTexture.new()
-		face.atlas = load("res://assets/generated/%s_combat.png" % art) as Texture2D
-		face.region = FACES[art]
-		if art == "wanderer" and (vocation != "traveler" or female):
-			var source := ClassArt.texture_for("female_" + vocation if female else vocation, "idle")
-			var side: float = source.region.size.y * 0.52
-			face.atlas = source.atlas
-			face.region = Rect2(source.region.position + Vector2(float(source.get_meta("anchor_x")) - side * 0.5, 0), Vector2.ONE * side)
-		face.filter_clip = true
-		portrait.texture = face
+		portrait.texture = Faces.combat_face(art, vocation, female)
 	GameState.HeroStyle.apply_canvas(portrait, portrait.texture, str(actor.get("hero_style", "original")))
 	hp.max_value = actor.max_hp
 	hp.value = actor.hp
+	_follow_trail(hp.ratio)
 	mp.max_value = actor.max_mp
 	mp.value = actor.mp
 	_hp_text.text = "HP  %d / %d" % [actor.hp, actor.max_hp]
@@ -101,21 +99,56 @@ func display_actor(actor: Dictionary, controlled: bool) -> void:
 	_style.border_color = Color("a5eaff") if controlled else Color("d26961") if critical else Color("405166")
 	_portrait_style.border_color = _style.border_color
 	portrait.modulate = Color("69707e") if down else Color.WHITE
-	(hp.get_theme_stylebox("fill") as StyleBoxFlat).bg_color = Color("c7544d") if critical else Color("4dad81")
+	var hp_fill := hp.get_theme_stylebox("fill") as StyleBoxFlat
+	hp_fill.bg_color = Color("c7544d") if critical else Color("4dad81")
+	hp_fill.border_color = hp_fill.bg_color.lightened(0.35)
 	tooltip_text = "%s%s%s" % [actor.name, " · 目前操作角色" if controlled else "", " · 守護中，傷害減半" if warded else " · HP 偏低" if critical else ""]
+
+func _follow_trail(ratio: float) -> void:
+	if _trail_ratio < 0.0 or ratio >= _trail_ratio:
+		# First display or healing: no lingering damage to show.
+		if _trail_tween != null:
+			_trail_tween.kill()
+		_trail_ratio = ratio
+		_place_trail()
+		return
+	if _trail_tween != null:
+		_trail_tween.kill()
+	_trail_tween = create_tween()
+	_trail_tween.tween_interval(0.35)
+	_trail_tween.tween_method(func(value: float) -> void:
+		_trail_ratio = value
+		_place_trail(), _trail_ratio, ratio, 0.45).set_ease(Tween.EASE_IN)
+
+
+func _place_trail() -> void:
+	_hp_trail.position = Vector2.ZERO
+	_hp_trail.size = Vector2(hp.size.x * maxf(_trail_ratio, 0.0), hp.size.y)
+
 
 func _bar(color: Color, height: float) -> ProgressBar:
 	var bar := ProgressBar.new()
 	bar.custom_minimum_size.y = height
 	bar.show_percentage = false
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# The track is a child drawn behind the bar so other behind-parent layers
+	# (the HP damage trail) can sit between the track and the fill.
+	bar.add_theme_stylebox_override("background", StyleBoxEmpty.new())
+	var track := Panel.new()
+	track.show_behind_parent = true
+	track.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var background := StyleBoxFlat.new()
 	background.bg_color = Color("0a1421")
 	background.set_corner_radius_all(2)
-	bar.add_theme_stylebox_override("background", background)
+	track.add_theme_stylebox_override("panel", background)
+	bar.add_child(track)
+	track.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var fill := StyleBoxFlat.new()
 	fill.bg_color = color
 	fill.set_corner_radius_all(2)
+	# A lighter top edge reads as a glassy highlight on a flat fill.
+	fill.border_width_top = 2 if height >= 16 else 1
+	fill.border_color = color.lightened(0.35)
 	bar.add_theme_stylebox_override("fill", fill)
 	return bar
 

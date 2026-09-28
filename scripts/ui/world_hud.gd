@@ -11,6 +11,8 @@ const MiniMapControl = preload("res://scripts/ui/mini_map.gd")
 const Outskirts = preload("res://scripts/gameplay/outskirts.gd")
 const CryptLayout = preload("res://scripts/gameplay/crypt_layout.gd")
 const HouseCatalog = preload("res://scripts/gameplay/house_catalog.gd")
+const QUEST_FONT_SIZE: int = 15
+const MAX_QUEST_PANEL_WIDTH: float = 420.0
 
 var map_label: Label
 var quest_label: Label
@@ -21,8 +23,16 @@ var map_button: Button
 var player_status: PanelContainer
 var notices: CanvasLayer
 var _quest_panel: PanelContainer
+var _quest_row: HBoxContainer
+var _quest_marker: Label
+var _quest_flash: Tween
 var _travel_hints: PanelContainer
 var _notice_generation: int = 0
+var _notice_banner: PanelContainer
+var _notice_tween: Tween
+var _prompt_pill: PanelContainer
+var _prompt_key: Label
+var _prompt_action: Label
 
 
 func _init() -> void:
@@ -50,9 +60,22 @@ func _ready() -> void:
 	map_label.clip_text = true
 	map_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	info.add_child(map_label)
+	# One compact objective line; hidden while any combat HUD is on screen.
+	_quest_row = HBoxContainer.new()
+	_quest_row.name = "Objective"
+	_quest_row.add_theme_constant_override("separation", 6)
+	info.add_child(_quest_row)
+	_quest_marker = Label.new()
+	_quest_marker.add_theme_font_size_override("font_size", 13)
+	_quest_marker.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	_quest_row.add_child(_quest_marker)
 	quest_label = Label.new()
-	quest_label.hide()
-	info.add_child(quest_label)
+	quest_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	quest_label.clip_text = true
+	quest_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	quest_label.add_theme_font_size_override("font_size", QUEST_FONT_SIZE)
+	quest_label.add_theme_color_override("font_color", Color("e6dcc4"))
+	_quest_row.add_child(quest_label)
 	_travel_hints = PanelContainer.new()
 	_travel_hints.name = "TravelHints"
 	_travel_hints.theme = GameState.ui_theme
@@ -66,7 +89,7 @@ func _ready() -> void:
 	var shortcuts := HBoxContainer.new()
 	shortcuts.add_theme_constant_override("separation", 12)
 	_travel_hints.add_child(shortcuts)
-	for shortcut: Array in [["WASD", "移動"], ["Space", "互動"], ["I", "裝備"], ["F5", "存檔"], ["F9", "讀檔"]]:
+	for shortcut: Array in [["WASD", "移動"], ["Space", "互動"], ["Q/E", "鏡頭"], ["G", "地圖"], ["I", "裝備"], ["F5", "存檔"], ["F9", "讀檔"]]:
 		var key := Label.new()
 		key.text = shortcut[0]
 		key.custom_minimum_size.x = 26
@@ -114,7 +137,10 @@ func _ready() -> void:
 	mini_map.add_child(map_button)
 	map_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
+	# `prompt_label` is the positioned slot the field HUD reserves space for;
+	# the visible pill (key cap + action) is centred inside it.
 	prompt_label = Label.new()
+	prompt_label.name = "InteractionPrompt"
 	prompt_label.anchor_left = 0.5
 	prompt_label.anchor_top = 1.0
 	prompt_label.anchor_right = 0.5
@@ -123,44 +149,102 @@ func _ready() -> void:
 	prompt_label.offset_top = -72.0 if MobileControls.is_mobile_device() else -120.0
 	prompt_label.offset_right = 260.0
 	prompt_label.offset_bottom = -26.0 if MobileControls.is_mobile_device() else -74.0
-	prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	prompt_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	prompt_label.add_theme_color_override("font_color", Color("ffe7a8"))
-	prompt_label.add_theme_color_override("font_outline_color", Color("171326"))
-	prompt_label.add_theme_constant_override("outline_size", 8)
-	prompt_label.add_theme_font_size_override("font_size", 20)
 	prompt_label.theme = GameState.ui_theme
 	add_child(prompt_label)
+	var prompt_center := CenterContainer.new()
+	prompt_center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	prompt_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	prompt_label.add_child(prompt_center)
+	_prompt_pill = PanelContainer.new()
+	_prompt_pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var pill_style := Presentation.panel(0)
+	pill_style.bg_color = Color(0.035, 0.065, 0.10, 0.82)
+	pill_style.set_corner_radius_all(20)
+	pill_style.content_margin_left = 8
+	pill_style.content_margin_right = 18
+	pill_style.content_margin_top = 5
+	pill_style.content_margin_bottom = 5
+	_prompt_pill.add_theme_stylebox_override("panel", pill_style)
+	prompt_center.add_child(_prompt_pill)
+	var prompt_row := HBoxContainer.new()
+	prompt_row.add_theme_constant_override("separation", 10)
+	_prompt_pill.add_child(prompt_row)
+	_prompt_key = Label.new()
+	_prompt_key.text = "互動" if MobileControls.is_mobile_device() else "Space"
+	_prompt_key.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_prompt_key.add_theme_font_size_override("font_size", 14)
+	_prompt_key.add_theme_color_override("font_color", Color("241a0c"))
+	var key_style := StyleBoxFlat.new()
+	key_style.bg_color = Color("e2c07e")
+	key_style.border_color = Color("fff0c8")
+	key_style.border_width_top = 1
+	key_style.border_width_bottom = 3
+	key_style.border_color = Color("8a6a36")
+	key_style.set_corner_radius_all(14)
+	key_style.content_margin_left = 12
+	key_style.content_margin_right = 12
+	key_style.content_margin_top = 2
+	key_style.content_margin_bottom = 2
+	_prompt_key.add_theme_stylebox_override("normal", key_style)
+	prompt_row.add_child(_prompt_key)
+	_prompt_action = Label.new()
+	_prompt_action.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_prompt_action.add_theme_font_size_override("font_size", 19)
+	_prompt_action.add_theme_color_override("font_color", Color("ffe7a8"))
+	prompt_row.add_child(_prompt_action)
+	_prompt_pill.hide()
 
-	notice_label = Label.new()
-	notice_label.anchor_left = 0.5
-	notice_label.anchor_right = 0.5
-	notice_label.offset_left = -280.0
-	notice_label.offset_top = 208.0
-	notice_label.offset_right = 280.0
-	notice_label.offset_bottom = 252.0
-	notice_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	notice_label.add_theme_color_override("font_color", Color("9ef4df"))
-	notice_label.add_theme_color_override("font_outline_color", Color("171326"))
-	notice_label.add_theme_constant_override("outline_size", 8)
-	notice_label.add_theme_font_size_override("font_size", 21)
-	notice_label.theme = GameState.ui_theme
 	# Notifications must remain legible over dialogue and battle layers.
 	notices = CanvasLayer.new()
 	notices.name = "Notices"
 	notices.layer = 90
+	var notice_center := CenterContainer.new()
+	notice_center.anchor_right = 1.0
+	notice_center.anchor_top = 0.2
+	notice_center.anchor_bottom = 0.2
+	notice_center.offset_bottom = 56.0
+	notice_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	notices.add_child(notice_center)
+	_notice_banner = PanelContainer.new()
+	_notice_banner.name = "NoticeBanner"
+	_notice_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_notice_banner.theme = GameState.ui_theme
+	var banner := StyleBoxFlat.new()
+	banner.bg_color = Color(0.035, 0.065, 0.10, 0.84)
+	banner.border_color = Presentation.GOLD
+	banner.border_width_top = 1
+	banner.border_width_bottom = 1
+	banner.content_margin_left = 36
+	banner.content_margin_right = 36
+	banner.content_margin_top = 8
+	banner.content_margin_bottom = 9
+	_notice_banner.add_theme_stylebox_override("panel", banner)
+	notice_center.add_child(_notice_banner)
+	notice_label = Label.new()
+	notice_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	notice_label.add_theme_color_override("font_color", Color("9ef4df"))
+	notice_label.add_theme_font_size_override("font_size", 20)
 	notice_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	notices.add_child(notice_label)
+	_notice_banner.add_child(notice_label)
+	_notice_banner.modulate.a = 0.0
+	_notice_banner.hide()
 	for control: Node in get_children():
-		if control is Control:
+		if control is Control and control != prompt_label:
 			control.add_to_group("camera_touch_blocker")
 
 
 func layout(field_combat_active: bool) -> void:
 	var mobile: bool = MobileControls.is_mobile_device()
 	var available: float = get_viewport().get_visible_rect().size.x - (352.0 if mobile else 298.0)
-	var title_width: float = map_label.get_theme_font("font").get_string_size(map_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x + 20.0
-	_quest_panel.custom_minimum_size.x = minf(title_width, minf(300.0, maxf(100.0, available)))
+	var font: Font = map_label.get_theme_font("font")
+	var title_width: float = font.get_string_size(map_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x + 20.0
+	var cap: float = 300.0
+	if quest_label.visible:
+		title_width = maxf(title_width, font.get_string_size(quest_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, QUEST_FONT_SIZE).x + 40.0)
+		cap = MAX_QUEST_PANEL_WIDTH
+	_quest_panel.custom_minimum_size.x = minf(title_width, minf(cap, maxf(100.0, available)))
+	var marker_width: float = _quest_marker.get_minimum_size().x + float(_quest_row.get_theme_constant("separation"))
+	quest_label.custom_minimum_size.x = maxf(40.0, _quest_panel.custom_minimum_size.x - 20.0 - marker_width)
 	_quest_panel.size.x = _quest_panel.custom_minimum_size.x
 	_quest_panel.reset_size()
 	_travel_hints.visible = not mobile and GameState.mode == GameState.Mode.EXPLORE and not field_combat_active
@@ -178,19 +262,20 @@ func layout_interaction_prompt(field_panel_top: float) -> void:
 
 
 func set_prompt(prompt: String) -> void:
-	var prompt_prefix := "互動：" if MobileControls.is_mobile_device() else "Space："
-	prompt_label.text = "%s%s" % [prompt_prefix, prompt] if not prompt.is_empty() else ""
+	if prompt == _prompt_action.text and _prompt_pill.visible == not prompt.is_empty():
+		return
+	_prompt_action.text = prompt
+	_prompt_pill.visible = not prompt.is_empty()
 
 
 func refresh(field_combat_active: bool) -> void:
 	var fighting: bool = GameState.mode == GameState.Mode.BATTLE
 	mini_map.visible = not fighting
 	player_status.visible = not fighting
-	quest_label.hide()
 	_quest_panel.visible = not fighting or not MobileControls.is_mobile_device()
 	_update_mini_map_targets()
 	map_label.text = _map_title(GameState.current_map)
-	quest_label.text = GameState.get_quest_text().trim_prefix("主線：").strip_edges()
+	_show_objective(GameState.get_quest_text(), not fighting and not field_combat_active)
 	_quest_panel.tooltip_text = map_label.text + "\n" + quest_label.text
 	layout(field_combat_active)
 	player_status.display_actor({
@@ -203,13 +288,43 @@ func refresh(field_combat_active: bool) -> void:
 	player_status.tooltip_text = "Lv.%d · EXP %d / %d · 月苔 ×%d" % [GameState.player_level, GameState.player_xp, GameState.xp_to_next_level(), int(GameState.inventory.get("moon_moss", 0))]
 
 
+func _show_objective(raw: String, allowed: bool) -> void:
+	var main: bool = raw.begins_with("主線")
+	var text: String = raw.trim_prefix("主線：").strip_edges()
+	var changed: bool = not quest_label.text.is_empty() and text != quest_label.text
+	quest_label.text = text
+	_quest_marker.text = "◆" if main else "◇"
+	_quest_marker.add_theme_color_override("font_color", Color("ffd45c") if main else Color("64e6ff"))
+	quest_label.visible = allowed and not text.is_empty()
+	_quest_row.visible = quest_label.visible
+	if changed and quest_label.visible:
+		# A brief warm glow tells the player the objective just moved on.
+		if _quest_flash != null:
+			_quest_flash.kill()
+		_quest_row.modulate = Color(1.6, 1.4, 0.9)
+		_quest_flash = create_tween()
+		_quest_flash.tween_property(_quest_row, "modulate", Color.WHITE, 1.4).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+
 func show_notice(message: String) -> void:
 	_notice_generation += 1
 	var generation := _notice_generation
 	notice_label.text = message
+	if _notice_tween != null:
+		_notice_tween.kill()
+	_notice_banner.show()
+	_notice_banner.reset_size()
+	_notice_tween = create_tween()
+	_notice_tween.tween_property(_notice_banner, "modulate:a", 1.0, 0.18)
 	await get_tree().create_timer(2.6).timeout
+	if generation != _notice_generation:
+		return
+	_notice_tween = create_tween()
+	_notice_tween.tween_property(_notice_banner, "modulate:a", 0.0, 0.35)
+	await _notice_tween.finished
 	if generation == _notice_generation:
 		notice_label.text = ""
+		_notice_banner.hide()
 
 
 func _map_title(map_id: String) -> String:

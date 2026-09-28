@@ -18,6 +18,33 @@ static func panel(padding: float = 16.0) -> StyleBoxFlat:
 	style.shadow_offset = Vector2(0, 2)
 	return style
 
+## Brass window frame with crescent corner filigree (generated art, see
+## assets/generated/ui/README.md). The texture has a transparent outer rim, so
+## the expand margin puts the visible border on the control's edge.
+static func ornate_panel(padding: float = 16.0) -> StyleBoxTexture:
+	var style := StyleBoxTexture.new()
+	style.texture = preload("res://assets/generated/ui/panel_frame.png")
+	style.set_texture_margin_all(52)
+	style.set_expand_margin_all(14)
+	style.set_content_margin_all(padding + 10.0)
+	return style
+
+
+## Speaker tab: the crescent gem sits in the stretched-out left cap.
+static func nameplate() -> StyleBoxTexture:
+	var style := StyleBoxTexture.new()
+	style.texture = preload("res://assets/generated/ui/nameplate.png")
+	style.texture_margin_left = 44
+	style.texture_margin_right = 22
+	style.texture_margin_top = 14
+	style.texture_margin_bottom = 14
+	style.content_margin_left = 46
+	style.content_margin_right = 26
+	style.content_margin_top = 6
+	style.content_margin_bottom = 8
+	return style
+
+
 static func apply(theme: Theme) -> void:
 	theme.set_color("font_color", "Label", PAPER)
 	for state: String in ["normal", "hover", "pressed", "disabled", "focus"]:
@@ -38,3 +65,11 @@ static func apply(theme: Theme) -> void:
 	for state: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		theme.set_color(state, "Button", PAPER)
 	theme.set_color("font_disabled_color", "Button", Color("778592"))
+	# Dropdown lists opened from themed OptionButtons.
+	theme.set_stylebox("panel", "PopupMenu", panel(8))
+	var hover := StyleBoxFlat.new()
+	hover.bg_color = Color("243e4c")
+	hover.set_corner_radius_all(6)
+	theme.set_stylebox("hover", "PopupMenu", hover)
+	theme.set_color("font_color", "PopupMenu", PAPER)
+	theme.set_color("font_hover_color", "PopupMenu", MINT)

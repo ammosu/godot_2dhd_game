@@ -1,4 +1,5 @@
 extends AcceptDialog
+const Presentation = preload("res://scripts/ui/presentation_theme.gd")
 ## One encounter's automation choices; the combat model owns the applied values.
 signal options_confirmed(options: Dictionary)
 var auto_mode: CheckButton
@@ -14,20 +15,17 @@ func _ready() -> void:
 	dialog_close_on_escape = false
 	ok_button_text = "開始戰鬥"
 	theme = theme.duplicate()
-	var panel := StyleBoxFlat.new()
-	panel.bg_color = Color("172130")
-	panel.border_color = Color("c5ad79")
-	panel.set_border_width_all(2)
-	panel.set_content_margin_all(18)
-	theme.set_stylebox("panel", "AcceptDialog", panel)
-	var button_style := StyleBoxFlat.new()
-	button_style.bg_color = Color("38685f")
-	button_style.set_content_margin_all(12)
+	theme.set_stylebox("panel", "AcceptDialog", Presentation.ornate_panel(24))
+	# Primary action: brass-rimmed teal, brighter on hover/focus.
+	var button_style := Presentation.panel(12)
+	button_style.bg_color = Color("2f5e57")
 	get_ok_button().add_theme_stylebox_override("normal", button_style)
 	var hover: StyleBoxFlat = button_style.duplicate()
-	hover.bg_color = Color("498579")
+	hover.bg_color = Color("3f7a70")
+	hover.border_color = Presentation.MINT
 	get_ok_button().add_theme_stylebox_override("hover", hover)
 	get_ok_button().add_theme_stylebox_override("pressed", hover)
+	get_ok_button().add_theme_stylebox_override("focus", hover)
 	get_ok_button().add_theme_font_size_override("font_size", 20)
 	get_ok_button().custom_minimum_size = Vector2(180, 48)
 	var list := VBoxContainer.new()

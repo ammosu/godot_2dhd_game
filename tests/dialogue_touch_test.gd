@@ -48,6 +48,10 @@ func _run() -> void:
 	]
 	for point: Vector2 in points:
 		var before: int = dialogue._line_index
+		check(dialogue.is_revealing(), "A new page types its text in")
+		touch(point, true)
+		check(dialogue._line_index == before and not dialogue.is_revealing(), "First tap reveals the whole page at %s" % point)
+		touch(point, false)
 		touch(point, true)
 		check(dialogue._line_index == before + 1, "Tap must advance exactly once at %s" % point)
 		touch(point, false)
@@ -57,12 +61,18 @@ func _run() -> void:
 	check(dialogue._line_index == before, "Canceled touch must not advance")
 	var key := InputEventKey.new()
 	key.physical_keycode = KEY_SPACE
-	key.pressed = true
-	root.push_input(key, true)
-	check(dialogue._line_index == before + 1, "Space still advances")
-	key.pressed = false
-	root.push_input(key, true)
+	for press: int in range(2):
+		key.pressed = true
+		root.push_input(key, true)
+		key.pressed = false
+		root.push_input(key, true)
+	check(dialogue._line_index == before + 1, "Space reveals, then advances")
 	dialogue.show_dialogue([{"text": "最後一頁"}])
+	dialogue.advance()
+	check(not dialogue.is_open(), "Scripted advance skips the reveal")
+	dialogue.show_dialogue([{"text": "最後一頁"}])
+	touch(points[0], true)
+	touch(points[0], false)
 	touch(points[0], true)
 	check(not dialogue.is_open() and state.mode == state.Mode.EXPLORE, "Final tap closes dialogue")
 	touch(points[0], false)
@@ -70,5 +80,5 @@ func _run() -> void:
 	hud.queue_free()
 	await process_frame
 	if failures == 0:
-		print("DIALOGUE_TOUCH_TEST_PASS panel text hint background release cancel keyboard finish")
+		print("DIALOGUE_TOUCH_TEST_PASS panel text hint background release cancel keyboard reveal finish")
 	quit(1 if failures else 0)

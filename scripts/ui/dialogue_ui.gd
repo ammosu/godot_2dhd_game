@@ -4,6 +4,10 @@ extends CanvasLayer
 signal page_shown(index: int)
 
 const Cinematic = preload("res://scripts/ui/dialogue_cinematic.gd")
+const Presentation = preload("res://scripts/ui/presentation_theme.gd")
+const Faces = preload("res://scripts/ui/portrait_faces.gd")
+## Typewriter pace for body text; a press while revealing shows the full page.
+const REVEAL_CHARS_PER_SECOND: float = 42.0
 
 var _cinematic: Control
 var _panel: PanelContainer
@@ -17,9 +21,18 @@ var _line_index: int = 0
 var _finished_callback: Callable
 var _motion: String = ""
 var _motion_elapsed: float = 0.0
+var _reveal: Tween
+var _continue_arrow: TextureRect
+var _nameplate: PanelContainer
+var _portrait_frame: PanelContainer
+var _portrait: TextureRect
+var _arrow_time: float = 0.0
 
 
 func _process(delta: float) -> void:
+	if _root.visible and _continue_arrow.visible:
+		_arrow_time += delta
+		_continue_arrow.position.y = sin(_arrow_time * 5.0) * 3.0
 	if _motion == "awakening" and _illustration.material != null:
 		_motion_elapsed += delta
 		var opened: float = smoothstep(0.25, 1.45, _motion_elapsed)
@@ -39,6 +52,9 @@ func show_dialogue(lines: Array, finished_callback: Callable = Callable()) -> vo
 	_lines = lines.duplicate(true)
 	_line_index = 0
 	_finished_callback = finished_callback
+	if not _root.visible:
+		_root.modulate.a = 0.0
+		create_tween().tween_property(_root, "modulate:a", 1.0, 0.16)
 	_root.visible = true
 	GameState.set_mode(GameState.Mode.DIALOGUE)
 	_show_current_line()
@@ -58,6 +74,19 @@ func is_open() -> bool:
 	return _root.visible
 
 
+func is_revealing() -> bool:
+	return _reveal != null and _reveal.is_running()
+
+
+## Player input: first completes a page that is still typing, then advances.
+## Scripted callers use `advance()` directly and never wait for the reveal.
+func _press() -> void:
+	if is_revealing():
+		_complete_reveal()
+	else:
+		advance()
+
+
 func _input(event: InputEvent) -> void:
 	if not is_open() or not event is InputEventScreenTouch:
 		return
@@ -65,7 +94,7 @@ func _input(event: InputEvent) -> void:
 	# before advancing, since the last page can immediately change game mode.
 	get_viewport().set_input_as_handled()
 	if event.pressed and not event.canceled:
-		advance()
+		_press()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -75,7 +104,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		event.is_action_pressed("interact")
 		or event.is_action_pressed("ui_accept")
 	):
-		advance()
+		_press()
 		get_viewport().set_input_as_handled()
 
 
@@ -97,7 +126,12 @@ func _show_current_line() -> void:
 			material.set_shader_parameter("openness", 0.0)
 			_illustration.material = material
 	_speaker_label.text = str(line.get("speaker", ""))
+	_nameplate.visible = not _speaker_label.text.is_empty()
+	_show_portrait(Faces.speaker_face_id(_speaker_label.text))
+	_nameplate.reset_size()
+	_place_nameplate()
 	_body_label.text = str(line.get("text", ""))
+	_start_reveal()
 	if str(line.get("cinematic", "")) == "moon_memory" and _illustration.texture != null:
 		layer = 100 # Keep arrival notices behind the cinematic insert.
 		_panel.hide()
@@ -106,7 +140,44 @@ func _show_current_line() -> void:
 	page_shown.emit(_line_index)
 
 
+func _show_portrait(face_id: String) -> void:
+	_portrait_frame.visible = not face_id.is_empty()
+	if face_id.is_empty():
+		_portrait.texture = null
+		return
+	var hero: bool = face_id == "hero"
+	_portrait.texture = Faces.hero_face(GameState.player_class, GameState.player_body == "female") if hero else Faces.npc_face(face_id)
+	GameState.HeroStyle.apply_canvas(_portrait, _portrait.texture, GameState.player_style if hero else "original")
+
+
+func _place_nameplate() -> void:
+	_nameplate.global_position = _panel.global_position + Vector2(18.0, -_nameplate.size.y * 0.5)
+
+
+func _start_reveal() -> void:
+	if _reveal != null:
+		_reveal.kill()
+	_continue_arrow.hide()
+	var count: int = _body_label.get_total_character_count()
+	_body_label.visible_ratio = 0.0
+	_reveal = create_tween()
+	_reveal.tween_property(_body_label, "visible_ratio", 1.0, maxf(0.05, count / REVEAL_CHARS_PER_SECOND))
+	_reveal.finished.connect(_complete_reveal)
+
+
+func _complete_reveal() -> void:
+	if _reveal != null:
+		_reveal.kill()
+		_reveal = null
+	_body_label.visible_ratio = 1.0
+	_arrow_time = 0.0
+	_continue_arrow.show()
+
+
 func _finish_dialogue() -> void:
+	if _reveal != null:
+		_reveal.kill()
+		_reveal = null
 	_root.visible = false
 	clear_illustration()
 	GameState.set_mode(GameState.Mode.EXPLORE)
@@ -174,17 +245,51 @@ func _build_ui() -> void:
 	panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_root.add_child(panel)
 
-	var style := preload("res://scripts/ui/presentation_theme.gd").panel(22)
+	var style := Presentation.ornate_panel(16)
+	style.content_margin_top = 34.0 # Room under the speaker tab.
+	style.content_margin_right = 50.0 # Keep the arrow clear of the corner filigree.
 	panel.add_theme_stylebox_override("panel", style)
 
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 18)
+	panel.add_child(columns)
+	_portrait_frame = PanelContainer.new()
+	_portrait_frame.name = "Portrait"
+	_portrait_frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_portrait_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var portrait_style := Presentation.panel(3)
+	portrait_style.bg_color = Color("1c2f40")
+	portrait_style.set_corner_radius_all(6)
+	portrait_style.shadow_size = 0
+	_portrait_frame.add_theme_stylebox_override("panel", portrait_style)
+	columns.add_child(_portrait_frame)
+	_portrait = TextureRect.new()
+	var side: float = 84.0 if MobileControls.is_mobile_device() else 112.0
+	_portrait.custom_minimum_size = Vector2(side, side)
+	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_portrait_frame.add_child(_portrait)
+	_portrait_frame.hide()
 	var content := VBoxContainer.new()
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content.add_theme_constant_override("separation", 10)
-	panel.add_child(content)
+	columns.add_child(content)
 
+	# The speaker tab straddles the frame's top edge; top_level keeps the
+	# panel container from laying it out while it still inherits visibility.
+	_nameplate = PanelContainer.new()
+	_nameplate.name = "Nameplate"
+	_nameplate.top_level = true
+	_nameplate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_nameplate.add_theme_stylebox_override("panel", Presentation.nameplate())
+	panel.add_child(_nameplate)
+	panel.item_rect_changed.connect(_place_nameplate)
 	_speaker_label = Label.new()
-	_speaker_label.add_theme_color_override("font_color", Color("f2b866"))
-	_speaker_label.add_theme_font_size_override("font_size", 22)
-	content.add_child(_speaker_label)
+	_speaker_label.add_theme_color_override("font_color", Color("f2c46e"))
+	_speaker_label.add_theme_font_size_override("font_size", 21)
+	_nameplate.add_child(_speaker_label)
 
 	_body_label = Label.new()
 	_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -198,7 +303,25 @@ func _build_ui() -> void:
 	_hint_label.text = "點一下：繼續" if MobileControls.is_mobile_device() else "Space / Enter：繼續"
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_hint_label.add_theme_color_override("font_color", Color("b8a9bc"))
-	content.add_child(_hint_label)
+	_hint_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var footer := HBoxContainer.new()
+	footer.add_theme_constant_override("separation", 10)
+	content.add_child(footer)
+	footer.add_child(_hint_label)
+	# A plain Control slot keeps the bobbing arrow from reflowing the footer.
+	var arrow_slot := Control.new()
+	arrow_slot.custom_minimum_size = Vector2(18, 24)
+	arrow_slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	footer.add_child(arrow_slot)
+	_continue_arrow = TextureRect.new()
+	_continue_arrow.name = "ContinueArrow"
+	_continue_arrow.texture = preload("res://assets/generated/ui/continue_arrow.png")
+	_continue_arrow.size = Vector2(22, 22)
+	_continue_arrow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_continue_arrow.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_continue_arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_continue_arrow.hide()
+	arrow_slot.add_child(_continue_arrow)
 	_cinematic = Cinematic.new()
 	_cinematic.name = "CinematicInsert"
 	_root.add_child(_cinematic)
