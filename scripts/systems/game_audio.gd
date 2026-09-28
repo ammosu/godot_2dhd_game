@@ -122,7 +122,7 @@ func load_preferences() -> Error:
 	return OK
 
 
-func play_cue(cue: StringName) -> void:
+func play_cue(cue: StringName, pitch_scale: float = 1.0) -> void:
 	if not CUES.has(cue):
 		return
 	# Headless runs validate cue routing without enqueueing inaudible playback
@@ -140,6 +140,7 @@ func play_cue(cue: StringName) -> void:
 			break
 	voice.stop()
 	voice.stream = CUES[cue] as AudioStream
+	voice.pitch_scale = pitch_scale
 	voice.play()
 	_next_voice = (_next_voice + 1) % VOICE_COUNT
 	cue_played.emit(cue)

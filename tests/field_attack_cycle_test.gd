@@ -58,6 +58,9 @@ func _run() -> void:
 		field._damage_enemy(enemy, 1)
 		assert(enemy.windup == 0.0 and enemy.attack_cycle == 0 and not enemy.warning.visible)
 		field.skill_pending = false
+		# The interrupting hit froze the enemy briefly; release it before
+		# timing the walk home.
+		enemy.hit_stop = 0.0
 		# Returning home clears a partially completed combo.
 		enemy.attack_cycle = basics
 		enemy.body.position = enemy.home

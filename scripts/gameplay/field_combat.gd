@@ -14,6 +14,7 @@ const HealthBar = preload("res://scripts/gameplay/world_health_bar.gd")
 const Ring = preload("res://scripts/gameplay/combat_ground_ring.gd")
 const DeathEffect = preload("res://scripts/gameplay/enemy_death_effect.gd")
 const Effect = preload("res://scripts/gameplay/world_combat_effect.gd")
+const HitFeedback = preload("res://scripts/gameplay/hit_feedback.gd")
 const SPAWNS: Array[Dictionary] = [
 	{"id": "road_wolf_west", "at": Vector3(-4, 0.05, 10), "caster": false},
 	{"id": "road_wolf_ramp", "at": Vector3(2, 0.41, 10.5), "caster": false, "elite": true},
@@ -45,6 +46,8 @@ var dodge_time: float = 0.0
 var invulnerable: float = 0.0
 var windup: float = 0.0
 var swing: float = 0.0
+## Melee attacker freeze after a landed hit; ranged classes keep moving.
+var hit_stop: float = 0.0
 var skill_pending: bool = false
 var skill_target: Dictionary = {}
 var facing := Vector3.FORWARD
@@ -58,13 +61,14 @@ var _hud: Control
 var _buttons: Dictionary[String, Button] = {}
 var _focus_paused: bool = false
 var _previous_camera_distance: float = 11.0
+var _rig: Hd2dCameraRig
 
 func _ready() -> void:
 	if build_terrain:
 		Terrain.build(self)
-	var rig := player.get_parent().get_node("CameraRig")
-	_previous_camera_distance = float(rig.get("_distance"))
-	rig.set("_distance", camera_distance)
+	_rig = player.get_parent().get_node("CameraRig") as Hd2dCameraRig
+	_previous_camera_distance = float(_rig.get("_distance"))
+	_rig.set("_distance", camera_distance)
 	player.set("field_combat", self)
 	_hero_sprite = _sprite(player)
 	_update_hero_art()
@@ -135,12 +139,12 @@ func _spawn_enemy(spawn: Dictionary) -> void:
 		"attack_interval": 1.1 if bat else 1.7 if spawn.caster else 1.25 if elite else 1.35, "hp": hp, "max_hp": hp,
 		"last_seen": spawn.at, "lost_sight": 0.0, "target_visible": false,
 		"home": spawn.at, "state": "patrol", "facing": Vector3.FORWARD, "hurt": 0.0,
-		"cooldown": 0.7, "windup": 0.0, "swing": 0.0, "aim": Vector3.ZERO,
+		"cooldown": 0.7, "windup": 0.0, "hit_stop": 0.0, "flash": 0.0, "swing": 0.0, "aim": Vector3.ZERO,
 		"path": PackedVector3Array(), "repath": 0.0, "patrol": 1.0})
 
 func movement_velocity(requested: Vector3, delta: float = 0.0, manual_facing: Vector3 = Vector3.ZERO) -> Vector3:
 	_locomotion_requested = false
-	if _focus_paused:
+	if _focus_paused or hit_stop > 0.0:
 		return Vector3.ZERO
 	if not requested.is_zero_approx():
 		automation.set_enabled(false, self)
@@ -191,6 +195,8 @@ func perform(action: String, automated: bool = false) -> bool:
 		if dodge_cooldown > 0:
 			return false
 		dodge_direction = facing
+		# Dodging always cancels the attacker's hit stop.
+		hit_stop = 0.0
 		dodge_time = 0.22
 		invulnerable = 0.30
 		dodge_cooldown = float(GameState.class_profile().dodge)
@@ -259,12 +265,17 @@ func _physics_process(delta: float) -> void:
 	if not ready_for_combat or not active:
 		return
 	clock += delta
+	_rig.advance_combat_feedback(delta)
+	# Hit stop holds the attacker's swing pose and footing; cooldowns keep
+	# running so the freeze adds weight without adding input latency.
+	var unheld: float = HitFeedback.after_stop(hit_stop, delta)
+	hit_stop = maxf(0.0, hit_stop - delta)
 	attack_cooldown = maxf(0, attack_cooldown - delta)
 	skill_cooldown = maxf(0, skill_cooldown - delta)
 	dodge_cooldown = maxf(0, dodge_cooldown - delta)
 	dodge_time = maxf(0, dodge_time - delta)
 	invulnerable = maxf(0, invulnerable - delta)
-	swing = maxf(0, swing - delta)
+	swing = maxf(0, swing - unheld)
 	if windup > 0:
 		windup = maxf(0, windup - delta)
 		if windup == 0:
@@ -338,6 +349,7 @@ func _strike() -> void:
 	if GameState.player_class != "archer":
 		_effect(effect, skill_target.body.global_position if not skill_target.is_empty() else aim if ranged else origin, float(profile.radius) if skill_pending else radius, attack_direction)
 	GameAudio.play_cue(StringName(profile.cue) if skill_pending else &"spear_thrust" if GameState.player_class == "archer" else &"moon_bolt" if ranged else &"slash")
+	var landed: bool = false
 	for enemy: Dictionary in enemies:
 		var at: Vector3 = enemy.body.global_position
 		var offset: Vector3 = at - origin
@@ -363,6 +375,10 @@ func _strike() -> void:
 				var chill := _effect("chill", at, 0.6)
 				chill.follow_target = enemy.body
 			_damage_enemy(enemy, damage)
+			landed = true
+	# One impact per swing, however many targets an area skill catches.
+	if landed:
+		GameAudio.play_cue(HitFeedback.impact_cue(GameState.player_class), HitFeedback.impact_pitch())
 
 func _damage_enemy(enemy: Dictionary, damage: int) -> void:
 	if int(enemy.hp) <= 0:
@@ -370,6 +386,13 @@ func _damage_enemy(enemy: Dictionary, damage: int) -> void:
 	Awareness.engage(self, enemy)
 	enemy.hp = maxi(0, int(enemy.hp) - damage)
 	enemy.hurt = 0.25
+	var lethal: bool = int(enemy.hp) == 0
+	var stop: float = HitFeedback.stop_time(damage, int(enemy.max_hp), skill_pending, lethal)
+	enemy.hit_stop = maxf(float(enemy.get("hit_stop", 0.0)), stop)
+	enemy.flash = stop + HitFeedback.FLASH_TIME
+	if not bool(GameState.class_profile().ranged):
+		hit_stop = maxf(hit_stop, stop)
+	_rig.add_combat_impact(HitFeedback.shake_strength(damage, int(enemy.max_hp), skill_pending, lethal))
 	# Light enemies stagger to basic hits; fighters/casters require a skill.
 	# Recovery also prevents fast attacks from permanently suppressing a bat.
 	var interrupt: bool = (enemy.art == "dusk_bat" or skill_pending) and float(enemy.get("stagger_cooldown", 0.0)) <= 0.0
@@ -396,6 +419,14 @@ func _damage_enemy(enemy: Dictionary, damage: int) -> void:
 
 func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 	var body: CharacterBody3D = enemy.body
+	enemy.flash = maxf(0.0, float(enemy.get("flash", 0.0)) - delta)
+	if int(enemy.hp) > 0 and float(enemy.get("hit_stop", 0.0)) > 0.0:
+		var unheld: float = HitFeedback.after_stop(float(enemy.hit_stop), delta)
+		enemy.hit_stop = maxf(0.0, float(enemy.hit_stop) - delta)
+		if unheld <= 0.0:
+			_hold_enemy(enemy)
+			return
+		delta = unheld
 	var at: Vector3 = body.global_position
 	enemy.stagger_cooldown = maxf(0.0, float(enemy.get("stagger_cooldown", 0.0)) - delta)
 	enemy.hurt = maxf(0, float(enemy.hurt) - delta)
@@ -405,6 +436,9 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 	if int(enemy.hp) <= 0:
 		_art(enemy.sprite, enemy.art, "defeated", enemy.facing)
 		enemy.presentation.advance(clock, "defeated", 0.0, 0.0, 0.0)
+		enemy.sprite.position.x = 0.0
+		enemy.sprite.position.z = 0.0
+		HitFeedback.apply_flash(enemy.sprite, 0.0)
 		enemy.label.hide()
 		return
 	Awareness.update(self, enemy, delta)
@@ -460,7 +494,22 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 		pose = ["walk_a", "idle", "walk_b", "idle"][int(clock * 10.0) % 4]
 	_art(enemy.sprite, enemy.art, pose, enemy.facing)
 	enemy.presentation.advance(clock, pose, float(enemy.hurt), float(enemy.windup) if enemy.charged_attack else 0.0, float(enemy.swing))
+	enemy.sprite.position.x = 0.0
+	enemy.sprite.position.z = 0.0
+	HitFeedback.apply_flash(enemy.sprite, float(enemy.flash) / 0.03)
 	enemy.label.text = str(enemy.title) + ("  !" if enemy.state == "chase" else "  ↩" if enemy.state == "return" else "")
+
+## Frozen on contact: hold the hurt pose, flash white and shiver in place.
+func _hold_enemy(enemy: Dictionary) -> void:
+	var body: CharacterBody3D = enemy.body
+	body.velocity = Vector3.ZERO
+	enemy.bar.set_health(enemy.hp, enemy.max_hp)
+	_art(enemy.sprite, enemy.art, "hurt", enemy.facing)
+	enemy.presentation.advance(clock, "hurt", float(enemy.hurt), 0.0, 0.0)
+	var shiver: Vector3 = HitFeedback.tremor(float(enemy.hit_stop), get_viewport().get_camera_3d())
+	enemy.sprite.position.x = shiver.x
+	enemy.sprite.position.z = shiver.z
+	HitFeedback.apply_flash(enemy.sprite, 1.0)
 
 func _enemy_strike(enemy: Dictionary) -> void:
 	enemy.warning.hide()
@@ -475,6 +524,8 @@ func _enemy_strike(enemy: Dictionary) -> void:
 		var damage: int = maxi(1, power - GameState.player_defense)
 		GameState.damage_player(damage)
 		invulnerable = 0.45
+		GameAudio.play_cue(&"impact", HitFeedback.impact_pitch() * 0.85)
+		_rig.add_combat_impact(0.08 if enemy.charged_attack else 0.05)
 		_number(player.global_position, "−%d" % damage, Color("ff9985"))
 		if GameState.player_hp == 0:
 			GameState.restore_after_defeat()
@@ -706,6 +757,8 @@ func _exit_tree() -> void:
 		var rig := player.get_parent().get_node_or_null("CameraRig")
 		if is_instance_valid(rig):
 			rig.set("_distance", _previous_camera_distance)
+			# Finish any shake so no offset lingers into the next map.
+			rig.call("advance_combat_feedback", 1.0)
 		if player.get("field_combat") == self:
 			player.set("field_combat", null)
 		player.get_node("Sprite3D").show()
