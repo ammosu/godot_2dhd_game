@@ -13,17 +13,20 @@ func _initialize() -> void:
 func _run() -> void:
 	var output: String = ""
 	var vocation: String = ""
+	var body: String = "male"
 	for argument: String in OS.get_cmdline_user_args():
 		if argument.begins_with("--capture-dir="):
 			output = argument.trim_prefix("--capture-dir=")
 		if argument.begins_with("--class="):
 			vocation = argument.trim_prefix("--class=")
+		if argument.begins_with("--body="):
+			body = argument.trim_prefix("--body=")
 	if DisplayServer.get_name() == "headless" or not DirAccess.dir_exists_absolute(output):
 		push_error("Requires actual renderer and existing --capture-dir directory")
 		quit(1)
 		return
-	if not vocation.is_empty():
-		root.get_node("GameState").call("reset_new_game", false, vocation)
+	if not vocation.is_empty() or body != "male":
+		root.get_node("GameState").call("reset_new_game", false, "traveler" if vocation.is_empty() else vocation, "original", body)
 	var stage := Node3D.new()
 	root.add_child(stage)
 	var environment := WorldEnvironment.new()
@@ -73,7 +76,7 @@ func _run() -> void:
 	for frame: int in range(10):
 		await process_frame
 	await RenderingServer.frame_post_draw
-	var prefix := "player" if vocation.is_empty() else vocation
+	var prefix := ("player" if vocation.is_empty() else vocation) + ("" if body == "male" else "-" + body)
 	var path := output.path_join("%s-walk-%s.png" % [prefix, RenderingServer.get_current_rendering_method()])
 	var error := root.get_texture().get_image().save_png(path)
 	stage.free()

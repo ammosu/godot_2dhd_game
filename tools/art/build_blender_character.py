@@ -42,10 +42,16 @@ def opaque_box(image: Image.Image) -> tuple:
     return image.getchannel("A").point(lambda a: 255 if a >= 64 else 0).getbbox()
 
 
+def style_sheets(name: str) -> list:
+    """Painted sheets named by the character's style_sheets (4 x 4 grids) or style_cells."""
+    meta = character_meta(name)
+    return list(meta.get("style_sheets", {})) or sorted({sheet for sheet, _ in meta["style_cells"].values()})
+
+
 def painted_palette(name: str, colours: int = PALETTE_COLOURS) -> Image.Image:
     """Median-cut palette of the character's painted sheets (opaque pixels)."""
     pixels = []
-    for sheet in character_meta(name)["style_sheets"]:
+    for sheet in style_sheets(name):
         pixels += [p[:3] for p in Image.open(ROOT / sheet).convert("RGBA").getdata() if p[3] >= 200]
     strip = Image.new("RGB", (len(pixels), 1))
     strip.putdata(pixels)

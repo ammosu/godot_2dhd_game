@@ -1,0 +1,78 @@
+{
+  "_comment": "style_cells: painted standing sprite per facing as [sheet, [x, y, w, h]] (alpha bounds from assets/generated/town/regions.gd; facings without diagonal art borrow the nearest cardinal). These sheets also define the palette.",
+  "style_cells": {
+    "down": [
+      "assets/generated/town/female_traveler.png",
+      [
+        39,
+        52,
+        145,
+        273
+      ]
+    ],
+    "right": [
+      "assets/generated/town/female_traveler.png",
+      [
+        26,
+        369,
+        159,
+        273
+      ]
+    ],
+    "up": [
+      "assets/generated/town/female_traveler.png",
+      [
+        39,
+        685,
+        145,
+        264
+      ]
+    ],
+    "left": [
+      "assets/generated/town/female_traveler.png",
+      [
+        48,
+        990,
+        155,
+        271
+      ]
+    ],
+    "down_left": [
+      "assets/generated/town/female_traveler_diagonal.png",
+      [
+        88,
+        23,
+        210,
+        350
+      ]
+    ],
+    "down_right": [
+      "assets/generated/town/female_traveler_diagonal.png",
+      [
+        461,
+        23,
+        210,
+        350
+      ]
+    ],
+    "up_left": [
+      "assets/generated/town/female_traveler_diagonal.png",
+      [
+        800,
+        22,
+        205,
+        351
+      ]
+    ],
+    "up_right": [
+      "assets/generated/town/female_traveler_diagonal.png",
+      [
+        1153,
+        24,
+        211,
+        349
+      ]
+    ]
+  },
+  "identity": "a chibi young woman traveler with empty hands: long silver-grey hair tied in a high ponytail with a navy hair tie, side locks framing the face, large warm brown eyes, a short navy-blue coat with cream trim, brown leather strap and belt with a gold buckle, cream sleeve bands and brown gloves, dark leggings, tall brown boots"
+}

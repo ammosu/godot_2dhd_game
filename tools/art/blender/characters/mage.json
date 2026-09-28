@@ -1,0 +1,78 @@
+{
+  "_comment": "style_cells: painted standing sprite per facing as [sheet, [x, y, w, h]] (alpha bounds from assets/generated/town/regions.gd; facings without diagonal art borrow the nearest cardinal). These sheets also define the palette.",
+  "style_cells": {
+    "down": [
+      "assets/generated/town/mage.png",
+      [
+        52,
+        60,
+        152,
+        252
+      ]
+    ],
+    "right": [
+      "assets/generated/town/mage.png",
+      [
+        45,
+        371,
+        149,
+        254
+      ]
+    ],
+    "up": [
+      "assets/generated/town/mage.png",
+      [
+        46,
+        679,
+        151,
+        253
+      ]
+    ],
+    "left": [
+      "assets/generated/town/mage.png",
+      [
+        54,
+        983,
+        155,
+        254
+      ]
+    ],
+    "down_left": [
+      "assets/generated/town/mage.png",
+      [
+        52,
+        60,
+        152,
+        252
+      ]
+    ],
+    "down_right": [
+      "assets/generated/town/mage.png",
+      [
+        52,
+        60,
+        152,
+        252
+      ]
+    ],
+    "up_left": [
+      "assets/generated/town/mage.png",
+      [
+        54,
+        983,
+        155,
+        254
+      ]
+    ],
+    "up_right": [
+      "assets/generated/town/mage.png",
+      [
+        45,
+        371,
+        149,
+        254
+      ]
+    ]
+  },
+  "identity": "a chibi young mage with empty hands: soft messy silver-grey hair with painted highlights, large warm brown eyes, a pale silver-white hooded scarf around the neck, a long navy-blue robe reaching the ankles with white trim, small gold star embroidery and an ice-blue snowflake brooch on the chest, wide navy sleeves with white cuffs, dark gloves, a brown belt, navy-blue shoes; no staff"
+}

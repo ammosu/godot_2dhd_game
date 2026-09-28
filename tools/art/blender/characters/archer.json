@@ -1,0 +1,78 @@
+{
+  "_comment": "style_cells: painted standing sprite per facing as [sheet, [x, y, w, h]] (alpha bounds from assets/generated/town/regions.gd); these sheets also define the palette.",
+  "style_cells": {
+    "down": [
+      "assets/generated/town/archer.png",
+      [
+        40,
+        51,
+        157,
+        266
+      ]
+    ],
+    "right": [
+      "assets/generated/town/archer.png",
+      [
+        43,
+        367,
+        155,
+        271
+      ]
+    ],
+    "up": [
+      "assets/generated/town/archer.png",
+      [
+        46,
+        690,
+        153,
+        264
+      ]
+    ],
+    "left": [
+      "assets/generated/town/archer.png",
+      [
+        53,
+        996,
+        150,
+        267
+      ]
+    ],
+    "down_left": [
+      "assets/generated/town/archer_diagonal.png",
+      [
+        114,
+        31,
+        188,
+        341
+      ]
+    ],
+    "down_right": [
+      "assets/generated/town/archer_diagonal.png",
+      [
+        447,
+        31,
+        209,
+        341
+      ]
+    ],
+    "up_left": [
+      "assets/generated/town/archer_diagonal.png",
+      [
+        828,
+        33,
+        213,
+        339
+      ]
+    ],
+    "up_right": [
+      "assets/generated/town/archer_diagonal.png",
+      [
+        1157,
+        32,
+        206,
+        340
+      ]
+    ]
+  },
+  "identity": "a chibi young archer with empty hands: soft messy silver-grey hair with painted highlights, large warm brown eyes, forest-green short hooded capelet over the shoulders, forest-green tunic reaching mid-thigh with a cream hem, two brown leather straps crossing on the chest, brown belt with a gold buckle, short green sleeves with cream bands at the upper arm, large brown leather gloves up to the elbows, dark trousers, tall brown boots, and a brown leather quiver of white-fletched arrows slung diagonally across the back with the arrows over the right shoulder; no sword, no scarf, no satchel"
+}

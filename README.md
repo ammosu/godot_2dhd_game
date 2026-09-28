@@ -158,12 +158,12 @@ python3 tools/run_tests.py --gpu                    # 另以視窗執行 GPU 測
 直接試玩裝備畫面：`godot --path . -- --equipment-preview`。
 
 Blender 骨架角色：`tools/art/blender/rig_common.py` 是共用的 Q 版骨架、卡通材質、行走姿勢與固定正交鏡頭，
-各角色外觀放在 `tools/art/blender/characters/<名稱>.py`（畫風參考圖與外觀描述在同名 `.json`）。
-`python3 tools/art/build_blender_character.py wanderer`（需 Blender 5.x 與 Pillow）渲染八方向 × 四幀、套用原圖 32 色調色盤並對齊 y=316，
+旅人、弓手、盜賊、法師與四位女主角的外觀放在 `tools/art/blender/characters/<名稱>.py`（畫風參考圖與外觀描述在同名 `.json`）。
+`python3 tools/art/build_blender_character.py <名稱>`（需 Blender 5.x 與 Pillow）渲染八方向 × 四幀、套用原圖 32 色調色盤並對齊 y=316，
 並把骨架實測步幅寫入每幀 `step_length`，`player.gd` 依此換格，腳步不打滑。
-`python3 tools/art/paint_blender_character.py wanderer` 每個方向呼叫一次 Codex ImageGen，依原圖同方向站姿重繪，再依渲染幀對齊
-（流程與提示詞見 [PAINTOVER.md](assets/generated/blender/wanderer/PAINTOVER.md)）。
-試玩：`godot --path . -- --village-preview --blender-hero=painted`（重繪版）或 `--blender-hero`（原始渲染）；只替換探索行走圖，開門、戰鬥與職業外觀不變。
+`python3 tools/art/paint_blender_character.py <名稱>` 每個方向呼叫一次 Codex ImageGen，依原圖同方向站姿重繪，再依渲染幀對齊
+（流程與提示詞見 [assets/generated/blender/README.md](assets/generated/blender/README.md)）。
+試玩：`godot --path . -- --village-preview --blender-hero=painted`（重繪版）或 `--blender-hero`（原始渲染），依目前職業選用對應圖集，沒有圖集的沿用原圖；只替換探索行走圖，開門與戰鬥圖不變。
 
 原版畫風的分層換裝測試：`godot --path . scenes/layered_equipment_lab.tscn`。
 旅人、諾亞、長老各以五張共用圖層組合兩武器、兩防具與四個戰鬥姿勢，共 48 組；1／2／3 切換角色，E 拆層。

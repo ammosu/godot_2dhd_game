@@ -505,7 +505,7 @@ Run `godot --headless --path . --script tests/street_lantern_test.gd`.
 Expected: `STREET_LANTERN_TEST_PASS shared_meshes grounded outward_panes unchanged_light`.
 Checks mesh sharing, ground contact, outward pane normals and preserved lighting.
 
-八方向斜走：`player_art_test.gd` 另驗證雙鍵輸入、等速斜走、停止保留斜向、八個鏡頭角度。`equipment_replacement_test.gd` 涵蓋四套裝備的 128 個畫格。`player_motion_capture.gd` 現輸出 32 個實際玩家姿勢；用 `--capture-dir=/existing/path` 指定輸出位置，需實際 renderer。素材與提示詞見 `assets/generated/DIAGONAL_WALK.md`。
+八方向斜走：`player_art_test.gd` 另驗證雙鍵輸入、等速斜走、停止保留斜向、八個鏡頭角度。`equipment_replacement_test.gd` 涵蓋四套裝備的 128 個畫格。`player_motion_capture.gd` 現輸出 32 個實際玩家姿勢；用 `--capture-dir=/existing/path` 指定輸出位置，需實際 renderer；可加 `--class=<職業>`、`--body=female` 與 `--blender-hero[=painted]` 檢視各職業與 Blender 圖集。素材與提示詞見 `assets/generated/DIAGONAL_WALK.md`。
 
 ### 對話轉身
 

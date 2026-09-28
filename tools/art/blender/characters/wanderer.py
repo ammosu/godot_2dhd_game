@@ -13,7 +13,8 @@ PALETTE = {
     "sheath": (0.16, 0.17, 0.21), "brow": (0.42, 0.39, 0.42), "mouth": (0.62, 0.34, 0.28),
 }
 
-def build_limbs(b):
+def build_legs(b):
+    """Dark trousers and tall cuffed boots, shared by the traveler's classes."""
     for side, sx in (("L", 1.0), ("R", -1.0)):
         x = 0.085 * sx
         b.segment(f"thigh_{side}", f"thigh.{side}", "pants", (x, 0, 0.47), (x, 0, 0.27), 0.07, 0.06)
@@ -23,6 +24,10 @@ def build_limbs(b):
         b.segment(f"boot_cuff_{side}", f"shin.{side}", "leather", (x, 0, 0.245), (x, 0, 0.195), 0.078, 0.075)
         b.sphere(f"boot_foot_{side}", f"foot.{side}", "boot", (x, -0.04, 0.05), (0.072, 0.115, 0.052))
         b.sphere(f"boot_sole_{side}", f"foot.{side}", "leather_dark", (x, -0.04, 0.016), (0.074, 0.118, 0.018), outline=0.7)
+
+
+def build_arms(b):
+    for side, sx in (("L", 1.0), ("R", -1.0)):
         # Puffed teal sleeve, thick cream band, leather bracer, bare fist.
         b.sphere(f"shoulder_{side}", f"upper_arm.{side}", "coat", (0.19 * sx, 0, 0.775), (0.088, 0.085, 0.08))
         b.segment(f"sleeve_{side}", f"upper_arm.{side}", "coat", (0.20 * sx, 0, 0.80), (0.222 * sx, 0, 0.645), 0.077, 0.074)
@@ -32,7 +37,8 @@ def build_limbs(b):
         b.sphere(f"fist_{side}", f"forearm.{side}", "skin", (0.236 * sx, -0.012, 0.49), (0.062, 0.062, 0.064))
 
 
-def build_coat(b):
+def build_coat(b, scarf=True, gear=True):
+    """Open-front coat; `scarf` adds the bulky scarf, `gear` the satchel and sword."""
     b.segment("neck", "chest", "skin", (0, 0, 0.84), (0, 0, 0.93), 0.06)
     b.segment("belly", "spine", "coat", (0, 0, 0.46), (0, 0, 0.71), 0.166, 0.176)
     b.sphere("chest", "chest", "coat", (0, 0, 0.72), (0.205, 0.158, 0.15))
@@ -57,6 +63,13 @@ def build_coat(b):
     b.segment("strap_back", "chest", "leather", (-0.14, 0.152, 0.81), (0.15, 0.17, 0.52), 0.02, outline=0.6, segments=4, scale_x=1.5)
     b.sphere("hood", "chest", "coat", (0, 0.12, 0.84), (0.2, 0.1, 0.1))
     b.sphere("hood_lining", "chest", "cream", (0, 0.105, 0.87), (0.16, 0.07, 0.06), outline=0.5)
+    if scarf:
+        build_scarf(b)
+    if gear:
+        build_gear(b)
+
+
+def build_scarf(b):
     # Bulky scarf: two wraps high on the neck, tails at the front and back.
     b.torus("scarf_low", "chest", "cream", (0, -0.005, 0.81), 0.13, 0.066, scale=(1.0, 0.95, 1.1))
     b.torus("scarf_high", "chest", "cream", (0, 0.0, 0.865), 0.105, 0.05, scale=(1.0, 0.95, 1.0))
@@ -64,6 +77,9 @@ def build_coat(b):
     b.sphere("scarf_tail", "chest", "cream", (-0.055, -0.19, 0.69), (0.058, 0.026, 0.1), segments=12)
     b.segment("scarf_fringe", "chest", "tunic", (-0.055, -0.196, 0.61), (-0.058, -0.2, 0.585), 0.05, outline=0.5, segments=4, scale_x=0.5)
     b.segment("scarf_back", "chest", "cream", (-0.08, 0.16, 0.86), (-0.1, 0.19, 0.64), 0.06, 0.066, outline=0.8, segments=4, scale_x=0.35)
+
+
+def build_gear(b):
     # Satchel behind the left hip, sword at the left hip with the hilt forward.
     b.sphere("satchel", "hips", "leather", (0.12, 0.21, 0.46), (0.09, 0.05, 0.08), segments=10)
     b.segment("satchel_flap", "hips", "boot", (0.12, 0.255, 0.53), (0.12, 0.262, 0.46), 0.064, outline=0.6, segments=4, scale_x=1.4)
@@ -75,7 +91,8 @@ def build_coat(b):
     b.sphere("pommel", "hips", "gold", (0.155, -0.19, 0.595), (0.028, 0.028, 0.028), segments=10)
 
 
-def build_head(b):
+def build_face(b, lashes=1.0):
+    """Skin, ears and the large round eyes shared by every traveler variant."""
     b.sphere("head", "head", "skin", (0, 0, 1.08), (0.235, 0.215, 0.215), segments=20)
     for side, sx in (("L", 1.0), ("R", -1.0)):
         b.sphere(f"ear_{side}", "head", "skin", (0.228 * sx, 0.0, 1.05), (0.03, 0.045, 0.055), outline=0.7)
@@ -83,11 +100,15 @@ def build_head(b):
         b.sphere(f"iris_{side}", "head", "iris", (0.085 * sx, -0.198, 1.035), (0.038, 0.014, 0.05), outline=0.0, segments=12)
         b.sphere(f"pupil_{side}", "head", "pupil", (0.085 * sx, -0.203, 1.03), (0.022, 0.012, 0.03), outline=0.0, segments=10)
         b.sphere(f"glint_{side}", "head", "white", (0.074 * sx, -0.212, 1.05), (0.012, 0.006, 0.014), outline=0.0, segments=8)
-        b.segment(f"lash_{side}", "head", "lash", (0.042 * sx, -0.208, 1.08), (0.13 * sx, -0.186, 1.072), 0.011, outline=0.0, segments=4, scale_x=1.6)
+        b.segment(f"lash_{side}", "head", "lash", (0.042 * sx, -0.208, 1.08), (0.13 * sx, -0.186, 1.072), 0.011 * lashes, outline=0.0, segments=4, scale_x=1.6)
         b.segment(f"brow_{side}", "head", "brow", (0.05 * sx, -0.205, 1.14), (0.125 * sx, -0.19, 1.135), 0.007, outline=0.0, segments=4, scale_x=1.7)
         b.sphere(f"blush_{side}", "head", "blush", (0.13 * sx, -0.178, 0.99), (0.022, 0.008, 0.009), outline=0.0, segments=8)
     b.segment("mouth", "head", "mouth", (-0.018, -0.214, 0.955), (0.018, -0.214, 0.955), 0.006, outline=0.0, segments=4, scale_x=1.4)
-    # Hair: a cap set high and back so the face stays clear, then messy locks.
+
+
+def build_head(b):
+    """Face and silver hair, shared by the traveler's classes."""
+    build_face(b)
     # Hair: a full rounded volume set high and back so the face stays clear,
     # with pointed locks lying on it that make the jagged painted silhouette.
     b.sphere("hair_cap", "head", "hair", (0, 0.045, 1.165), (0.262, 0.248, 0.2), segments=24)
@@ -124,6 +145,7 @@ def build_head(b):
 
 
 def build(b):
-    build_limbs(b)
+    build_legs(b)
+    build_arms(b)
     build_coat(b)
     build_head(b)

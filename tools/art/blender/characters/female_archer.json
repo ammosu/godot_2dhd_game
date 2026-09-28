@@ -1,0 +1,78 @@
+{
+  "_comment": "style_cells: painted standing sprite per facing as [sheet, [x, y, w, h]] (alpha bounds from assets/generated/town/regions.gd; facings without diagonal art borrow the nearest cardinal). These sheets also define the palette.",
+  "style_cells": {
+    "down": [
+      "assets/generated/town/female_archer.png",
+      [
+        44,
+        31,
+        153,
+        271
+      ]
+    ],
+    "right": [
+      "assets/generated/town/female_archer.png",
+      [
+        29,
+        340,
+        164,
+        276
+      ]
+    ],
+    "up": [
+      "assets/generated/town/female_archer.png",
+      [
+        44,
+        655,
+        150,
+        265
+      ]
+    ],
+    "left": [
+      "assets/generated/town/female_archer.png",
+      [
+        48,
+        955,
+        173,
+        283
+      ]
+    ],
+    "down_left": [
+      "assets/generated/town/female_archer.png",
+      [
+        44,
+        31,
+        153,
+        271
+      ]
+    ],
+    "down_right": [
+      "assets/generated/town/female_archer.png",
+      [
+        44,
+        31,
+        153,
+        271
+      ]
+    ],
+    "up_left": [
+      "assets/generated/town/female_archer.png",
+      [
+        48,
+        955,
+        173,
+        283
+      ]
+    ],
+    "up_right": [
+      "assets/generated/town/female_archer.png",
+      [
+        29,
+        340,
+        164,
+        276
+      ]
+    ]
+  },
+  "identity": "a chibi young woman archer with empty hands: long silver-grey hair tied in a high ponytail with a green hair tie, side locks framing the face, large warm brown eyes, forest-green short hooded capelet, forest-green tunic with a cream hem, two brown leather straps crossing on the chest, brown belt with a gold buckle, cream sleeve bands, large brown gloves, dark leggings, tall brown boots, and a brown quiver of white-fletched arrows across the back"
+}

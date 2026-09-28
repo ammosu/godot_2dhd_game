@@ -15,14 +15,14 @@ const Footsteps = preload("res://scripts/gameplay/footsteps.gd")
 const EquipmentAppearance = preload("res://scripts/gameplay/equipment_appearance.gd")
 const DoorActionArt = preload("res://scripts/gameplay/door_action_art.gd")
 const TownAppearance = preload("res://scripts/gameplay/town_appearance.gd")
+const ClassArt = preload("res://scripts/gameplay/class_art.gd")
 const CONVERSATION_DISTANCE: float = 1.35
 const MovementFacing = preload("res://scripts/gameplay/movement_facing.gd")
-## Developer previews of the Blender-rigged traveler (tools/art/build_blender_wanderer_frames.py):
-## `-- --blender-hero` shows the raw render, `-- --blender-hero=painted` the repaint over it.
-const RENDERED_WALKS: Dictionary[String, String] = {
-	"--blender-hero": "res://assets/generated/blender/wanderer/walk_frames.tres",
-	"--blender-hero=painted": "res://assets/generated/blender/wanderer/painted_frames.tres",
-}
+## Developer preview of Blender-rigged walking art (tools/art/build_blender_character.py):
+## `-- --blender-hero` shows the raw render of the current class, `-- --blender-hero=painted`
+## the repaint over it. Classes without such an atlas keep their usual art.
+const RENDERED_WALK_FLAGS: Dictionary[String, String] = {"--blender-hero": "walk", "--blender-hero=painted": "painted"}
+const RENDERED_WALK_PATH := "res://assets/generated/blender/%s/%s_frames.tres"
 
 # Locomotion tuning. The four-frame walk cycle [pass, contact, pass, contact]
 # holds two steps, so the phase advances one frame per half step of ground.
@@ -136,10 +136,12 @@ func presentation_height() -> float:
 	return Proportions.HEIGHT * _presentation_scale
 
 
-static func _rendered_walk_path() -> String:
+static func _rendered_walk_path(loadout: Dictionary) -> String:
 	for flag: String in OS.get_cmdline_user_args():
-		if RENDERED_WALKS.has(flag):
-			return RENDERED_WALKS[flag]
+		if RENDERED_WALK_FLAGS.has(flag):
+			var vocation := ClassArt.vocation(loadout)
+			var path := RENDERED_WALK_PATH % ["wanderer" if vocation.is_empty() else vocation, RENDERED_WALK_FLAGS[flag]]
+			return path if ResourceLoader.exists(path) else ""
 	return ""
 
 
@@ -147,7 +149,7 @@ func _refresh_equipment() -> void:
 	_refresh_style()
 	var loadout := GameState.get_visual_loadout()
 	var town := TownAppearance.applies(GameState.current_map, loadout)
-	var rendered := _rendered_walk_path() if _door_pose < 0 else ""
+	var rendered := _rendered_walk_path(loadout) if _door_pose < 0 else ""
 	var key := EquipmentAppearance.variant(loadout) + (":town" if town else "") + (":door" if _door_pose >= 0 else "") + rendered
 	if key == _appearance_key:
 		return

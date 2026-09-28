@@ -44,7 +44,7 @@ PROMPT = """Use your built-in image generation tool to create ONE image, then sa
 
 Image generation prompt (pass both attached images as references: image 1 = pose guide, image 2 = identity and style):
 
-Use case: pose-locked repaint of a game walking animation. Image 1 is the POSE GUIDE: a 2x2 sheet of four 3D-rendered frames of one chibi character, all in the same facing: {facing}. Top-left: passing pose, left foot planted, right leg lifting slightly. Top-right: contact pose, right foot forward on its heel, left foot behind on its toes. Bottom-left: passing pose, right foot planted, left leg lifting slightly. Bottom-right: contact pose, left foot forward on its heel, right foot behind on its toes. Arms swing opposite to the legs. Image 2 is the IDENTITY AND STYLE reference: the game's existing hand-painted pixel-art sprite of the SAME character standing in this same facing.
+Use case: pose-locked repaint of a game walking animation. Image 1 is the POSE GUIDE: a 2x2 sheet of four 3D-rendered frames of one chibi character, all in the same facing: {facing}. Top-left: passing pose, left foot planted, right leg lifting slightly. Top-right: contact pose, right foot forward on its heel, left foot behind on its toes. Bottom-left: passing pose, right foot planted, left leg lifting slightly. Bottom-right: contact pose, left foot forward on its heel, right foot behind on its toes. Arms swing opposite to the legs. Image 2 is the IDENTITY AND STYLE reference: the game's existing hand-painted pixel-art sprite of the SAME character standing, usually in this same facing; if its facing differs, take only identity and style from it, never its facing.
 
 Repaint all four frames of image 1 as finished sprites of {identity}, in exactly the painted pixel-art style of image 2: same face, hair shape and hair highlights, outfit details, colour palette, dark brown outlines and soft painterly shading lit from the upper left. All four frames must show the identical character with the identical face, hair silhouette and outfit; only the legs, arms and a slight body bob change between frames.
 
@@ -62,9 +62,13 @@ def cell(image: Image.Image, column: int, row: int, columns: int, rows: int) -> 
 
 
 def style_cells(name: str) -> dict:
-    """Painted standing sprite per facing (row 0 of each 4 x 4 style sheet)."""
+    """Painted standing sprite per facing: explicit style_cells boxes, or row 0
+    of each 4 x 4 style_sheets grid."""
+    meta = character_meta(name)
     cells = {}
-    for sheet, facings in character_meta(name)["style_sheets"].items():
+    for facing, (sheet, (x, y, w, h)) in meta.get("style_cells", {}).items():
+        cells[facing] = Image.open(ROOT / sheet).convert("RGBA").crop((x - 8, y - 8, x + w + 8, y + h + 8))
+    for sheet, facings in meta.get("style_sheets", {}).items():
         image = Image.open(ROOT / sheet).convert("RGBA")
         for column, facing in enumerate(facings):
             cells[facing] = cell(image, column, 0, 4, 4)

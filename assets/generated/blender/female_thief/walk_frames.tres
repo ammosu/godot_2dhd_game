@@ -1,0 +1,430 @@
+[gd_resource type="SpriteFrames" load_steps=34 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/generated/blender/female_thief/walk.png" id="1_atlas"]
+
+[sub_resource type="AtlasTexture" id="Frame_0_0"]
+atlas = ExtResource("1_atlas")
+region = Rect2(0, 0, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "down"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_0_1"]
+atlas = ExtResource("1_atlas")
+region = Rect2(0, 352, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "down"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_0_2"]
+atlas = ExtResource("1_atlas")
+region = Rect2(0, 704, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "down"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_0_3"]
+atlas = ExtResource("1_atlas")
+region = Rect2(0, 1056, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "down"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_1_0"]
+atlas = ExtResource("1_atlas")
+region = Rect2(352, 0, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "up"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_1_1"]
+atlas = ExtResource("1_atlas")
+region = Rect2(352, 352, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "up"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_1_2"]
+atlas = ExtResource("1_atlas")
+region = Rect2(352, 704, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "up"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_1_3"]
+atlas = ExtResource("1_atlas")
+region = Rect2(352, 1056, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "up"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_2_0"]
+atlas = ExtResource("1_atlas")
+region = Rect2(704, 0, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "left"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_2_1"]
+atlas = ExtResource("1_atlas")
+region = Rect2(704, 352, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "left"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_2_2"]
+atlas = ExtResource("1_atlas")
+region = Rect2(704, 704, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "left"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_2_3"]
+atlas = ExtResource("1_atlas")
+region = Rect2(704, 1056, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "left"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_3_0"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1056, 0, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "right"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_3_1"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1056, 352, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "right"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_3_2"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1056, 704, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "right"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_3_3"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1056, 1056, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "right"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_4_0"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1408, 0, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "down_left"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_4_1"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1408, 352, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "down_left"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_4_2"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1408, 704, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "down_left"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_4_3"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1408, 1056, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "down_left"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_5_0"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1760, 0, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "down_right"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_5_1"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1760, 352, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "down_right"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_5_2"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1760, 704, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "down_right"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_5_3"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1760, 1056, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "down_right"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_6_0"]
+atlas = ExtResource("1_atlas")
+region = Rect2(2112, 0, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "up_left"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_6_1"]
+atlas = ExtResource("1_atlas")
+region = Rect2(2112, 352, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "up_left"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_6_2"]
+atlas = ExtResource("1_atlas")
+region = Rect2(2112, 704, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "up_left"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_6_3"]
+atlas = ExtResource("1_atlas")
+region = Rect2(2112, 1056, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "up_left"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_7_0"]
+atlas = ExtResource("1_atlas")
+region = Rect2(2464, 0, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "up_right"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_7_1"]
+atlas = ExtResource("1_atlas")
+region = Rect2(2464, 352, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "up_right"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_7_2"]
+atlas = ExtResource("1_atlas")
+region = Rect2(2464, 704, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "up_right"
+metadata/variant = "blender_female_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_7_3"]
+atlas = ExtResource("1_atlas")
+region = Rect2(2464, 1056, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 287.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4744
+metadata/direction = "up_right"
+metadata/variant = "blender_female_thief"
+
+[resource]
+animations = [{
+"frames": [{"duration": 1.0, "texture": SubResource("Frame_0_0")}, {"duration": 1.0, "texture": SubResource("Frame_0_1")}, {"duration": 1.0, "texture": SubResource("Frame_0_2")}, {"duration": 1.0, "texture": SubResource("Frame_0_3")}],
+"loop": true,
+"name": &"down",
+"speed": 8.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("Frame_1_0")}, {"duration": 1.0, "texture": SubResource("Frame_1_1")}, {"duration": 1.0, "texture": SubResource("Frame_1_2")}, {"duration": 1.0, "texture": SubResource("Frame_1_3")}],
+"loop": true,
+"name": &"up",
+"speed": 8.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("Frame_2_0")}, {"duration": 1.0, "texture": SubResource("Frame_2_1")}, {"duration": 1.0, "texture": SubResource("Frame_2_2")}, {"duration": 1.0, "texture": SubResource("Frame_2_3")}],
+"loop": true,
+"name": &"left",
+"speed": 8.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("Frame_3_0")}, {"duration": 1.0, "texture": SubResource("Frame_3_1")}, {"duration": 1.0, "texture": SubResource("Frame_3_2")}, {"duration": 1.0, "texture": SubResource("Frame_3_3")}],
+"loop": true,
+"name": &"right",
+"speed": 8.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("Frame_4_0")}, {"duration": 1.0, "texture": SubResource("Frame_4_1")}, {"duration": 1.0, "texture": SubResource("Frame_4_2")}, {"duration": 1.0, "texture": SubResource("Frame_4_3")}],
+"loop": true,
+"name": &"down_left",
+"speed": 8.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("Frame_5_0")}, {"duration": 1.0, "texture": SubResource("Frame_5_1")}, {"duration": 1.0, "texture": SubResource("Frame_5_2")}, {"duration": 1.0, "texture": SubResource("Frame_5_3")}],
+"loop": true,
+"name": &"down_right",
+"speed": 8.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("Frame_6_0")}, {"duration": 1.0, "texture": SubResource("Frame_6_1")}, {"duration": 1.0, "texture": SubResource("Frame_6_2")}, {"duration": 1.0, "texture": SubResource("Frame_6_3")}],
+"loop": true,
+"name": &"up_left",
+"speed": 8.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("Frame_7_0")}, {"duration": 1.0, "texture": SubResource("Frame_7_1")}, {"duration": 1.0, "texture": SubResource("Frame_7_2")}, {"duration": 1.0, "texture": SubResource("Frame_7_3")}],
+"loop": true,
+"name": &"up_right",
+"speed": 8.0
+}]

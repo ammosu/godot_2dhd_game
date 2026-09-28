@@ -1,0 +1,78 @@
+{
+  "_comment": "style_cells: painted standing sprite per facing as [sheet, [x, y, w, h]] (alpha bounds from assets/generated/town/regions.gd; facings without diagonal art borrow the nearest cardinal). These sheets also define the palette.",
+  "style_cells": {
+    "down": [
+      "assets/generated/town/thief.png",
+      [
+        35,
+        43,
+        155,
+        259
+      ]
+    ],
+    "right": [
+      "assets/generated/town/thief.png",
+      [
+        27,
+        348,
+        156,
+        262
+      ]
+    ],
+    "up": [
+      "assets/generated/town/thief.png",
+      [
+        35,
+        659,
+        161,
+        254
+      ]
+    ],
+    "left": [
+      "assets/generated/town/thief.png",
+      [
+        49,
+        951,
+        140,
+        262
+      ]
+    ],
+    "down_left": [
+      "assets/generated/town/thief_diagonal.png",
+      [
+        100,
+        34,
+        203,
+        340
+      ]
+    ],
+    "down_right": [
+      "assets/generated/town/thief_diagonal.png",
+      [
+        425,
+        33,
+        204,
+        341
+      ]
+    ],
+    "up_left": [
+      "assets/generated/town/thief_diagonal.png",
+      [
+        816,
+        35,
+        204,
+        338
+      ]
+    ],
+    "up_right": [
+      "assets/generated/town/thief_diagonal.png",
+      [
+        1152,
+        35,
+        203,
+        338
+      ]
+    ]
+  },
+  "identity": "a chibi young thief with empty hands: soft messy silver-grey hair with painted highlights, large warm brown eyes, a deep purple scarf wrapped high around the neck with a short purple cape trailing behind, dark brown-grey leather jerkin with pale steel trim bands on the shoulders and forearms, dark leather gloves, a brown belt with a buckle and small pouches, dark trousers and dark plum leather boots; no weapon in hand"
+}

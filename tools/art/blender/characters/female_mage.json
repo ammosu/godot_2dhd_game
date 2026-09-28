@@ -1,0 +1,78 @@
+{
+  "_comment": "style_cells: painted standing sprite per facing as [sheet, [x, y, w, h]] (alpha bounds from assets/generated/town/regions.gd; facings without diagonal art borrow the nearest cardinal). These sheets also define the palette.",
+  "style_cells": {
+    "down": [
+      "assets/generated/town/female_mage.png",
+      [
+        26,
+        38,
+        165,
+        273
+      ]
+    ],
+    "right": [
+      "assets/generated/town/female_mage.png",
+      [
+        21,
+        364,
+        174,
+        269
+      ]
+    ],
+    "up": [
+      "assets/generated/town/female_mage.png",
+      [
+        47,
+        675,
+        170,
+        262
+      ]
+    ],
+    "left": [
+      "assets/generated/town/female_mage.png",
+      [
+        42,
+        969,
+        183,
+        267
+      ]
+    ],
+    "down_left": [
+      "assets/generated/town/female_mage.png",
+      [
+        26,
+        38,
+        165,
+        273
+      ]
+    ],
+    "down_right": [
+      "assets/generated/town/female_mage.png",
+      [
+        26,
+        38,
+        165,
+        273
+      ]
+    ],
+    "up_left": [
+      "assets/generated/town/female_mage.png",
+      [
+        42,
+        969,
+        183,
+        267
+      ]
+    ],
+    "up_right": [
+      "assets/generated/town/female_mage.png",
+      [
+        21,
+        364,
+        174,
+        269
+      ]
+    ]
+  },
+  "identity": "a chibi young woman mage with empty hands: long silver-grey hair tied in a high ponytail with a blue snowflake hair ornament, side locks framing the face, large warm brown eyes, a navy-blue hooded capelet, a navy-blue robe dress with white trim, silver snowflake and star embroidery, dark gloves, dark leggings and dark boots; no staff"
+}
