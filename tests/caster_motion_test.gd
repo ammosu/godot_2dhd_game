@@ -12,10 +12,9 @@ func _check(value: bool, message: String) -> void:
 
 func _wait_pose(battle: Node, index: int, pose: String) -> void:
 	var deadline := Time.get_ticks_msec() + 2500
-	var portrait := battle.get("_portraits")[index] as TextureRect
-	while not portrait.texture.resource_path.ends_with("_%s.tres" % pose) and Time.get_ticks_msec() < deadline:
+	while battle.call("get_pose", index) != pose and Time.get_ticks_msec() < deadline:
 		await process_frame
-	_check(portrait.texture.resource_path.ends_with("_%s.tres" % pose), "Missing caster phase: " + pose)
+	_check(battle.call("get_pose", index) == pose, "Missing caster phase: " + pose)
 
 func _run() -> void:
 	var state := root.get_node("GameState")
@@ -65,7 +64,7 @@ func _run() -> void:
 		while bool(battle.get("_busy")) and Time.get_ticks_msec() < deadline:
 			await process_frame
 		_check(not bool(battle.get("_busy")), "Caster animation did not finish")
-		_check(portrait.texture.resource_path.ends_with("_idle.tres"), "Caster did not return idle")
+		_check(battle.call("get_pose", sample.caster) == "idle", "Caster did not return idle")
 		battle.free()
 		state.set("battle_session", null)
 	for singleton: String in ["GameAudio", "GameMusic", "GameAmbience"]:

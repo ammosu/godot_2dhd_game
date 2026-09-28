@@ -35,8 +35,11 @@ func _run() -> void:
 		for deck_name: String in ["RoofDeckLeft", "RoofDeckRight"]:
 			var deck := details.get_node(deck_name) as MeshInstance3D
 			_check(is_equal_approx((deck.mesh as BoxMesh).size.y, 0.07), "Roof deck must remain thin")
-		var collisions := house.find_children("*", "CollisionShape3D", false, false)
-		_check(collisions.size() == 1, "House collision count changed")
+		# Doorstep and facade fixtures have their own colliders and tests; the roof
+		# work must leave exactly one main body collider.
+		var collisions: Array[Node] = house.find_children("*", "CollisionShape3D", false, false).filter(
+			func(shape: Node) -> bool: return shape.name != &"DoorstepCollision" and not shape.is_in_group("house_facade_collisions"))
+		_check(collisions.size() == 1, "House collision count changed: %s" % [collisions.map(func(shape: Node) -> String: return String(shape.name))])
 		var collision := collisions[0] as CollisionShape3D
 		_check((collision.shape as BoxShape3D).size == preload("res://scripts/gameplay/house_catalog.gd").EXTERIOR_COLLISION, "House collision differs from exterior proportions")
 		var tiles := batch.multimesh

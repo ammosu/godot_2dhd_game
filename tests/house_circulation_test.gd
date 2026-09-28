@@ -22,6 +22,11 @@ func _run() -> void:
 	]
 	for home: Dictionary in Houses.HOMES:
 		world.call("_load_map", str(home.id), "default")
+		# This route audits furniture clearance. The resident is a solid NPC the
+		# player walks around (see npc_collision_test), so drop its body here.
+		var resident_body := (world.get("_map_root") as Node3D).get_node_or_null("HouseResident/ResidentBody")
+		if resident_body != null:
+			resident_body.free()
 		for destination: Vector2 in route:
 			var reached: bool = false
 			for step: int in range(180):

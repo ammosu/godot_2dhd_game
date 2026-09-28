@@ -45,6 +45,8 @@ func _run() -> void:
 		camera.global_position = house.to_global(Vector3(3.4, 2.8, -6.8))
 		camera.look_at(house.to_global(Vector3(0, 0.9, -2.2)))
 	var hinge := house.get_node("ArchitecturalDetails/DoorHinge") as Node3D
+	# Proportions scale every pose to one stature; door art must keep the walking scale.
+	var walking_scale := (player.get_node("Sprite3D") as Node3D).scale
 	world.call("_handle_interaction", "enter_house_01")
 	await _wait_for_pose(player, 0)
 	_check(is_zero_approx(hinge.rotation.y), "Door must stay closed during raised elbow pose")
@@ -53,7 +55,9 @@ func _run() -> void:
 	_check(is_zero_approx(hinge.rotation.y), "Door must wait for hand contact")
 	var sprite := player.get_node("Sprite3D") as AnimatedSprite3D
 	_check(sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame).get_meta("door_pose") == "contact", "Runtime must display contact texture, not skew walking art")
-	_check(sprite.scale.is_equal_approx(Vector3.ONE), "Articulated arm must not stretch whole body")
+	# Height stays at the walking scale. X only carries the per-facing head-width
+	# fit (clamped 0.85–1.2), which differs by about 1% between facings.
+	_check(is_equal_approx(sprite.scale.y, walking_scale.y) and absf(sprite.scale.x - walking_scale.x) < 0.05, "Articulated arm must not stretch whole body: %s vs walking %s" % [sprite.scale, walking_scale])
 	_check(player.global_position.y > 0.25, "Actor must stand on doorstep instead of sinking into it")
 	await _snapshot("02-contact")
 	if not _capture.is_empty():

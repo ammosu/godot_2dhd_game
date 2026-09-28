@@ -58,7 +58,7 @@ func _run() -> void:
 				assert(absf(position.x) > 0.80, "Keep central entrance clear")
 				if child is Sprite3D:
 					flowers += 1
-					assert((child as Sprite3D).texture_filter == BaseMaterial3D.TEXTURE_FILTER_NEAREST)
+					assert(_is_nearest((child as Sprite3D).texture_filter))
 					assert(is_equal_approx(position.y - 300.0 * (child as Sprite3D).pixel_size, 0.89), "Front flowers root at soil surface")
 					assert(absf(position.x) - 320.0 * (child as Sprite3D).pixel_size > 0.8, "Front flower canvas leaves doorway clear")
 				elif str(child.name).begins_with("DisplayPot"):
@@ -121,7 +121,7 @@ func _check_facades(root: Node, house_id: String) -> void:
 			assert(flowers.shaded and flowers.double_sided)
 			if planter.position.z < -1.5:
 				assert(absf(flowers.global_position.x) - 320.0 * flowers.pixel_size > 0.8, "Flower canopy leaves doorway clear")
-			assert(flowers.alpha_cut == SpriteBase3D.ALPHA_CUT_DISCARD and flowers.texture_filter == BaseMaterial3D.TEXTURE_FILTER_NEAREST)
+			assert(flowers.alpha_cut == SpriteBase3D.ALPHA_CUT_DISCARD and _is_nearest(flowers.texture_filter))
 		for descendant: Node in planter.find_children("*", "", true, false):
 			assert(not descendant is CollisionObject3D and not descendant is CollisionShape3D, "Facade dressing cannot change movement")
 
@@ -135,3 +135,8 @@ func _check_emblem_bounds(node: Node) -> void:
 		assert(bounds.end.y < 2.85 and bounds.position.x > -0.4 and bounds.end.x < 0.4)
 	for child: Node in node.get_children():
 		_check_emblem_bounds(child)
+
+
+## Pixel-art sampling; flowers add mipmaps to stop distant shimmer.
+func _is_nearest(filter: BaseMaterial3D.TextureFilter) -> bool:
+	return filter in [BaseMaterial3D.TEXTURE_FILTER_NEAREST, BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS]

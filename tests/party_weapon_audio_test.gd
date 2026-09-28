@@ -15,8 +15,7 @@ func _wait(battle: Node) -> void:
 	var deadline := Time.get_ticks_msec() + 10000
 	while not bool(battle.call("can_accept_action")) and Time.get_ticks_msec() < deadline:
 		for index: int in phases:
-			var path: String = (battle.get("_portraits")[index] as TextureRect).texture.resource_path
-			var pose: String = path.get_file().get_basename().get_slice("_", path.get_file().get_basename().get_slice_count("_") - 1)
+			var pose: String = battle.call("get_pose", index)
 			if phases[index].is_empty() or phases[index].back() != pose:
 				phases[index].append(pose)
 		await process_frame

@@ -46,6 +46,8 @@ var _wards: Array[TextureRect] = []
 var _selection_marks: Array[Line2D] = []
 var _selection_labels: Array[Label] = []
 var _baseline_cache: Dictionary = {}
+# Displayed pose per actor; dressed portraits are fitted copies without a resource path.
+var _poses: Dictionary[int, String] = {}
 var _ring: Line2D
 var _busy: bool = false
 var _resolved: bool = false
@@ -306,7 +308,12 @@ func _texture(index: int, pose: String) -> Texture2D:
 	return load("res://assets/generated/%s_%s.tres" % [id, pose]) as Texture2D
 
 
+func get_pose(index: int) -> String:
+	return _poses.get(index, "")
+
+
 func _pose(index: int, pose: String) -> void:
+	_poses[index] = pose
 	var texture := _texture(index, pose)
 	if index < 3:
 		var actor := str(session.actors[index].art)

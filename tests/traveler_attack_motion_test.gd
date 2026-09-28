@@ -11,10 +11,9 @@ func _check(value: bool, message: String) -> void:
 
 func _wait_pose(battle: Node, pose: String) -> void:
 	var deadline := Time.get_ticks_msec() + 2000
-	var portrait := battle.get("_portraits")[0] as TextureRect
-	while not portrait.texture.resource_path.ends_with("_%s.tres" % pose) and Time.get_ticks_msec() < deadline:
+	while battle.call("get_pose", 0) != pose and Time.get_ticks_msec() < deadline:
 		await process_frame
-	_check(portrait.texture.resource_path.ends_with("_%s.tres" % pose), "Attack phase missing: " + pose)
+	_check(battle.call("get_pose", 0) == pose, "Attack phase missing: " + pose)
 
 func _capture(action: String, pose: String) -> void:
 	if "--party-art-capture" in OS.get_cmdline_user_args():

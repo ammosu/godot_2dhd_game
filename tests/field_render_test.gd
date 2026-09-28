@@ -1,4 +1,5 @@
 extends SceneTree
+## test-requires: gpu
 
 func _initialize() -> void:
 	_run.call_deferred()

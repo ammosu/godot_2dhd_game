@@ -97,7 +97,7 @@ godot --headless --path . --rendering-method gl_compatibility -- --playthrough-t
 
 執行 `godot --headless --path . --script tests/equipment_system_test.gd`。成功標記為 `EQUIPMENT_SYSTEM_TEST_PASS catalog slots stats validation save migration`，驗證分類、能力重算、非法物品拒絕、version 3 存讀檔與 version 1／2 遷移。
 
-可視化整合：`godot --headless --path . --script tests/equipment_visual_test.gd`，驗證試穿不污染狀態、取消／重新開啟、確認、存讀檔外觀恢復、探索 16 畫格、戰鬥 7 姿勢、實際攻擊蓄力到收招的圖層與傷害，以及戰鬥換裝鎖定。成功標記：`EQUIPMENT_VISUAL_TEST_PASS preview cancel confirm world_16_frames battle_7_poses locks`。
+可視化整合：`godot --headless --path . --script tests/equipment_visual_test.gd`，驗證試穿不污染狀態、取消／重新開啟、確認、存讀檔外觀恢復、探索 16 畫格、即時戰鬥繼承裝備攻擊力，以及戰鬥換裝鎖定；戰鬥各姿勢的裝備外觀由 `party_equipment_test.gd` 驗證。成功標記：`EQUIPMENT_VISUAL_TEST_PASS preview cancel confirm world_16_frames battle_stats locks`。
 
 雙渲染器視覺驗收使用 `godot --path . --rendering-method forward_plus --script tests/equipment_visual_test.gd -- --equipment-capture`，再改為 `gl_compatibility`。會輸出 `/tmp/wanderlight-equipment-*.png`，含原裝、試穿、探索、戰鬥及七姿勢／16 行走畫格總覽。測試存檔使用獨立 user:// 路徑，不碰正式存檔。
 

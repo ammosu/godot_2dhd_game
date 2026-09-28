@@ -72,7 +72,8 @@ func _run() -> void:
 	state.call("begin_party_battle", {"arena_theme": [], "visual_seed": {}})
 	_check(state.get("battle_visual").theme == "ruins", "Malformed enemy visual overrides were not ignored")
 	var save_data: Dictionary = state.call("_serialize")
-	_check(not save_data.has("battle_visual") and int(save_data.version) == 3, "Transient arena changed save schema")
+	var save_version: int = (state.get_script() as GDScript).get_script_constant_map()["SAVE_VERSION"]
+	_check(not save_data.has("battle_visual") and int(save_data.version) == save_version, "Transient arena changed save schema")
 	state.call("_apply_save", save_data)
 	_check(state.get("battle_visual").is_empty() and state.get("battle_session") == null, "Load retained stale battle")
 	state.call("begin_party_battle", {})

@@ -22,7 +22,7 @@ func _run() -> void:
 		battle.call("_pose", index, "defeated")
 		var portrait := battle.get("_portraits")[index] as TextureRect
 		var texture := portrait.texture as AtlasTexture
-		_check(texture != null and texture.resource_path.ends_with("_defeated.tres"), "Defeated art not bound")
+		_check(texture != null and battle.call("get_pose", index) == "defeated", "Defeated art not bound")
 		_check(texture.get_size() == Vector2(1200, 1000), "Prone canvas changed")
 		_check(float(texture.get_meta("ground_y", 0)) == 900.0, "Prone body contact metadata missing")
 		var image := texture.atlas.get_image().get_region(Rect2i(texture.region))
@@ -48,7 +48,7 @@ func _run() -> void:
 	while not bool(battle.call("is_resolved")) and Time.get_ticks_msec() < deadline:
 		await process_frame
 	_check(bool(battle.call("did_player_win")) and int(state.get("player_hp")) == 1, "Existing traveler recovery rule changed")
-	_check((battle.get("_portraits")[0] as TextureRect).texture.resource_path.ends_with("_idle.tres"), "Recovered traveler still uses prone art")
+	_check(battle.call("get_pose", 0) == "idle", "Recovered traveler still uses prone art")
 	battle.free()
 	state.set("battle_session", null)
 	for singleton: String in ["GameAudio", "GameMusic", "GameAmbience"]:

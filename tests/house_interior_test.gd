@@ -20,6 +20,18 @@ func _settle() -> void:
 		await process_frame
 
 
+## Door transitions walk the player with physics, then restore EXPLORE mode.
+func _walk_through_door(player: CharacterBody3D, state: Node, door: Node) -> void:
+	player.set_physics_process(true)
+	door.call("interact")
+	var deadline := Time.get_ticks_msec() + 8000
+	await process_frame
+	while Time.get_ticks_msec() < deadline and bool(state.call("is_input_locked")):
+		await process_frame
+	player.set_physics_process(false)
+	await _settle()
+
+
 func _run() -> void:
 	var state := root.get_node("GameState")
 	state.get("flags")["intro_seen"] = true
@@ -44,13 +56,15 @@ func _run() -> void:
 	for home: Dictionary in Houses.HOMES:
 		player.position = Houses.return_position(home.id)
 		await _settle()
+		# Doors only accept a player facing them; aim at this home's entrance.
+		for entrance: Node in get_nodes_in_group("house_entrances"):
+			if entrance.get("interaction_id") == "enter_" + str(home.id):
+				player.call("face_world_position", (entrance as Node3D).global_position)
 		var target: Node = player.call("get_nearest_interactable")
 		_check(target != null and target.get("interaction_id") == "enter_" + str(home.id), "House entrance not reachable: " + str(home.id))
 		if target == null:
 			continue
-		target.call("interact")
-		await create_timer(2.2).timeout
-		await _settle()
+		await _walk_through_door(player, state, target)
 		_check(state.get("current_map") == home.id, "Wrong interior entered")
 		var map_root := world.get("_map_root") as Node3D
 		var room := map_root.get_node_or_null("HouseInterior") as Node3D
@@ -166,14 +180,18 @@ func _run() -> void:
 		_check(state.get("current_map") == home.id and player.position.is_equal_approx(Vector3(0, 0.1, 0.1)), "Interior save position did not round-trip")
 		player.position = Vector3(0, 0.1, 2.0)
 		await _settle()
+		for exit: Node in (world.get("_map_root") as Node3D).find_children("*", "Area3D", true, false):
+			if exit.get("interaction_id") == "leave_house":
+				player.call("face_world_position", (exit as Node3D).global_position)
 		target = player.call("get_nearest_interactable")
 		_check(target != null and target.get("interaction_id") == "leave_house", "Exit not reachable")
 		if target != null:
-			target.call("interact")
-		await create_timer(0.8).timeout
-		await _settle()
+			await _walk_through_door(player, state, target)
 		_check(state.get("current_map") == "village", "Did not return to village")
-		_check(player.position.is_equal_approx(Houses.return_position(home.id)), "Returned at wrong house")
+		# Closing the arrival door walks back to the doorstep under physics, so
+		# compare the ground-plane spot with a few centimetres of tolerance.
+		var returned := Houses.return_position(home.id)
+		_check(Vector2(player.position.x - returned.x, player.position.z - returned.z).length() < 0.05, "Returned at wrong house: %s expected=%s actual=%s" % [home.id, Houses.return_position(home.id), player.position])
 		_check((world.get_node("Moonlight") as DirectionalLight3D).visible, "Outdoor lighting not restored")
 		_check(world.get("_environment").background_mode == Environment.BG_COLOR and not world.get("_interior_backdrop").visible, "Interior backdrop leaked outside")
 		_check(not bool(world.get_node("CameraRig").get("_indoors")), "Outdoor camera not restored")

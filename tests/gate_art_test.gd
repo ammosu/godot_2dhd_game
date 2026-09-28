@@ -9,9 +9,13 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var state := root.get_node("GameState")
+	state.call("reset_new_game", false)
 	state.get("flags")["intro_seen"] = true
 	var world := (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	root.add_child(world)
+	# Let the new map's bodies reach the physics space before collision probes.
+	await physics_frame
+	await physics_frame
 	var portal := world.get("_village_gate_portal") as Area3D
 	assert(portal.get_node("MoonSeal").position.z > 0.0)
 	assert(portal.get_node("MoonSealCore").position.z > 0.0)
@@ -37,7 +41,8 @@ func _run() -> void:
 			var visual := child.get_child(0) as MeshInstance3D
 			assert((visual.material_override as ShaderMaterial).shader.resource_path.ends_with("coursed_stone.gdshader"))
 			assert((visual.mesh as BoxMesh).size == ((child.get_child(1) as CollisionShape3D).shape as BoxShape3D).size)
-	assert(wall_count == 6)
+	# Fourteen clipped enclosure segments, minus the east road opening.
+	assert(wall_count == 13)
 	# The locked gate and adjoining wall both block passage before the quest.
 	var traveler := world.get_node("Player") as CharacterBody3D
 	traveler.position = Vector3(0, 0.1, -18.05)
@@ -85,13 +90,15 @@ func _run() -> void:
 		assert(state.get("current_map") == destination)
 		await create_timer(0.25).timeout
 		assert(state.get("current_map") == destination)
-	# The separate eastern opening is walkable; its visible road-end fence is solid.
+	# The separate eastern opening is walkable and leads onto the east road.
 	player.position = Vector3(20.0, 0.1, 4.6)
 	for frame: int in range(100):
 		player.move_and_collide(Vector3(0.09, 0, 0))
 		await physics_frame
-	assert(player.position.x > 25.5 and player.position.x < 27.0)
-	assert(state.get("current_map") == "village")
+		if state.get("current_map") == "east_road":
+			break
+	assert(player.position.x < 27.0 or state.get("current_map") == "east_road", "East opening crossed the backstop")
+	assert(state.get("current_map") == "east_road", "East opening did not reach the east road")
 	await _capture(world, "east_road")
 	world.free()
 	for singleton: String in ["GameAudio", "GameMusic", "GameAmbience"]:

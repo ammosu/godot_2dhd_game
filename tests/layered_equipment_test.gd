@@ -60,7 +60,7 @@ func _run() -> void:
 		for pose: String in ["windup", "recover", "defeated"]:
 			var base: Texture2D = load("res://assets/generated/" + id + "_combat_" + pose + ".tres")
 			portrait.dress(base, pose, {}, id)
-			check(not portrait._layered.visible and portrait.texture == base, "Fallback: " + id + pose)
+			check(not portrait._layered.visible and _same_art(portrait.texture, base), "Fallback: " + id + pose)
 		actor.configure("idle", "", "", false, true, id)
 		check(not actor.has_node("Clothing") and not actor.has_node("Weapon") and actor.has_node("Body"), "Empty slots")
 	actor.hide()
@@ -116,3 +116,12 @@ func capture(label: String) -> void:
 	await process_frame
 	await RenderingServer.frame_post_draw
 	check(root.get_texture().get_image().save_png("/tmp/wanderlight-layers-" + label + "-" + RenderingServer.get_current_rendering_method() + ".png") == OK, "Capture failed")
+
+
+## Fallback portraits are proportion-fitted duplicates that share the source atlas region.
+func _same_art(shown: Texture2D, base: Texture2D) -> bool:
+	if shown == base:
+		return true
+	var shown_atlas := shown as AtlasTexture
+	var base_atlas := base as AtlasTexture
+	return shown_atlas != null and base_atlas != null and shown_atlas.atlas == base_atlas.atlas and shown_atlas.region == base_atlas.region
