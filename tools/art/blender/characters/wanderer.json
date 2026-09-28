@@ -1,0 +1,18 @@
+{
+  "_comment": "Painted sheets define the palette and, per facing, the standing cell (4x4 grid, row 0) the repaint copies identity from.",
+  "style_sheets": {
+    "assets/generated/wanderer_steady_walk.png": [
+      "down",
+      "up",
+      "left",
+      "right"
+    ],
+    "assets/generated/wanderer_diagonal_walk.png": [
+      "down_left",
+      "down_right",
+      "up_left",
+      "up_right"
+    ]
+  },
+  "identity": "a chibi young traveler: soft messy silver-grey hair with painted highlights, large warm brown eyes, dark teal hooded coat with cream trim and visible stitching, bulky cream scarf, brown leather shoulder strap and belt with a gold buckle, cream sleeve bands and brown bracers, dark trousers, tall brown boots, dark sheathed sword with gold fittings at the left hip, brown satchel on the back"
+}

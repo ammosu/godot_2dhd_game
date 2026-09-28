@@ -81,7 +81,8 @@ func _reset(player: CharacterBody3D, at: Vector3 = Vector3(0, 0.03, 0)) -> void:
 
 
 func _check_cadence(player: CharacterBody3D, sprite: AnimatedSprite3D, camera: Camera3D) -> void:
-	var step_length: float = player.get("STEP_LENGTH")
+	# The atlas's own stride (STEP_LENGTH unless a rigged atlas measured one).
+	var step_length: float = player.call("_step_length")
 	var rates: Array[float] = []
 	for speed: float in [1.6, 2.8, 4.2]:
 		await _reset(player, Vector3(-60, 0.03, 0))

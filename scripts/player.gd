@@ -17,6 +17,12 @@ const DoorActionArt = preload("res://scripts/gameplay/door_action_art.gd")
 const TownAppearance = preload("res://scripts/gameplay/town_appearance.gd")
 const CONVERSATION_DISTANCE: float = 1.35
 const MovementFacing = preload("res://scripts/gameplay/movement_facing.gd")
+## Developer previews of the Blender-rigged traveler (tools/art/build_blender_wanderer_frames.py):
+## `-- --blender-hero` shows the raw render, `-- --blender-hero=painted` the repaint over it.
+const RENDERED_WALKS: Dictionary[String, String] = {
+	"--blender-hero": "res://assets/generated/blender/wanderer/walk_frames.tres",
+	"--blender-hero=painted": "res://assets/generated/blender/wanderer/painted_frames.tres",
+}
 
 # Locomotion tuning. The four-frame walk cycle [pass, contact, pass, contact]
 # holds two steps, so the phase advances one frame per half step of ground.
@@ -130,17 +136,27 @@ func presentation_height() -> float:
 	return Proportions.HEIGHT * _presentation_scale
 
 
+static func _rendered_walk_path() -> String:
+	for flag: String in OS.get_cmdline_user_args():
+		if RENDERED_WALKS.has(flag):
+			return RENDERED_WALKS[flag]
+	return ""
+
+
 func _refresh_equipment() -> void:
 	_refresh_style()
 	var loadout := GameState.get_visual_loadout()
 	var town := TownAppearance.applies(GameState.current_map, loadout)
-	var key := EquipmentAppearance.variant(loadout) + (":town" if town else "") + (":door" if _door_pose >= 0 else "")
+	var rendered := _rendered_walk_path() if _door_pose < 0 else ""
+	var key := EquipmentAppearance.variant(loadout) + (":town" if town else "") + (":door" if _door_pose >= 0 else "") + rendered
 	if key == _appearance_key:
 		return
 	_appearance_key = key
 	var direction := sprite.animation
 	var frame := sprite.frame
-	if town:
+	if not rendered.is_empty():
+		sprite.sprite_frames = load(rendered) as SpriteFrames
+	elif town:
 		sprite.sprite_frames = TownAppearance.frames(loadout, _door_pose >= 0)
 	else:
 		sprite.sprite_frames = DoorActionArt.frames(loadout) if _door_pose >= 0 else EquipmentAppearance.walking_frames(loadout)
@@ -475,10 +491,19 @@ func _advance_walk_phase(move_direction: Vector3, delta: float, traveled: float)
 	if traveled < 0.0005 or delta <= 0.0:
 		return
 	# One frame per half step of ground covered keeps the planted foot planted.
-	var frames: float = clampf(traveled / (STEP_LENGTH * 0.5), MIN_WALK_FPS * delta, MAX_WALK_FPS * delta)
+	# Atlases measured from a rig carry their own stride; the cadence clamp
+	# scales with it so the same walking speeds stay unclamped.
+	var step: float = _step_length()
+	var fps_scale: float = STEP_LENGTH / step
+	var frames: float = clampf(traveled / (step * 0.5), MIN_WALK_FPS * fps_scale * delta, MAX_WALK_FPS * fps_scale * delta)
 	if _walk_direction_sign < 0.0:
 		frames *= BACKSTEP_CADENCE_SCALE
 	_walk_time += frames * _walk_direction_sign
+
+
+func _step_length() -> float:
+	var texture := sprite.sprite_frames.get_frame_texture(sprite.animation, 0)
+	return float(texture.get_meta("step_length", STEP_LENGTH)) if texture != null else STEP_LENGTH
 
 
 func _settle_walk_phase(delta: float) -> void:

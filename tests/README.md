@@ -815,7 +815,7 @@ Repeat with `gl_compatibility`. Checks wood/gravel presence and the tilted/repai
 
 `godot --headless --path . --script tests/camera_settle_test.gd` 驗證 30／60／120 FPS 行走、旋轉後鏡頭確實停止；成功標記 `CAMERA_SETTLE_TEST_PASS`。花朵的連續移動畫面仍需分別以 Forward+ 與 Compatibility 目視確認。
 
-主角步伐節奏：`godot --headless --path . --fixed-fps 60 --script tests/player_locomotion_cadence_test.gd` 驗證行走影格依實際移動距離推進（`player.gd` 的 `STEP_LENGTH`，1.6／2.8／4.2 m/s 每公尺影格數相差不超過 10%）、腳步聲只落在著地影格（1、3）且數量與著地次數相同、搖桿半推按比例減速、放開後依實際速度煞車並把著地姿勢走完至過渡姿勢再站定、劇情與門口步行緩起緩停、鎖定朝向後退時倒放步伐、站立時鏡頭環繞仍面向原本的世界方向、八方向扇區遲滯，以及站立呼吸以腳底為軸。成功標記 `PLAYER_LOCOMOTION_CADENCE_TEST_PASS`。直接呼叫 `_update_sprite(方向, 移動, delta)`（不傳 `traveled`）的測試與擷取工具仍使用固定 8 fps 的時間節奏，結果可重現。步幅需以 `godot --path . --script tests/opening_cutscene_test.gd -- --capture-dir <目錄>` 目視微調。
+主角步伐節奏：`godot --headless --path . --fixed-fps 60 --script tests/player_locomotion_cadence_test.gd` 驗證行走影格依實際移動距離推進（圖集的 `step_length` 中繼資料，未提供時用 `player.gd` 的 `STEP_LENGTH`；1.6／2.8／4.2 m/s 每公尺影格數相差不超過 10%；加 `-- --blender-hero` 可驗證 Blender 圖集）、腳步聲只落在著地影格（1、3）且數量與著地次數相同、搖桿半推按比例減速、放開後依實際速度煞車並把著地姿勢走完至過渡姿勢再站定、劇情與門口步行緩起緩停、鎖定朝向後退時倒放步伐、站立時鏡頭環繞仍面向原本的世界方向、八方向扇區遲滯，以及站立呼吸以腳底為軸。成功標記 `PLAYER_LOCOMOTION_CADENCE_TEST_PASS`。直接呼叫 `_update_sprite(方向, 移動, delta)`（不傳 `traveled`）的測試與擷取工具仍使用固定 8 fps 的時間節奏，結果可重現。步幅需以 `godot --path . --script tests/opening_cutscene_test.gd -- --capture-dir <目錄>` 目視微調。
 
 村莊道路交界：`godot --headless --path . --script tests/village_road_overlap_test.gd` 檢查廣場、十字路、環村步道與出村道路的所有同高重疊區，每處必須恰有一張路面顯示。村莊建立時由實際 BoxMesh 範圍產生 shader 排除區，先建立的路面擁有交界，保留原本路高與碰撞。成功標記 `VILLAGE_ROAD_OVERLAP_TEST_PASS`；移除 `--headless` 並分別使用 `--rendering-method forward_plus`／`gl_compatibility`，會擷取 `/tmp/village-road-overlap-<renderer>.png`，供東側交界目視檢查。
 
