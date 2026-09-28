@@ -10,8 +10,6 @@ const CryptLayout = preload("res://scripts/gameplay/crypt_layout.gd")
 const Dungeon = preload("res://scripts/gameplay/ashen_crypt.gd")
 const Outskirts = preload("res://scripts/gameplay/outskirts.gd")
 
-const Presentation = preload("res://scripts/ui/presentation_theme.gd")
-const MiniMapControl = preload("res://scripts/ui/mini_map.gd")
 const HouseDetails = preload("res://scripts/gameplay/house_details.gd")
 const HouseExterior = preload("res://scripts/gameplay/house_exterior.gd")
 const Footsteps = preload("res://scripts/gameplay/footsteps.gd")
@@ -27,6 +25,7 @@ const MoonShard = preload("res://scripts/gameplay/moon_shard.gd")
 const MoonSeal = preload("res://scripts/gameplay/moon_seal.gd")
 const CutscenePlayer = preload("res://scripts/gameplay/cutscene_player.gd")
 const OpeningCutscene = preload("res://scripts/story/opening_cutscene.gd")
+const PlaythroughTest = preload("res://scripts/testing/playthrough_test.gd")
 
 const PALETTE := {
 	"stone": Color("686176"),
@@ -72,9 +71,9 @@ var _map_label: Label
 var _quest_label: Label
 var _prompt_label: Label
 var _notice_label: Label
-var _mini_map: MiniMapControl
+var _mini_map: MiniMap
 var _player_status: PanelContainer
-var _notice_generation: int = 0
+var _hud: WorldHud
 var _interior_backdrop: ColorRect
 var _test_mode: bool = false
 
@@ -92,7 +91,11 @@ func _ready() -> void:
 	_load_map(GameState.current_map, GameState.spawn_id)
 	if _test_mode:
 		GameState.flags["intro_seen"] = true
-		_run_playthrough_test.call_deferred()
+		var playthrough := PlaythroughTest.new()
+		playthrough.name = "PlaythroughTest"
+		playthrough.world = self
+		add_child(playthrough)
+		playthrough.run.call_deferred()
 	elif "--story-preview" in OS.get_cmdline_user_args():
 		_test_mode = true # Preview never writes normal autosaves.
 		GameState.flags["intro_seen"] = true
@@ -205,11 +208,9 @@ func _process(delta: float) -> void:
 		if battle_ui.is_active() and is_instance_valid(battle_ui.encounter):
 			tracked = battle_ui.encounter.bodies[int(battle_ui.session.controlled)]
 		_mini_map.set_player_state(tracked.global_position, tracked.velocity)
-	if _prompt_label != null:
-		var prompt := player.get_interaction_prompt() if GameState.mode == GameState.Mode.EXPLORE else ""
-		var prompt_prefix := "互動：" if MobileControls.is_mobile_device() else "Space："
+	if _hud != null:
 		_layout_interaction_prompt()
-		_prompt_label.text = "%s%s" % [prompt_prefix, prompt] if not prompt.is_empty() else ""
+		_hud.set_prompt(player.get_interaction_prompt() if GameState.mode == GameState.Mode.EXPLORE else "")
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -2145,530 +2146,51 @@ func _build_post_process() -> void:
 
 
 func _build_hud() -> void:
-	var hud := CanvasLayer.new()
-	hud.name = "HUD"
-	hud.layer = 30
-	add_child(hud)
-
-	var panel := PanelContainer.new()
-	panel.position = Vector2(24.0, 24.0)
-	panel.name = "QuestPanel"
-	panel.theme = GameState.ui_theme
-	hud.add_child(panel)
-	var location_style := Presentation.panel(10)
-	location_style.bg_color = Color(0.035, 0.065, 0.10, 0.64)
-	location_style.set_border_width_all(0)
-	location_style.shadow_size = 0
-	location_style.set_corner_radius_all(4)
-	panel.add_theme_stylebox_override("panel", location_style)
-	var info := VBoxContainer.new()
-	panel.add_child(info)
-	_map_label = Label.new()
-	_map_label.add_theme_font_size_override("font_size", 19)
-	_map_label.add_theme_color_override("font_color", Presentation.PAPER)
-	_map_label.clip_text = true
-	_map_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	info.add_child(_map_label)
-	_quest_label = Label.new()
-	_quest_label.hide()
-	info.add_child(_quest_label)
-	var footer := PanelContainer.new()
-	footer.name = "TravelHints"
-	footer.theme = GameState.ui_theme
-	footer.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	footer.offset_left = 24
-	footer.offset_top = -64
-	footer.offset_right = 24
-	footer.offset_bottom = -24
-	footer.add_theme_stylebox_override("panel", Presentation.panel(10))
-	hud.add_child(footer)
-	var shortcuts := HBoxContainer.new()
-	shortcuts.add_theme_constant_override("separation", 12)
-	footer.add_child(shortcuts)
-	for shortcut: Array in [["WASD", "移動"], ["Space", "互動"], ["I", "裝備"], ["F5", "存檔"], ["F9", "讀檔"]]:
-		var key := Label.new()
-		key.text = shortcut[0]
-		key.custom_minimum_size.x = 26
-		key.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		key.add_theme_color_override("font_color", Presentation.GOLD)
-		var key_style := Presentation.panel(4)
-		key_style.set_corner_radius_all(3)
-		key_style.shadow_size = 0
-		key.add_theme_stylebox_override("normal", key_style)
-		shortcuts.add_child(key)
-		var action := Label.new()
-		action.text = shortcut[1]
-		action.add_theme_color_override("font_color", Presentation.PAPER)
-		shortcuts.add_child(action)
-
-	_player_status = preload("res://scripts/ui/party_status_card.gd").new()
-	_player_status.name = "PlayerStatus"
-	_player_status.compact = true
-	_player_status.theme = GameState.ui_theme
-	hud.add_child(_player_status)
-	_player_status.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	_player_status.offset_left = -250
-	_player_status.offset_right = -24
-	_player_status.offset_top = 8 if MobileControls.is_mobile_device() else 24
-	_player_status.offset_bottom = _player_status.offset_top + 54
-
-	_mini_map = MiniMapControl.new()
-	_mini_map.name = "MiniMap"
-	_mini_map.anchor_left = 1.0
-	_mini_map.anchor_right = 1.0
-	_mini_map.offset_left = -194.0 if MobileControls.is_mobile_device() else -250.0
-	_mini_map.offset_right = -24.0
-	_mini_map.offset_top = 146.0 if MobileControls.is_mobile_device() else 90.0
-	_mini_map.offset_bottom = _mini_map.offset_top + (170.0 if MobileControls.is_mobile_device() else 226.0)
-	_mini_map.theme = GameState.ui_theme
-	hud.add_child(_mini_map)
-	_mini_map.destination_selected.connect(_on_map_destination)
+	_hud = WorldHud.new()
+	add_child(_hud)
+	_map_label = _hud.map_label
+	_quest_label = _hud.quest_label
+	_prompt_label = _hud.prompt_label
+	_notice_label = _hud.notice_label
+	_mini_map = _hud.mini_map
+	_player_status = _hud.player_status
+	_hud.destination_selected.connect(_on_map_destination)
 	var map_ui := preload("res://scripts/ui/map_ui.gd").new()
 	map_ui.name = "MapUI"
 	map_ui.source_map = _mini_map
 	add_child(map_ui)
-	var map_button := Button.new()
-	map_button.name = "OpenMap"
-	map_button.focus_mode = Control.FOCUS_NONE
-	map_button.tooltip_text = "開啟區域地圖 [G]"
-	map_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	for style: String in ["normal", "hover", "pressed", "disabled"]:
-		map_button.add_theme_stylebox_override(style, StyleBoxEmpty.new())
-	map_button.pressed.connect(map_ui.open)
-	_mini_map.add_child(map_button)
-	map_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-
-	map_ui.open_button = map_button
-
-	_prompt_label = Label.new()
-	_prompt_label.anchor_left = 0.5
-	_prompt_label.anchor_top = 1.0
-	_prompt_label.anchor_right = 0.5
-	_prompt_label.anchor_bottom = 1.0
-	_prompt_label.offset_left = -260.0
-	_prompt_label.offset_top = -72.0 if MobileControls.is_mobile_device() else -120.0
-	_prompt_label.offset_right = 260.0
-	_prompt_label.offset_bottom = -26.0 if MobileControls.is_mobile_device() else -74.0
-	_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_prompt_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_prompt_label.add_theme_color_override("font_color", Color("ffe7a8"))
-	_prompt_label.add_theme_color_override("font_outline_color", Color("171326"))
-	_prompt_label.add_theme_constant_override("outline_size", 8)
-	_prompt_label.add_theme_font_size_override("font_size", 20)
-	_prompt_label.theme = GameState.ui_theme
-	hud.add_child(_prompt_label)
-
-	_notice_label = Label.new()
-	_notice_label.anchor_left = 0.5
-	_notice_label.anchor_right = 0.5
-	_notice_label.offset_left = -280.0
-	_notice_label.offset_top = 208.0
-	_notice_label.offset_right = 280.0
-	_notice_label.offset_bottom = 252.0
-	_notice_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_notice_label.add_theme_color_override("font_color", Color("9ef4df"))
-	_notice_label.add_theme_color_override("font_outline_color", Color("171326"))
-	_notice_label.add_theme_constant_override("outline_size", 8)
-	_notice_label.add_theme_font_size_override("font_size", 21)
-	_notice_label.theme = GameState.ui_theme
-	# Notifications must remain legible over dialogue and battle layers.
-	var notices := CanvasLayer.new()
-	notices.name = "Notices"
-	notices.layer = 90
-	add_child(notices)
-	_notice_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	notices.add_child(_notice_label)
-	for control: Node in hud.get_children():
-		if control is Control:
-			control.add_to_group("camera_touch_blocker")
+	_hud.map_button.pressed.connect(map_ui.open)
+	map_ui.open_button = _hud.map_button
+	add_child(_hud.notices)
 	get_viewport().size_changed.connect(_layout_hud)
 	_refresh_hud()
 
 
 func _layout_hud() -> void:
-	var panel := get_node("HUD/QuestPanel") as PanelContainer
-	var mobile: bool = MobileControls.is_mobile_device()
-	var available: float = get_viewport().get_visible_rect().size.x - (352.0 if mobile else 298.0)
-	var title_width: float = _map_label.get_theme_font("font").get_string_size(_map_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x + 20.0
-	panel.custom_minimum_size.x = minf(title_width, minf(300.0, maxf(100.0, available)))
-	panel.size.x = panel.custom_minimum_size.x
-	panel.reset_size()
-	get_node("HUD/TravelHints").visible = not mobile and GameState.mode == GameState.Mode.EXPLORE and not is_instance_valid(player.field_combat)
+	_hud.layout(is_instance_valid(player.field_combat))
 
 
 func _layout_interaction_prompt() -> void:
-	var bottom: float = -26.0 if MobileControls.is_mobile_device() else -74.0
+	var field_panel_top := NAN
 	if is_instance_valid(player.field_combat):
-		# Field combat shares EXPLORE mode; reserve its actual container height,
-		# including font, cooldown text and compact dungeon layout changes.
-		bottom = player.field_combat.get_hud_rect().position.y - get_viewport().get_visible_rect().size.y - 12.0
-	_prompt_label.offset_top = bottom - 46.0
-	_prompt_label.offset_bottom = bottom
+		field_panel_top = player.field_combat.get_hud_rect().position.y
+	_hud.layout_interaction_prompt(field_panel_top)
 
 
 func _refresh_hud() -> void:
-	if _map_label == null:
+	if _hud == null:
 		return
-	var fighting: bool = GameState.mode == GameState.Mode.BATTLE
-	if is_instance_valid(_mini_map):
-		_mini_map.visible = not fighting
-	_player_status.visible = not fighting
-	_quest_label.hide()
-	get_node("HUD/QuestPanel").visible = not fighting or not MobileControls.is_mobile_device()
 	_update_village_gate_state()
 	_update_quest_markers()
 	if GameState.current_map == "east_road" and is_instance_valid(_map_root):
 		var sign_board := _map_root.get_node_or_null("RoadSign") as Node3D
 		if sign_board != null:
 			sign_board.rotation.z = 0.0 if bool(GameState.flags.get("road_sign", false)) else -0.45
-	_update_mini_map_targets()
-	_map_label.text = "北境遺跡" if GameState.current_map == "ruins" else "暮光村"
-	if Outskirts.NAMES.has(GameState.current_map):
-		_map_label.text = str(Outskirts.NAMES[GameState.current_map])
-	if CryptLayout.NAMES.has(GameState.current_map):
-		_map_label.text = CryptLayout.NAMES[GameState.current_map]
-	if HouseCatalog.is_interior(GameState.current_map):
-		_map_label.text = str(HouseCatalog.find_home(GameState.current_map).name)
-	_quest_label.text = GameState.get_quest_text().trim_prefix("主線：").strip_edges()
-	get_node("HUD/QuestPanel").tooltip_text = _map_label.text + "\n" + _quest_label.text
-	_layout_hud()
-	_player_status.display_actor({
-		"art": "wanderer", "hero_class": GameState.player_class,
-		"hero_body": GameState.player_body, "hero_style": GameState.player_style,
-		"name": "Lv.%d" % GameState.player_level, "hp": GameState.player_hp,
-		"max_hp": GameState.player_max_hp, "mp": GameState.player_mp,
-		"max_mp": GameState.player_max_mp, "ward": 0.0,
-	}, false)
-	_player_status.tooltip_text = "Lv.%d · EXP %d / %d · 月苔 ×%d" % [GameState.player_level, GameState.player_xp, GameState.xp_to_next_level(), int(GameState.inventory.get("moon_moss", 0))]
-
-
-
-func _update_mini_map_targets() -> void:
-	if not is_instance_valid(_mini_map):
-		return
-	_mini_map.set_map(GameState.current_map)
-	var main_target_position := Vector3.ZERO
-	var main_target_visible := false
-	var optional_target_position := Vector3.ZERO
-	var optional_target_visible := false
-	if GameState.current_map == "village":
-		match GameState.quest_state:
-			GameState.QuestState.NOT_STARTED, GameState.QuestState.READY_TO_TURN_IN:
-				main_target_position = Vector3(-3.0, 0.0, 1.2)
-				main_target_visible = true
-			GameState.QuestState.ACTIVE:
-				main_target_position = Vector3(0.0, 0.0, -19.3)
-				main_target_visible = true
-		optional_target_position = Vector3(6.4, 0.0, 4.2)
-		optional_target_visible = not bool(GameState.flags.get("rumi_tip_seen", false))
-	elif CryptLayout.is_floor(GameState.current_map):
-		main_target_position = Vector3(0, 0, 11.8)
-		main_target_visible = true
-	elif GameState.current_map == "ashen_crypt":
-		optional_target_position = Vector3(0, 0, -9)
-		optional_target_visible = not bool(GameState.flags.get("crypt_cleared", false))
-	elif HouseCatalog.is_interior(GameState.current_map):
-		main_target_position = Vector3(0, 0, 2.95)
-		main_target_visible = true
-	elif Outskirts.NAMES.has(GameState.current_map):
-		for id: String in Outskirts.EVENTS:
-			var event: Array = Outskirts.EVENTS[id]
-			if event[0] == GameState.current_map and not bool(GameState.flags.get(id, false)):
-				optional_target_position = event[1]
-				optional_target_visible = true
-				break
-	elif GameState.quest_state == GameState.QuestState.ACTIVE:
-		main_target_position = Vector3(0.0, 0.0, -8.2)
-		main_target_visible = not bool(GameState.flags.get("guardian_defeated", false))
-	elif GameState.quest_state == GameState.QuestState.READY_TO_TURN_IN:
-		main_target_position = Vector3(0.0, 0.0, 15.1)
-		main_target_visible = true
-	_mini_map.set_main_target(main_target_position, main_target_visible)
-	_mini_map.set_optional_target(optional_target_position, optional_target_visible)
+	_hud.refresh(is_instance_valid(player.field_combat))
 
 
 func _show_notice(message: String) -> void:
-	_notice_generation += 1
-	var generation := _notice_generation
-	_notice_label.text = message
-	await get_tree().create_timer(2.6).timeout
-	if generation == _notice_generation:
-		_notice_label.text = ""
-
-
-func _run_playthrough_test() -> void:
-	var test_save_path := "user://wanderlight_playthrough_test_%d.json" % OS.get_process_id()
-	var read_tablet := "--skip-tablet" not in OS.get_cmdline_user_args()
-	GameState.reset_new_game(false)
-	_load_map("village", "default")
-	if not _test_require(GameState.quest_state == GameState.QuestState.NOT_STARTED, "new game quest state"):
-		return
-	if not _test_require(is_instance_valid(_moon_lamp_light) and _moon_lamp_light.light_energy < 1.0, "moon lamp starts dim"):
-		return
-	if not _test_require(
-		is_instance_valid(_mini_map)
-		and _mini_map.get_map_id() == "village"
-		and _mini_map.has_main_target()
-		and _mini_map.has_optional_target(),
-		"village minimap and quest targets"
-	):
-		return
-	var elder_quest_marker := _map_root.get_node_or_null("Elder/QuestMarker") as Label3D
-	var rumi_quest_marker := _map_root.get_node_or_null("Rumi/QuestMarker") as Label3D
-	if not _test_require(
-		elder_quest_marker != null
-		and elder_quest_marker.text == "!"
-		and elder_quest_marker.visible,
-		"main quest giver marker"
-	):
-		return
-	if not _test_require(
-		rumi_quest_marker != null
-		and rumi_quest_marker.text == "!"
-		and rumi_quest_marker.visible
-		and rumi_quest_marker.modulate != elder_quest_marker.modulate,
-		"optional content marker color"
-	):
-		return
-
-	var dialogue_camera := $CameraRig as Hd2dCameraRig
-	var original_camera_distance: float = dialogue_camera._distance
-	var original_camera_yaw: float = dialogue_camera._target_yaw
-	_handle_interaction("rumi")
-	dialogue_camera._process(0.4)
-	if not _test_require(dialogue_camera._dialogue_active and dialogue_camera._dialogue_blend > 0.0 and dialogue_camera._dialogue_blend < 1.0, "dialogue camera eases into two-person shot"):
-		return
-	if not _test_require(dialogue_ui.is_open() and GameState.mode == GameState.Mode.DIALOGUE, "village story dialogue"):
-		return
-	var village_dialogue_safety := 0
-	while dialogue_ui.is_open() and village_dialogue_safety < 6:
-		dialogue_ui.advance()
-		village_dialogue_safety += 1
-	if not _test_require(not dialogue_camera._dialogue_active, "dialogue completion releases cinematic camera"):
-		return
-	dialogue_camera._process(1.0)
-	if not _test_require(is_zero_approx(dialogue_camera._dialogue_blend) and is_equal_approx(dialogue_camera._distance, original_camera_distance) and is_equal_approx(dialogue_camera._target_yaw, original_camera_yaw), "dialogue restores exploration zoom and angle"):
-		return
-	if not _test_require(not rumi_quest_marker.visible, "optional marker clears after dialogue"):
-		return
-	if not _test_require(not _mini_map.has_optional_target(), "optional minimap target clears after dialogue"):
-		return
-
-	_handle_interaction("portal_to_ruins")
-	if not _test_require(GameState.current_map == "village" and dialogue_ui.is_open(), "north gate requires elder's moon seal"):
-		return
-	while dialogue_ui.is_open():
-		dialogue_ui.advance()
-	_handle_interaction("elder")
-	_handle_interaction("rumi")
-	if not _test_require(GameState.quest_state == GameState.QuestState.NOT_STARTED and str(dialogue_ui._lines[0].speaker) == "長老・艾爾", "dialogue cannot be replaced by another interaction"):
-		return
-	while dialogue_ui.is_open():
-		dialogue_ui.advance()
-	if not _test_require(GameState.quest_state == GameState.QuestState.ACTIVE, "quest acceptance"):
-		return
-	if not _test_require(not elder_quest_marker.visible, "main quest marker clears while objective is active"):
-		return
-	if not _test_require(_village_gate_portal.prompt_text.is_empty(), "open portal has no interaction prompt"):
-		return
-
-	_village_gate_portal.body_entered.emit(player)
-	await get_tree().process_frame
-	await get_tree().process_frame
-	if not _test_require(GameState.current_map == "ruins" and _map_root.name == "Map_Ruins", "automatic portal transition to ruins"):
-		return
-	if not _test_require(_mini_map.get_map_id() == "ruins" and _mini_map.has_main_target(), "ruins minimap and quest target"):
-		return
-	var guardian_quest_marker := _map_root.get_node_or_null("Guardian/QuestMarker") as Label3D
-	if not _test_require(
-		guardian_quest_marker != null
-		and guardian_quest_marker.text == "!"
-		and guardian_quest_marker.visible,
-		"main quest objective marker"
-	):
-		return
-
-	if read_tablet:
-		_handle_interaction("ruin_tablet")
-		while dialogue_ui.is_open():
-			dialogue_ui.advance()
-	if not _test_require(bool(GameState.flags.get("ruin_tablet_read", false)) == read_tablet, "optional ruin lore flag"):
-		return
-	# Full-health visitors still need the same preparation and combat tutorial.
-	_handle_interaction("moon_spring")
-	if not _test_require(dialogue_ui._lines.size() == 5 and str(dialogue_ui._lines[2].text).contains("確認"), "full-health spring battle tutorial"):
-		return
-	while dialogue_ui.is_open():
-		dialogue_ui.advance()
-
-	GameState.player_hp = 22
-	GameState.player_mp = 0
-	_handle_interaction("moon_spring")
-	if not _test_require(GameState.player_hp == GameState.player_max_hp and GameState.player_mp == GameState.player_max_mp, "moon spring recovery"):
-		return
-	var spring_dialogue_safety := 0
-	while dialogue_ui.is_open() and spring_dialogue_safety < 6:
-		dialogue_ui.advance()
-		spring_dialogue_safety += 1
-
-	GameState.player_hp = 1
-	player.global_position = Vector3(0, 0.1, -5.5)
-	_start_guardian_battle()
-	battle_ui.confirm_preparation()
-	for ally: Dictionary in GameState.battle_session.actors:
-		if int(ally.team) == 0:
-			ally.hp = 1
-	battle_ui.set_physics_process(false)
-	for step_index: int in range(3600):
-		battle_ui.advance_combat(1.0 / 60.0, Vector2.ZERO)
-		if battle_ui.is_resolved():
-			break
-	if not _test_require(battle_ui.is_resolved() and not battle_ui.did_player_win(), "battle defeat state"):
-		return
-	battle_ui._finish_battle()
-	await get_tree().process_frame
-	while dialogue_ui.is_open():
-		dialogue_ui.advance()
-	await get_tree().process_frame
-	await get_tree().process_frame
-	if not _test_require(GameState.player_hp == GameState.player_max_hp and GameState.current_map == "village", "battle defeat recovery"):
-		return
-
-	if not _test_require(GameState.quest_state == GameState.QuestState.ACTIVE and not GameState.flags.get("guardian_defeated", false) and not GameState.inventory.has("moon_shard"), "defeat preserves trial for retry"):
-		return
-	_on_portal_body_entered(player, "portal_to_ruins")
-	await get_tree().process_frame
-	await get_tree().process_frame
-	if not _test_require(GameState.current_map == "ruins" and _map_root.has_node("Guardian"), "return to trial after defeat"):
-		return
-
-	# Checkpoint restoration must retain the optional route as well as the main quest.
-	GameState.remember_player_position(player.global_position)
-	if not _test_require(GameState.save_game(test_save_path, false), "pre-trial checkpoint write"):
-		return
-	GameState.flags.erase("ruin_tablet_read")
-	if not _test_require(GameState.load_game(test_save_path, false), "pre-trial checkpoint load"):
-		return
-	await get_tree().process_frame
-	await get_tree().process_frame
-	player.global_position = Vector3(0, 0.1, -5.5)
-	_handle_interaction("guardian")
-	if not _test_require(dialogue_ui.is_open() and str(dialogue_ui._lines[0].text).contains("誓言") == read_tablet, "guardian acknowledges optional lore route"):
-		return
-	while dialogue_ui.is_open():
-		dialogue_ui.advance()
-	if not _test_require(battle_ui._preparing and GameState.battle_session.paused, "battle preparation pauses combat"):
-		return
-	battle_ui.confirm_preparation()
-	if not _test_require(battle_ui.is_active() and GameState.mode == GameState.Mode.BATTLE, "battle start"):
-		return
-	battle_ui.set_physics_process(false)
-	for step_index: int in range(7200):
-		if battle_ui.is_resolved():
-			break
-		var combat: RefCounted = GameState.battle_session
-		var controlled: int = combat.controlled
-		var target: int = combat.nearest_enemy(controlled)
-		var direction := Vector2.ZERO
-		if target >= 0:
-			var difference: Vector2 = combat.actors[target].position - combat.actors[controlled].position
-			direction = difference.normalized()
-			combat.actors[controlled].facing = direction
-			if difference.length() < 1.6:
-				battle_ui.choose_action("skill")
-				battle_ui.choose_action("attack")
-				direction = Vector2.ZERO
-		battle_ui.advance_combat(1.0 / 60.0, direction)
-	if not _test_require(battle_ui.is_resolved() and battle_ui.did_player_win(), "action battle spatial victory"):
-		return
-	if not _test_require(bool(GameState.flags.get("guardian_defeated", false)), "battle victory flag"):
-		return
-	if not _test_require(GameState.quest_state == GameState.QuestState.READY_TO_TURN_IN and int(GameState.inventory.get("moon_shard", 0)) == 1, "battle quest reward"):
-		return
-
-	battle_ui._finish_battle()
-	await get_tree().process_frame
-	var dialogue_safety := 0
-	while dialogue_ui.is_open() and dialogue_safety < 10:
-		dialogue_ui.advance()
-		dialogue_safety += 1
-	if not _test_require(GameState.mode == GameState.Mode.EXPLORE, "dialogue returns to exploration"):
-		return
-
-	_on_portal_body_entered(player, "portal_to_village")
-	await get_tree().process_frame
-	await get_tree().process_frame
-	if not _test_require(GameState.current_map == "village", "automatic portal transition to village"):
-		return
-	if not _test_require(_mini_map.get_map_id() == "village" and _mini_map.has_main_target(), "minimap returns to village target"):
-		return
-	elder_quest_marker = _map_root.get_node_or_null("Elder/QuestMarker") as Label3D
-	if not _test_require(elder_quest_marker != null and elder_quest_marker.visible, "main quest turn-in marker"):
-		return
-	_talk_to_elder()
-	dialogue_ui.advance()
-	if not _test_require(GameState.quest_state == GameState.QuestState.READY_TO_TURN_IN, "turn-in waits for dialogue completion"):
-		return
-	dialogue_ui.advance()
-	var ending_acknowledges_tablet := false
-	for line: Dictionary in dialogue_ui._lines:
-		if str(line.text).contains("刻意抹去"):
-			ending_acknowledges_tablet = true
-	if not _test_require(ending_acknowledges_tablet == read_tablet, "ending acknowledges optional lore route"):
-		return
-	dialogue_safety = 0
-	while dialogue_ui.is_open() and dialogue_safety < 12:
-		dialogue_ui.advance()
-		dialogue_safety += 1
-	if not _test_require(GameState.quest_state == GameState.QuestState.COMPLETE and not GameState.inventory.has("moon_shard"), "quest turn-in"):
-		return
-	if not _test_require(not elder_quest_marker.visible, "main quest marker clears after completion"):
-		return
-	if not _test_require(not _mini_map.has_main_target(), "minimap target clears after quest completion"):
-		return
-	if not _test_require(is_instance_valid(_moon_lamp_light) and _moon_lamp_light.light_energy > 3.0, "moon lamp restored"):
-		return
-
-	GameState.remember_player_position(Vector3(2.25, 0.1, 3.5))
-	if not _test_require(GameState.save_game(test_save_path, false), "save write"):
-		return
-	GameState.quest_state = GameState.QuestState.NOT_STARTED
-	GameState.player_hp = 1
-	GameState.current_map = "ruins"
-	if not _test_require(GameState.load_game(test_save_path, false), "save load"):
-		return
-	await get_tree().process_frame
-	await get_tree().process_frame
-	if not _test_require(
-		GameState.quest_state == GameState.QuestState.COMPLETE
-		and GameState.player_hp == GameState.player_max_hp
-		and GameState.current_map == "village"
-		and GameState.saved_position.is_equal_approx(Vector3(2.25, 0.1, 3.5))
-		and bool(GameState.flags.get("ruin_tablet_read", false)) == read_tablet,
-		"save data restoration"
-	):
-		return
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(test_save_path))
-	print("PLAYTHROUGH_TEST_PASS dialogue quest maps save battle")
-	get_tree().quit(0)
-
-
-func _test_wait_for_battle(resolved: bool) -> bool:
-	var deadline := Time.get_ticks_msec() + 10000
-	while Time.get_ticks_msec() < deadline:
-		if battle_ui.is_resolved() or (not resolved and battle_ui.can_accept_action()):
-			return true
-		await get_tree().process_frame
-	return _test_require(false, "battle resolution timeout" if resolved else "battle action readiness timeout")
-
-
-func _test_require(condition: bool, label: String) -> bool:
-	if condition:
-		print("PLAYTHROUGH_TEST_OK %s" % label)
-		return true
-	push_error("PLAYTHROUGH_TEST_FAIL %s" % label)
-	get_tree().quit(1)
-	return false
+	_hud.show_notice(message)
 
 
 func _refresh_map_destinations() -> void:
