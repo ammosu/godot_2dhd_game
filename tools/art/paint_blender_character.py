@@ -28,7 +28,7 @@ from pathlib import Path
 from PIL import Image
 
 from build_blender_character import (BASELINE, CANVAS, DIRECTIONS, FRAMES, ROOT, character_meta, opaque_box,
-                                     out_dir, painted_palette, to_palette, write_atlas)
+                                     ground, out_dir, write_atlas)
 
 FACING_TEXT = {
     "down": "front view, facing the viewer",
@@ -54,6 +54,7 @@ Genuine transparent RGBA background. Square output. No floor, no ground shadow, 
 # Opaque ImageGen output: pixels this close to the corner colour are background.
 KEY_TOLERANCE = 48
 MIN_BLOB = 400
+HAZE_ALPHA = 16
 
 
 def cell(image: Image.Image, column: int, row: int, columns: int, rows: int) -> Image.Image:
@@ -160,6 +161,12 @@ def head_centre(image: Image.Image) -> float:
     return sum(xs) / len(xs)
 
 
+def clean_alpha(frame: Image.Image) -> Image.Image:
+    """Drop faint ImageGen haze; antialiased edges above it are kept."""
+    frame.putalpha(frame.getchannel("A").point(lambda a: 0 if a < HAZE_ALPHA else a))
+    return frame
+
+
 def fit(painted: Image.Image, rendered: Image.Image) -> Image.Image:
     box = opaque_box(rendered)
     scale = (box[3] - box[1]) / painted.height
@@ -189,7 +196,6 @@ def main() -> None:
     missing = [d for d in DIRECTIONS if not (source / f"{d}.png").exists()]
     if missing:
         raise SystemExit(f"missing repaints: {', '.join(missing)}")
-    palette = painted_palette(args.character)
     frames = {}
     for direction in DIRECTIONS:
         sheet = keyed(Image.open(source / f"{direction}.png"))
@@ -197,7 +203,9 @@ def main() -> None:
         for row in range(FRAMES):
             rendered = walk.crop((column * CANVAS, row * CANVAS, (column + 1) * CANVAS, (row + 1) * CANVAS))
             painted = sprite(cell(sheet, row % 2, row // 2, 2, 2))
-            frames[direction, row] = to_palette(fit(painted, rendered), palette)
+            # Keep ImageGen's own colours: the rig palette maps its dark hair
+            # outlines to brown, which reads as a second layer of hair.
+            frames[direction, row] = ground(clean_alpha(fit(painted, rendered)), limit=3)
     step = float(json.loads((target / "metrics.json").read_text())["step_length"])
     stature = write_atlas(args.character, frames, "painted", f"blender_{args.character}_painted", step)
     print(f"standing height {stature} px")
