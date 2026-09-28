@@ -13,7 +13,6 @@ const Outskirts = preload("res://scripts/gameplay/outskirts.gd")
 const HouseDetails = preload("res://scripts/gameplay/house_details.gd")
 const HouseExterior = preload("res://scripts/gameplay/house_exterior.gd")
 const WaterFeature = preload("res://scripts/gameplay/water_feature.gd")
-const GardenFence = preload("res://scripts/gameplay/garden_fence.gd")
 const MeadowDressing = preload("res://scripts/gameplay/meadow_dressing.gd")
 const SpriteGrounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 const HouseCatalog = preload("res://scripts/gameplay/house_catalog.gd")
@@ -22,6 +21,8 @@ const ForegroundCutaway = preload("res://scripts/gameplay/foreground_cutaway.gd"
 const MoonShard = preload("res://scripts/gameplay/moon_shard.gd")
 const MoonSeal = preload("res://scripts/gameplay/moon_seal.gd")
 const CutscenePlayer = preload("res://scripts/gameplay/cutscene_player.gd")
+const VillageMap = preload("res://scripts/gameplay/village_map.gd")
+const RuinsMap = preload("res://scripts/gameplay/ruins_map.gd")
 const OpeningCutscene = preload("res://scripts/story/opening_cutscene.gd")
 const PlaythroughTest = preload("res://scripts/testing/playthrough_test.gd")
 
@@ -96,99 +97,65 @@ func _ready() -> void:
 		playthrough.world = self
 		add_child(playthrough)
 		playthrough.run.call_deferred()
-	elif "--story-preview" in OS.get_cmdline_user_args():
-		_test_mode = true # Preview never writes normal autosaves.
-		GameState.flags["intro_seen"] = true
-		_show_story_preview.call_deferred()
-	elif "--equipment-preview" in OS.get_cmdline_user_args():
-		GameState.flags["intro_seen"] = true
-		$EquipmentUI.open.call_deferred()
-	elif "--battle-preview" in OS.get_cmdline_user_args():
-		_test_mode = true # Preview never writes normal autosaves.
-		GameState.flags["intro_seen"] = true
-		_load_map("ruins", "from_village")
-		player.global_position = Vector3(0, 0.1, -5.5)
-		($CameraRig as Hd2dCameraRig).snap_to_target()
-		_start_guardian_battle.call_deferred()
-	elif "--civic-preview" in OS.get_cmdline_user_args():
-		_test_mode = true
-		GameState.flags["intro_seen"] = true
-		_load_map("starbay", "from_road")
-		player.global_position = Vector3(-6, 0.1, -9)
-		($CameraRig as Hd2dCameraRig).snap_to_target()
-	elif "--japanese-preview" in OS.get_cmdline_user_args():
-		_test_mode = true
-		GameState.flags["intro_seen"] = true
-		_load_map("starbay", "from_house_city_01")
-		$CameraRig.set("_target_yaw", -0.6 + atan2(6.0, -8.0))
-		$CameraRig.set("_distance", 14.0)
-		($CameraRig as Hd2dCameraRig).snap_to_target()
-	elif "--city-house-preview" in OS.get_cmdline_user_args():
-		_test_mode = true
-		GameState.flags["intro_seen"] = true
-		_load_map("house_city_01", "entry")
-	elif "--city-preview" in OS.get_cmdline_user_args():
-		_test_mode = true
-		GameState.flags["intro_seen"] = true
-		_load_map("starbay", "from_road")
-	elif "--caravan-preview" in OS.get_cmdline_user_args():
-		_test_mode = true
-		GameState.flags["intro_seen"] = true
-		_load_map("caravan_road", "from_road")
-	elif "--crypt-boss-preview" in OS.get_cmdline_user_args():
-		_test_mode = true
-		GameState.flags["intro_seen"] = true
-		_load_map("ashen_crypt", "entry")
-	elif "--dungeon-preview" in OS.get_cmdline_user_args():
-		_test_mode = true
-		GameState.flags["intro_seen"] = true
-		_load_map("ashen_crypt_1", "entry")
-	elif "--roadside-preview" in OS.get_cmdline_user_args():
-		_test_mode = true
-		GameState.flags["intro_seen"] = true
-		_load_map("east_road", "from_village")
-		player.global_position = Vector3(-4.7, 0.1, 3.4)
-		$CameraRig.set("_distance", 9.0)
-		$CameraRig.set("_target_yaw", deg_to_rad(-15.0))
-		($CameraRig as Hd2dCameraRig).snap_to_target()
-	elif "--field-preview" in OS.get_cmdline_user_args():
-		_test_mode = true
-		GameState.flags["intro_seen"] = true
-		_load_map("east_road", "from_village")
-		player.global_position = Vector3(-1, 0.1, 6)
-		$CameraRig.set("_distance", 15.0)
-		$CameraRig.set("_target_yaw", deg_to_rad(-35.0))
-		($CameraRig as Hd2dCameraRig).snap_to_target()
-	elif "--mountain-preview" in OS.get_cmdline_user_args():
-		_test_mode = true
-		GameState.flags["intro_seen"] = true
-		_load_map("moss_steps", "from_base")
-	elif "--outskirts-preview" in OS.get_cmdline_user_args():
-		_test_mode = true
-		GameState.flags["intro_seen"] = true
-		_load_map("east_road", "from_village")
-	elif "--ruins-preview" in OS.get_cmdline_user_args():
-		GameState.flags["intro_seen"] = true
-		_load_map("ruins", "from_village")
-		player.global_position = Vector3(-7.0, 0.1, 6.5)
-	elif "--interior-preview" in OS.get_cmdline_user_args():
-		GameState.flags["intro_seen"] = true
-		_load_map("house_02", "entry")
-	elif "--house-route-preview" in OS.get_cmdline_user_args():
-		GameState.flags["intro_seen"] = true
-		player.global_position = HouseCatalog.return_position("house_02")
-		($CameraRig as Hd2dCameraRig).snap_to_target()
-	elif "--opening-preview" in OS.get_cmdline_user_args():
-		_test_mode = true # Preview never writes normal autosaves.
-		GameState.flags["intro_seen"] = true
-		_play_opening.call_deferred()
-	elif "--village-preview" in OS.get_cmdline_user_args():
-		GameState.flags["intro_seen"] = true
-		player.global_position = Vector3(0.0, 0.1, 6.0)
-		($CameraRig/Camera3D as Camera3D).fov = 45.0
-	elif not bool(GameState.flags.get("intro_seen", false)):
+	elif not _start_preview() and not bool(GameState.flags.get("intro_seen", false)):
 		_show_class_selection.call_deferred()
 	print("Wanderlight playable slice loaded with Godot %s" % Engine.get_version_info().get("string", "unknown"))
+
+
+## Developer launch flags such as `-- --village-preview` that jump to a scene.
+## Keys: test (no autosaves), map [id, spawn], player, distance, yaw, fov, snap,
+## start [node path, method] called deferred. The first flag present wins.
+func _preview_table() -> Dictionary:
+	return {
+		"--story-preview": {"test": true, "start": [".", "_show_story_preview"]},
+		"--equipment-preview": {"start": ["EquipmentUI", "open"]},
+		"--battle-preview": {"test": true, "map": ["ruins", "from_village"], "player": Vector3(0, 0.1, -5.5), "snap": true, "start": [".", "_start_guardian_battle"]},
+		"--civic-preview": {"test": true, "map": ["starbay", "from_road"], "player": Vector3(-6, 0.1, -9), "snap": true},
+		"--japanese-preview": {"test": true, "map": ["starbay", "from_house_city_01"], "yaw": -0.6 + atan2(6.0, -8.0), "distance": 14.0, "snap": true},
+		"--city-house-preview": {"test": true, "map": ["house_city_01", "entry"]},
+		"--city-preview": {"test": true, "map": ["starbay", "from_road"]},
+		"--caravan-preview": {"test": true, "map": ["caravan_road", "from_road"]},
+		"--crypt-boss-preview": {"test": true, "map": ["ashen_crypt", "entry"]},
+		"--dungeon-preview": {"test": true, "map": ["ashen_crypt_1", "entry"]},
+		"--roadside-preview": {"test": true, "map": ["east_road", "from_village"], "player": Vector3(-4.7, 0.1, 3.4), "distance": 9.0, "yaw": deg_to_rad(-15.0), "snap": true},
+		"--field-preview": {"test": true, "map": ["east_road", "from_village"], "player": Vector3(-1, 0.1, 6), "distance": 15.0, "yaw": deg_to_rad(-35.0), "snap": true},
+		"--mountain-preview": {"test": true, "map": ["moss_steps", "from_base"]},
+		"--outskirts-preview": {"test": true, "map": ["east_road", "from_village"]},
+		"--ruins-preview": {"map": ["ruins", "from_village"], "player": Vector3(-7.0, 0.1, 6.5)},
+		"--interior-preview": {"map": ["house_02", "entry"]},
+		"--house-route-preview": {"player": HouseCatalog.return_position("house_02"), "snap": true},
+		"--opening-preview": {"test": true, "start": [".", "_play_opening"]},
+		"--village-preview": {"player": Vector3(0.0, 0.1, 6.0), "fov": 45.0},
+	}
+
+
+func _start_preview() -> bool:
+	var args := OS.get_cmdline_user_args()
+	var table := _preview_table()
+	for flag: String in table:
+		if flag not in args:
+			continue
+		var preview: Dictionary = table[flag]
+		GameState.flags["intro_seen"] = true
+		if preview.get("test", false):
+			_test_mode = true # Previews never write normal autosaves.
+		if preview.has("map"):
+			_load_map(preview.map[0], preview.map[1])
+		if preview.has("player"):
+			player.global_position = preview.player
+		var rig := $CameraRig as Hd2dCameraRig
+		if preview.has("distance"):
+			rig.set("_distance", preview.distance)
+		if preview.has("yaw"):
+			rig.set("_target_yaw", preview.yaw)
+		if preview.get("snap", false):
+			rig.snap_to_target()
+		if preview.has("fov"):
+			($CameraRig/Camera3D as Camera3D).fov = preview.fov
+		if preview.has("start"):
+			get_node(NodePath(preview.start[0])).call_deferred(preview.start[1])
+		return true
+	return false
 
 
 func _process(delta: float) -> void:
@@ -522,81 +489,26 @@ func _get_spawn_position(map_id: String, spawn_id: String) -> Vector3:
 
 func _build_village() -> void:
 	var stamp: int = Time.get_ticks_usec()
-	props.add_box("Ground", Vector3(0.0, -0.35, 0.0), Vector3(46.0, 0.7, 40.0), Color("304b48"), true)
-	props.add_cobble_box("CentralPlaza", Vector3(0.0, -0.02, 0.0), Vector3(7.8, 0.12, 8.0), true)
-	preload("res://scripts/gameplay/natural_water.gd").pond(_map_root, Vector3(11.5, 0.085, -10.0), Vector2(9.0, 5.0))
-
-	props.add_cobble_box("NorthRoad", Vector3(0.0, 0.025, -3.75), Vector3(2.35, 0.08, 32.5), false)
-	props.add_cobble_box("MarketRoad", Vector3(0.0, 0.023, 4.6), Vector3(29.0, 0.075, 2.25), false)
-	props.add_cobble_box("GateRoad", Vector3(0.0, 0.022, -4.8), Vector3(29.0, 0.07, 1.9), false)
-	_build_village_routes()
-	# Outer garden promenade expands exploration without stretching the village square.
-	for x_position: float in [-19.0, 19.0]:
-		props.add_cobble_box("GardenWalk", Vector3(x_position, 0.022, 0), Vector3(1.8, 0.07, 34), false)
-	for z_position: float in [-16.8, 16.8]:
-		props.add_cobble_box("GardenWalk", Vector3(0, 0.022, z_position), Vector3(38, 0.07, 1.8), false)
-	_configure_village_surfaces()
-	preload("res://scripts/gameplay/village_surface_overlap.gd").configure(_map_root)
-	for x_position: float in [-20.7, 20.7]:
-		for z_position: float in [-15, -7, 2, 11, 17]:
-			props.add_tree(Vector3(x_position + sin(z_position * 1.7) * 0.55, 0, z_position + cos(z_position) * 0.75))
-	for position: Vector3 in [Vector3(-19, 0, -12), Vector3(19, 0, -12), Vector3(-19, 0, 10), Vector3(19, 0, 10), Vector3(-6, 0, 16.8), Vector3(6, 0, 16.8)]:
-		props.add_lamp(position)
+	VillageMap.roads(props)
+	Outskirts.add_interaction(self, "travel_east", "東行・前往東行舊道", Vector3(26, 0, 4.6), true)
+	VillageMap.walks(props)
 	stamp = _profile_map_stamp("village_surfaces", stamp)
 
 	for column_position in [Vector3(-4.6, 0.0, -3.6), Vector3(4.6, 0.0, -3.6), Vector3(-4.6, 0.0, 3.6), Vector3(4.6, 0.0, 3.6)]:
 		_add_column(column_position)
-	for tree_position in [
-		Vector3(-16.2, 0.0, -11.8), Vector3(-16.0, 0.0, -4.0), Vector3(-16.1, 0.0, 5.8), Vector3(-15.2, 0.0, 12.4),
-		Vector3(16.1, 0.0, -5.3), Vector3(16.0, 0.0, 3.8), Vector3(15.5, 0.0, 11.9),
-		Vector3(0.0, 0.0, 13.7), Vector3(14.8, 0.0, -13.0),
-	]:
-		props.add_tree(tree_position)
-	for lamp_position in [
-		Vector3(-1.75, 0.0, -8.2), Vector3(1.75, 0.0, -8.2), Vector3(-1.75, 0.0, -3.5), Vector3(1.75, 0.0, -3.5),
-		Vector3(-1.75, 0.0, 3.5), Vector3(1.75, 0.0, 3.5), Vector3(-1.75, 0.0, 8.6), Vector3(1.75, 0.0, 8.6),
-		Vector3(-8.0, 0.0, 4.0), Vector3(8.0, 0.0, 4.0),
-	]:
-		props.add_lamp(lamp_position)
-
+	VillageMap.plaza(props)
 	# Eight homes form west, east, north, and south neighborhoods around the plaza.
 	stamp = _profile_map_stamp("village_columns_trees_lights", stamp)
 	for home: Dictionary in HouseCatalog.HOMES:
 		_add_house(home.position, home.wall, home.roof, home.yaw, home.id)
 	stamp = _profile_map_stamp("village_houses", stamp)
 
-	props.add_crystal(Vector3(-7.0, 0.0, -3.2), 1.1)
-	props.add_crystal(Vector3(7.2, 0.0, 1.2), 0.85)
-	props.add_crystal(Vector3(14.0, 0.0, 9.0), 0.72)
-	props.add_supply_crate(Vector3(-6.5, 0.01, 4.0), 0.12)
-	props.add_supply_crate(Vector3(-5.5, 0.01, 4.6), -0.10)
-	props.add_earthenware_jar(Vector3(6.2, 0.01, 3.3))
-	for grass_position: Vector3 in [Vector3(-14.0, 0.01, 3.0), Vector3(-13.5, 0.01, 2.6), Vector3(14.5, 0.01, -2.1), Vector3(14.0, 0.01, -2.45), Vector3(5.4, 0.01, 8.8)]:
-		props.add_grass_clump(grass_position, "seed", 0.001)
-	props.add_village_pig(Vector3(8.5, 0.015, 8.4))
-	_add_village_gardens()
+	VillageMap.dressing(props)
 	stamp = _profile_map_stamp("village_props_gardens", stamp)
 
 	_add_moon_lamp(Vector3(0.0, 0.0, 0.0))
 	_map_root.add_child(preload("res://scripts/gameplay/awakened_road.gd").new())
-	# Low planted crescent frames the landmark but leaves its south approach open.
-	var planting := Node3D.new()
-	planting.name = "MoonGarden"
-	_map_root.add_child(planting)
-	for index: int in range(20):
-		var angle := PI + index * PI / 19.0
-		var flower := Sprite3D.new()
-		flower.texture = preload("res://assets/generated/flowers_ivory.tres")
-		flower.pixel_size = 0.00065
-		flower.position = Vector3(cos(angle) * 1.16, 0.015, sin(angle) * 1.16)
-		flower.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-		flower.shaded = true
-		flower.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
-		flower.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
-		flower.modulate = Color("bc95da") if index % 3 != 0 else Color.WHITE
-		planting.add_child(flower)
-		SpriteGrounding.anchor(flower, flower.texture, SpriteGrounding.foot_baseline(flower.texture, flower.alpha_scissor_threshold))
-		flower.remove_from_group("grounded_character_art")
+	VillageMap.moon_garden(_map_root)
 	stamp = _profile_map_stamp("village_moon_lamp", stamp)
 	_add_actor_interactable("elder", "與長老交談", Vector3(-3.0, 0.0, 1.2), "res://assets/generated/elder.tres", 1.6 / 724.0, Color.WHITE, false, MAIN_QUEST_MARKER)
 	_add_actor_interactable("rumi", "與露米交談", Vector3(6.4, 0.0, 4.2), "res://assets/generated/rumi.tres", 1.6 / 724.0, Color.WHITE, false, SIDE_CONTENT_MARKER)
@@ -642,74 +554,15 @@ func _talk_to_wandering_villager(villager: CharacterBody3D) -> void:
 	($CameraRig as Hd2dCameraRig).begin_dialogue_shot(art)
 
 
-func _build_village_routes() -> void:
-	# Visible terrain beyond the checkpoint makes the opening read as a road.
-	props.add_box("NorthApproachGround", Vector3(0, -0.35, -22.5), Vector3(12, 0.7, 7), Color("292b3e"), false)
-	props.add_cobble_box("NorthApproachRoad", Vector3(0, 0.025, -22.0), Vector3(2.35, 0.08, 5.5), false)
-	for side: float in [-1.0, 1.0]:
-		props.add_tree(Vector3(side * 4.0, 0, -22.0))
-	# Clipped, uneven corners soften the enclosure; preserve both portal gaps.
-	var boundary: Array[Vector2] = [
-		Vector2(1.75, -19.3), Vector2(17.8, -19.3), Vector2(21.5, -16.7),
-		Vector2(22.3, -9.0), Vector2(22.3, 2.1),
-		Vector2(22.3, 7.1), Vector2(21.9, 15.7), Vector2(18.2, 19.0),
-		Vector2(6.0, 19.3), Vector2(-16.8, 19.0), Vector2(-22.0, 15.4),
-		Vector2(-22.3, 4.0), Vector2(-21.8, -15.8), Vector2(-17.8, -19.3), Vector2(-1.75, -19.3),
-	]
-	for index: int in range(boundary.size() - 1):
-		if index == 4:
-			continue # East road opening.
-		var start: Vector2 = boundary[index]
-		var finish: Vector2 = boundary[index + 1]
-		var middle: Vector2 = (start + finish) * 0.5
-		props.add_box("BoundaryWall", Vector3(middle.x, 0.75, middle.y), Vector3(0.7, 1.8, start.distance_to(finish) + 0.2), PALETTE.stone_dark, true)
-		(_map_root.get_child(_map_root.get_child_count() - 1) as Node3D).rotation.y = atan2(finish.x - start.x, finish.y - start.y)
-	props.add_box("OutskirtsGround", Vector3(29.0, -0.38, 4.6), Vector3(16.0, 0.7, 19.0), Color("304b48"), false)
-	props.add_cobble_box("EastRoad", Vector3(30.5, 0.022, 4.6), Vector3(8.0, 0.075, 3.6), false)
-	for tree_position: Vector3 in [Vector3(29, 0, 0), Vector3(32, 0, 1), Vector3(29, 0, 10), Vector3(33, 0, 9)]:
-		props.add_tree(tree_position)
-	props.add_box("EastRoadGround", Vector3(24.5, -0.35, 4.6), Vector3(6.0, 0.7, 5.0), Color("304b48"), true)
-	props.add_cobble_box("EastRoad", Vector3(20.75, 0.025, 4.6), Vector3(12.5, 0.08, 3.6), false)
-	# A safety backstop sits beyond the automatic walking threshold.
-	props.add_box("EastTrailEdge", Vector3(27.25, 0.5, 4.6), Vector3(0.35, 1.0, 5), Color("405b49"), true)
-	for z: float in [2.25, 6.95]:
-		props.add_box("EastTrailEdge", Vector3(25, 0.5, z), Vector3(4.5, 1.0, 0.3), Color("405b49"), true)
-	for at: Vector3 in [Vector3(18.2, 0, 2.35), Vector3(18.2, 0, 6.85), Vector3(22.3, 0, 1.95), Vector3(22.3, 0, 7.25)]:
-		props.add_lamp(at)
-	Outskirts.add_interaction(self, "travel_east", "東行・前往東行舊道", Vector3(26, 0, 4.6), true)
-
-
 func _build_ruins() -> void:
-	props.add_box("SouthApproachGround", Vector3(0, -0.35, 18.5), Vector3(12, 0.7, 7), Color("304b48"), false)
-	props.add_cobble_box("SouthApproachRoad", Vector3(0, 0.025, 18.0), Vector3(2.35, 0.08, 5.5), false)
-	props.add_box("RuinGround", Vector3(0.0, -0.35, 0.0), Vector3(34.0, 0.7, 32.0), Color("292b3e"), true)
-	props.add_box("RuinCourt", Vector3(0.0, -0.02, -2.0), Vector3(14.0, 0.12, 17.0), PALETTE.ruin, true)
-	props.add_box("WestRuinCourt", Vector3(-9.0, -0.015, 4.0), Vector3(5.5, 0.1, 5.5), PALETTE.ruin.darkened(0.08), true)
-	props.add_box("EastRuinCourt", Vector3(9.0, -0.015, -1.5), Vector3(5.5, 0.1, 5.5), PALETTE.ruin.darkened(0.08), true)
-	preload("res://scripts/gameplay/ruin_surfaces.gd").configure(_map_root)
-	for z_index in range(-11, 16):
-		props.add_box("MoonPath_%02d" % (z_index + 11), Vector3(0.0, 0.025, float(z_index)), Vector3(1.45, 0.08, 0.82), Color("786c8d"), false)
-	for x_index in range(-9, 10):
-		props.add_box("RuinCrossPath_%02d" % (x_index + 9), Vector3(float(x_index), 0.022, 3.8), Vector3(0.82, 0.07, 1.18), Color("6c617f"), false)
-	for x_position in [-16.1, 16.1]:
-		props.add_box("RuinBoundary", Vector3(x_position, 0.8, 0.0), Vector3(0.8, 2.0, 31.0), Color("242235"), true)
-	props.add_box("RuinBoundary", Vector3(0.0, 0.8, -15.1), Vector3(33.0, 2.0, 0.8), Color("242235"), true)
-	for side: float in [-1.0, 1.0]:
-		props.add_box("RuinBoundary", Vector3(side * 9.125, 0.8, 15.1), Vector3(14.75, 2.0, 0.8), Color("242235"), true)
+	RuinsMap.terrain(props)
 	var ruin_columns: Array[Vector3] = [
 		Vector3(-6.2, 0.0, -8.8), Vector3(6.2, 0.0, -8.8), Vector3(-6.2, 0.0, -1.5), Vector3(6.2, 0.0, -1.5),
 		Vector3(-6.2, 0.0, 6.2), Vector3(6.2, 0.0, 6.2), Vector3(-11.0, 0.0, 3.8), Vector3(11.0, 0.0, -1.5),
 	]
 	for column_position: Vector3 in ruin_columns:
 		_add_column(column_position)
-	preload("res://scripts/gameplay/ruin_rubble.gd").build(_map_root, ruin_columns)
-	for crystal_data in [
-		[Vector3(-11.8, 0.0, -5.2), 1.3], [Vector3(11.5, 0.0, -7.0), 1.0], [Vector3(-12.0, 0.0, 9.0), 0.75],
-		[Vector3(10.5, 0.0, 7.8), 1.15], [Vector3(5.6, 0.0, 11.0), 0.72],
-	]:
-		props.add_crystal(crystal_data[0], crystal_data[1])
-	for supply_position: Vector3 in [Vector3(-4.6, 0.01, 8.0), Vector3(4.9, 0.01, 7.2), Vector3(-9.2, 0.01, -3.8), Vector3(8.4, 0.01, 3.7), Vector3(-3.4, 0.01, -10.8)]:
-		props.add_supply_crate(supply_position, supply_position.x * 0.13)
+	RuinsMap.dressing(props, ruin_columns)
 
 	_add_pedestal_interactable("ruin_tablet", "閱讀風化石碑", Vector3(-9.0, 0.0, 4.0), Color("8f86ac"))
 	_add_pedestal_interactable("moon_spring", "觸碰月泉", Vector3(9.0, 0.0, -1.5), Color("76e5d5"))
@@ -1635,25 +1488,6 @@ func _update_village_gate_state() -> void:
 	tween.tween_property(_village_gate_seal_core, "transparency", 1.0 if should_open else 0.0, 0.36)
 
 
-func _configure_village_surfaces() -> void:
-	var roads: Dictionary[String, String] = {
-		"CentralPlaza": "plaza_rect", "NorthRoad": "north_rect",
-		"MarketRoad": "market_rect", "GateRoad": "gate_rect",
-	}
-	var surfaces: Array[Node] = []
-	for child: Node in _map_root.get_children():
-		if str(child.name) in ["Ground", "CentralPlaza", "NorthRoad", "MarketRoad", "GateRoad"] or child.is_in_group("village_garden_walks"):
-			surfaces.append(child)
-	for surface_root: Node in surfaces:
-		var surface := surface_root.get_child(0) as MeshInstance3D
-		var material := surface.material_override as ShaderMaterial
-		material.set_shader_parameter("organic_village", true)
-		for road_name: String in roads:
-			var road := _map_root.get_node(road_name) as Node3D
-			var mesh := (road.get_child(0) as MeshInstance3D).mesh as BoxMesh
-			material.set_shader_parameter(roads[road_name], Vector4(road.position.x, road.position.z, mesh.size.x * 0.5, mesh.size.z * 0.5))
-
-
 func _add_house(world_position: Vector3, wall_color: Color, roof_color: Color, rotation_y: float, house_id: String, japanese_variant: int = -1, shop_id: String = "") -> void:
 	var house := StaticBody3D.new()
 	house.name = "VillageHouse"
@@ -1817,41 +1651,6 @@ func _add_column(world_position: Vector3) -> void:
 	cutaway.name = "ColumnCutaway"
 	root.add_child(cutaway)
 	cutaway.configure(root, player, get_viewport().get_camera_3d(), &"column_cutaways")
-
-
-func _add_village_gardens() -> void:
-	# Local seed keeps dressing stable without changing gameplay randomness.
-	var garden_rng := RandomNumberGenerator.new()
-	garden_rng.seed = 704
-	var grass_variants: Array[String] = ["low", "seed", "fan"]
-	for side: float in [-1.0, 1.0]:
-		for index: int in range(90):
-			var z := garden_rng.randf_range(6.1, 12.0)
-			var x := side * garden_rng.randf_range(1.4, 3.5)
-			props.add_grass_clump(Vector3(x, 0.01, z), grass_variants[index % 3], garden_rng.randf_range(0.00065, 0.00095))
-		for index: int in range(60):
-			var x := side * garden_rng.randf_range(5.7, 10.0)
-			var z := garden_rng.randf_range(2.5, 3.2)
-			props.add_grass_clump(Vector3(x, 0.01, z), grass_variants[index % 3], garden_rng.randf_range(0.00065, 0.00095))
-	for fence_data: Array in [
-		# Keep the garden-house doorway apron open; the fence borders its south bed.
-		[Vector3(-8.4, 0.35, 2.3), Vector3(4.0, 0.7, 0.16)],
-		[Vector3(8.2, 0.35, 1.8), Vector3(3.5, 0.7, 0.16)],
-		[Vector3(-8.5, 0.35, 7.3), Vector3(3.8, 0.7, 0.16)],
-		[Vector3(8.6, 0.35, 7.3), Vector3(3.2, 0.7, 0.16)],
-	]:
-		var fence_position: Vector3 = fence_data[0]
-		var fence_size: Vector3 = fence_data[1]
-		GardenFence.build(_map_root, Vector3(fence_position.x, 0.0, fence_position.z), fence_size.x)
-	var flower_variants: Array[String] = ["ivory", "mauve", "blue"]
-	var flower_positions: Array[Vector3] = [
-		Vector3(-7.4, 0.01, 2.35), Vector3(-8.2, 0.01, 2.55), Vector3(-9.1, 0.01, 2.3),
-		Vector3(7.2, 0.01, 2.35), Vector3(8.1, 0.01, 2.55), Vector3(9.0, 0.01, 2.3),
-		Vector3(-7.2, 0.01, 7.85), Vector3(-8.1, 0.01, 8.05), Vector3(7.5, 0.01, 7.8),
-		Vector3(9.4, 0.01, 7.9), Vector3(-5.2, 0.01, -2.1), Vector3(5.3, 0.01, -1.9),
-	]
-	for flower_index: int in range(flower_positions.size()):
-		props.add_flower_clump(flower_positions[flower_index], flower_variants[flower_index % flower_variants.size()])
 
 
 func _build_environment() -> void:
