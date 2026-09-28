@@ -145,6 +145,14 @@ godot --headless --path . -- --playthrough-test
 
 通過時會輸出：`PLAYTHROUGH_TEST_PASS dialogue quest maps save battle`。
 
+全部回歸測試（平行執行、嚴格判定，細節見 `tests/README.md`）：
+
+```bash
+python3 tools/run_tests.py                          # Compatibility，略過需要 GPU 的測試
+python3 tools/run_tests.py --renderer forward_plus
+python3 tools/run_tests.py --gpu                    # 另以視窗執行 GPU 測試
+```
+
 快速檢查地圖構圖時可使用 `-- --village-preview`、`-- --ruins-preview` 或 `-- --interior-preview` 跳過開場對話。
 
 直接試玩裝備畫面：`godot --path . -- --equipment-preview`。
@@ -160,7 +168,7 @@ godot --headless --path . -- --playthrough-test
 
 專案保留桌面版的 Forward+ renderer，Web 匯出會自動改用 Compatibility renderer，並使用不需要跨來源隔離標頭的單執行緒版本。
 
-推送到 `main` 後，GitHub Actions 會執行 smoke test、匯出 Web 版並部署至：
+推送到 `main` 後，GitHub Actions 會以 Compatibility 執行全部 headless 回歸測試（失敗時上傳 `test-logs`，不部署）、匯出 Web 版並部署至：
 
 <https://ammosu.github.io/godot_2dhd_game/>
 

@@ -53,8 +53,16 @@ jobs:
       - name: Import project
         run: godot --headless --editor --path . --quit
 
-      - name: Run playthrough smoke test
-        run: godot --headless --path . --rendering-method gl_compatibility -- --playthrough-test
+      - name: Run regression suite
+        # Headless Compatibility tests, including the playthrough; GPU-only tests are skipped.
+        run: python3 tools/run_tests.py --renderer gl_compatibility --jobs 4
+
+      - name: Upload test logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: build/test-logs
 
       - name: Export Web build
         run: |
