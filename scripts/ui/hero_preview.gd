@@ -17,6 +17,23 @@ var class_id: String = "traveler"
 var action: String = "idle"
 var facing: int = 0
 var playing: bool = true
+## Framed previews carry their own sky; frameless ones sit on a full-screen stage.
+var framed: bool = true:
+	set(value):
+		framed = value
+		if is_inside_tree():
+			_refresh()
+var accent: Color = Color("e8c889"):
+	set(value):
+		accent = value
+		queue_redraw()
+## 0 → 1 while a newly chosen hero slides in from `entrance_side` (-1 left, 1 right).
+var entrance: float = 1.0:
+	set(value):
+		entrance = value
+		if is_inside_tree():
+			_refresh()
+var entrance_side: float = 1.0
 var elapsed: float = 0.0
 var current_pose: String = "idle"
 const MOONLIT := preload("res://assets/generated/class_selection_moonlit.png")
@@ -60,7 +77,7 @@ func _process(delta: float) -> void:
 	_refresh()
 
 func _refresh() -> void:
-	_verse.visible = size.x > 580
+	_verse.visible = framed and size.x > 580
 	var sequence: Array = SEQUENCES[action]
 	current_pose = str(sequence[int(elapsed * 6.0) % sequence.size()])
 	var key := "%s:%s:%s:%d" % [body_id, class_id, current_pose, facing]
@@ -78,7 +95,8 @@ func _refresh() -> void:
 	_sprite.flip_h = bool(texture.get_meta("flip_h", false))
 	if _sprite.flip_h:
 		_sprite.offset.x *= -1.0
-	_sprite.position = Vector2(size.x * 0.5, size.y - 42.0)
+	_sprite.position = Vector2(size.x * 0.5 + (1.0 - entrance) * 80.0 * entrance_side, size.y - 42.0)
+	_sprite.modulate.a = entrance
 	queue_redraw()
 
 func _foot_center(texture: AtlasTexture) -> float:
@@ -104,18 +122,32 @@ func _foot_center(texture: AtlasTexture) -> float:
 
 func _draw() -> void:
 	var ground := Vector2(size.x * 0.5, size.y - 41.0)
-	draw_texture_rect(MOONLIT, Rect2(Vector2.ZERO, size), false)
+	if framed:
+		draw_texture_rect(MOONLIT, Rect2(Vector2.ZERO, size), false)
+	else:
+		var glow_radius: float = minf(size.x, size.y) * 0.5
+		for step: int in range(8):
+			draw_circle(Vector2(size.x * 0.5, size.y * 0.52), glow_radius * (1.0 - step * 0.11), Color(accent, 0.035))
+	if entrance < 1.0:
+		# Arrival burst: a class-coloured ring expanding from the pedestal.
+		var burst: float = minf(size.x, size.y) * lerpf(0.15, 0.55, entrance)
+		var fade: float = 1.0 - entrance
+		draw_circle(Vector2(size.x * 0.5, size.y * 0.55), burst, Color(accent.lightened(0.3), 0.18 * fade))
+		draw_arc(Vector2(size.x * 0.5, size.y * 0.55), burst, 0, TAU, 72, Color(accent.lightened(0.5), 0.7 * fade), 3.0, true)
 	draw_set_transform(ground, 0, Vector2(1, 0.22))
-	var radius: float = size.x * 0.30
+	var radius: float = minf(size.x * 0.30, size.y * 0.42)
 	draw_circle(Vector2.ZERO, radius, Color(0.03, 0.06, 0.09, 0.65))
+	var ring_color := Color(accent.lerp(Color(0.91, 0.76, 0.48), 0.45), 0.68)
 	for ring: float in [0.88, 1.08, 1.38]:
-		draw_arc(Vector2.ZERO, radius * ring, 0, TAU, 100, Color(0.91, 0.76, 0.48, 0.68), 1.4, true)
+		draw_arc(Vector2.ZERO, radius * ring, 0, TAU, 100, ring_color, 1.4, true)
 	draw_set_transform(Vector2.ZERO)
 	for index: int in range(9):
 		var angle: float = TAU * index / 9.0
 		var point := ground + Vector2(cos(angle) * radius * 1.38, sin(angle) * radius * 1.38 * 0.22)
 		draw_line(point - Vector2(4, 0), point + Vector2(4, 0), Color("e8c889"), 1, true)
 		draw_line(point - Vector2(0, 4), point + Vector2(0, 4), Color("e8c889"), 1, true)
+	if not framed:
+		return
 	var border := StyleBoxFlat.new()
 	border.bg_color = Color.TRANSPARENT
 	border.border_color = Color("a08a62")
