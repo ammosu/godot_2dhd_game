@@ -1,6 +1,8 @@
 # CLAUDE.md
 
-Read and follow [`AGENTS.md`](AGENTS.md) before modifying this repository. It is the canonical repository-wide instruction file and contains the project architecture, Godot/Web constraints, verification commands, asset licensing requirements, and delivery rules.
+@AGENTS.md
+
+Follow `AGENTS.md` (imported above) when modifying this repository. It is the canonical repository-wide instruction file and contains the project architecture, Godot/Web constraints, verification commands, asset licensing requirements, and delivery rules.
 
 Claude-specific reminders:
 

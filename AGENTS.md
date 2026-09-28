@@ -15,7 +15,8 @@ This file defines the repository-wide working agreement for coding agents. It ap
 
 - `project.godot`: project, input, renderer, and autoload configuration.
 - `scenes/`: Godot scenes. `main.tscn` is the playable world; `player.tscn` owns the player scene.
-- `scripts/world.gd`: map construction, encounters, HUD, and end-to-end smoke test.
+- `scripts/world.gd`: map construction, encounters, and wiring of the HUD (`scripts/ui/world_hud.gd`) and the `--playthrough-test` smoke test.
+- `scripts/testing/playthrough_test.gd`: end-to-end smoke test run by `--playthrough-test`.
 - `scripts/systems/game_state.gd`: authoritative quest, inventory, player stats, map state, and save/load data.
 - `scripts/player.gd`: movement and player presentation.
 - `scripts/camera_rig.gd`: camera following, rotation, zoom, and renderer-specific camera effects.
