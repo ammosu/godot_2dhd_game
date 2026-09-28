@@ -1,4 +1,5 @@
 extends SceneTree
+## test-requires: gpu
 ## Verify live roof batching, real relief, material and downhill orientation.
 
 var _failures: int = 0

@@ -1,4 +1,5 @@
 extends SceneTree
+## test-requires: gpu
 ## Actual GPU regression: run without --headless on both desktop renderers.
 
 

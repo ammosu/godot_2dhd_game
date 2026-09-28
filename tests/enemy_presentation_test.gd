@@ -3,12 +3,15 @@ extends SceneTree
 const Presentation = preload("res://scripts/gameplay/enemy_presentation.gd")
 const Grounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 const Art = preload("res://scripts/gameplay/action_sprite_library.gd")
-const HealthBar = preload("res://scripts/gameplay/world_health_bar.gd")
+# Loaded at runtime: its dependencies use the GameState autoload, which a
+# --script entry point cannot resolve until the tree has started.
+var HealthBar: GDScript
 
 func _initialize() -> void:
 	_run.call_deferred()
 
 func _run() -> void:
+	HealthBar = load("res://scripts/gameplay/world_health_bar.gd")
 	for species: String in ["moss_wolf", "dusk_bat", "eclipse_mage", "guardian"]:
 		var body := Node3D.new()
 		root.add_child(body)
@@ -17,7 +20,7 @@ func _run() -> void:
 		body.add_child(sprite)
 		var label := Label3D.new()
 		body.add_child(label)
-		var bar := HealthBar.new()
+		var bar: Node3D = HealthBar.new()
 		body.add_child(bar)
 		bar.configure(true, species)
 		var view := Presentation.new()

@@ -1,4 +1,5 @@
 extends SceneTree
+## test-requires: gpu
 ## Real GPU regression: hidden pixels gain a hint; clear pixels do not change.
 
 var _failures: int = 0

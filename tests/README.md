@@ -1,3 +1,15 @@
+## 統一執行入口
+
+`python3 tools/run_tests.py` 平行執行全部 `tests/*_test.gd` 與 playthrough，逐項寫入 `build/test-logs/<renderer>/`。判定從嚴：結束碼 0、輸出含 `*_PASS` 標記，且沒有 `ERROR:`／`SCRIPT ERROR:`。`assert` 失敗不會結束 SceneTree 腳本，因此首個錯誤後 10 秒仍未結束即中止，不必等逾時。
+
+- 篩選：`python3 tools/run_tests.py hit_feedback field_`（名稱包含任一字串）
+- 渲染器：`--renderer forward_plus`（預設 `gl_compatibility`）；`--fixed-fps 60`、`--jobs N`、`--timeout 秒`
+- 需要實際 GPU 的測試在開頭註解標記 `## test-requires: gpu`，預設略過；`--gpu` 以視窗模式執行
+- 需要額外參數的測試標記 `## test-args: -- --flag`
+- `--list` 列出選取的測試
+
+以 `--script` 執行時，頂層 `preload` 與成員初始值會在 `GameState` autoload 註冊前編譯；若相依腳本直接引用 `GameState`，請改在 `_run()` 內 `load()`。
+
 ## 野外警覺與群體追擊
 
 野怪以 5.8 公尺、前方 120° 視野發現玩家；1.6 公尺內可察覺背後接近，兩者都受牆壁遮蔽。首次發現或受到攻擊時，4 公尺內、視線與導航相通的待機同伴會一起追擊；支援者不再轉播警報。追擊失去視線後只前往最後已知位置，4 秒未重新看見玩家便返回；玩家離出生點超過 9 公尺或離開狩獵區也會脫戰。首領保留房間專屬警覺與技能。自動戰鬥在狩獵區邊緣優先選擇側向閃避，避免群體攻擊把角色推離導航範圍後停住。

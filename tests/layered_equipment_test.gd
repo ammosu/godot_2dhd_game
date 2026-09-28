@@ -1,6 +1,9 @@
 extends SceneTree
+## test-args: -- --layered-equipment
 const Actor = preload("res://scripts/gameplay/layered_combat_actor.gd")
-const Portrait = preload("res://scripts/ui/equipment_portrait.gd")
+# Loaded at runtime: its dependencies use the GameState autoload, which a
+# --script entry point cannot resolve until the tree has started.
+var Portrait: GDScript
 var failures: Array[String] = []
 
 
@@ -15,13 +18,14 @@ func check(value: bool, message: String) -> void:
 
 
 func _run() -> void:
+	Portrait = load("res://scripts/ui/equipment_portrait.gd")
 	check("--layered-equipment" in OS.get_cmdline_user_args(), "Pass -- --layered-equipment for integration checks")
 	var state := root.get_node("GameState")
 	var saved: Dictionary = state.get("equipped").duplicate(true)
 	var companions: Dictionary = state.get("companion_equipped").duplicate(true)
 	var actor := Actor.new()
 	root.add_child(actor)
-	var portrait := Portrait.new()
+	var portrait: Control = Portrait.new()
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	root.add_child(portrait)

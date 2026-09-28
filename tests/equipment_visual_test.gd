@@ -1,7 +1,9 @@
 extends SceneTree
 
 const Appearance = preload("res://scripts/gameplay/equipment_appearance.gd")
-const Portrait = preload("res://scripts/ui/equipment_portrait.gd")
+# Loaded at runtime: its dependencies use the GameState autoload, which a
+# --script entry point cannot resolve until the tree has started.
+var Portrait: GDScript
 var failures: Array[String] = []
 var capture: bool = false
 
@@ -27,6 +29,7 @@ func screenshot(label: String) -> void:
 
 
 func _run() -> void:
+	Portrait = load("res://scripts/ui/equipment_portrait.gd")
 	capture = "--equipment-capture" in OS.get_cmdline_user_args()
 	var state: Node = root.get_node("GameState")
 	state.call("reset_new_game", false)
@@ -126,7 +129,7 @@ func _gallery(state: Node) -> void:
 	for index: int in range(7):
 		var pose: String = Appearance.POSES[index]
 		var texture := load("res://assets/generated/wanderer_combat_%s.tres" % pose) as Texture2D
-		var portrait := Portrait.new()
+		var portrait: Control = Portrait.new()
 		portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		canvas.add_child(portrait)
 		var ratio := 245.0 / texture.get_height()
@@ -154,7 +157,7 @@ func _walk_gallery(state: Node) -> void:
 	var directions: Array[String] = ["down", "left", "up", "right"]
 	for row: int in range(4):
 		for frame: int in range(4):
-			var portrait := Portrait.new()
+			var portrait: Control = Portrait.new()
 			portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			canvas.add_child(portrait)
 			portrait.dress(frames.get_frame_texture(directions[row], frame), "walk_" + directions[row], state.get("equipped"))

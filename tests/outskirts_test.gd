@@ -1,6 +1,5 @@
 extends SceneTree
 
-const Outskirts = preload("res://scripts/gameplay/outskirts.gd")
 const SAVE := "user://outskirts_test.json"
 
 func _initialize() -> void:
