@@ -4,6 +4,8 @@ const Proportions = preload("res://scripts/gameplay/character_proportions.gd")
 
 @export_range(0.5, 12.0, 0.1) var move_speed: float = 4.2
 @export_range(1.0, 40.0, 0.5) var acceleration: float = 18.0
+## Braking is a little firmer than starting so stops read as planted feet.
+@export_range(1.0, 40.0, 0.5) var deceleration: float = 24.0
 
 const EightWayFacing = preload("res://scripts/gameplay/eight_way_facing.gd")
 var _movement_facing := preload("res://scripts/gameplay/movement_facing.gd").new()
@@ -14,6 +16,49 @@ const EquipmentAppearance = preload("res://scripts/gameplay/equipment_appearance
 const DoorActionArt = preload("res://scripts/gameplay/door_action_art.gd")
 const TownAppearance = preload("res://scripts/gameplay/town_appearance.gd")
 const CONVERSATION_DISTANCE: float = 1.35
+const MovementFacing = preload("res://scripts/gameplay/movement_facing.gd")
+
+# Locomotion tuning. The four-frame walk cycle [pass, contact, pass, contact]
+# holds two steps, so the phase advances one frame per half step of ground.
+## Distance between successive foot contacts (m). Measured once from the
+## traveler's side profile (wanderer_steady_frames "left"/"right"): contact
+## frames span about 0.68 m heel to toe at the 1.45 m stature, minus roughly
+## 0.15 m of shoe. Tune by eye with tests/opening_cutscene_test.gd --capture-dir.
+const STEP_LENGTH: float = 0.54
+## Cadence clamp (frames per second) for crawls and dodges; 1.6-4.2 m/s is unclamped.
+const MIN_WALK_FPS: float = 4.0
+const MAX_WALK_FPS: float = 16.0
+## Time-based rate kept for direct presentation calls (tests and capture tools).
+const PRESENTATION_WALK_FPS: float = 8.0
+## Planar speed below which the body is considered standing.
+const WALK_ANIMATION_MIN_SPEED: float = 0.25
+## A new walk starts half a frame before the first contact pose.
+const WALK_START_PHASE: float = 0.5
+## After stopping, a mid-stride contact pose finishes to the next passing pose.
+const WALK_SETTLE_FPS: float = 9.0
+const CONTACT_FRAMES: Array[int] = [1, 3]
+## Backing away with locked facing plays the cycle in reverse, a little slower.
+const BACKSTEP_CADENCE_SCALE: float = 0.6
+## Smallest analog tilt still produces this fraction of move_speed (no crawl-glide).
+const ANALOG_MIN_SPEED_SCALE: float = 0.2
+## Keep the current facing until a heading is this far from its sector centre.
+const FACING_HYSTERESIS_DEGREES: float = 28.0
+## Foot-anchored breathing once standing still.
+const IDLE_BREATH_DELAY: float = 0.4
+const IDLE_BREATH_AMPLITUDE: float = 0.006
+const IDLE_BREATH_PERIOD: float = 3.2
+## Scripted (cutscene, door, conversation) walks ease in and out.
+const SCRIPTED_ACCELERATION: float = 4.0
+const SCRIPTED_DECELERATION: float = 3.0
+const SCRIPTED_START_SPEED: float = 0.3
+## Final mark tolerance; small so the eased approach, not a snap, ends the walk.
+const SCRIPTED_ARRIVE_RADIUS: float = 0.03
+## Within this distance of an interior waypoint, steer partly toward the next leg.
+const SCRIPTED_CORNER_BLEND: float = 0.45
+const SCRIPTED_CORNER_RADIUS: float = 0.2
+const SCRIPTED_CORNER_MAX_WEIGHT: float = 0.45
+## Visual-only catch-up after the body climbs a doorstep inside one tick (m/s).
+const DOORSTEP_EASE_SPEED: float = 2.5
 var auto_walk := preload("res://scripts/gameplay/map_navigation.gd").new()
 var ground_safety := preload("res://scripts/gameplay/ground_safety.gd").new()
 var field_combat: Node
@@ -24,7 +69,6 @@ var _appearance_key: String = ""
 
 var _gravity: float = float(ProjectSettings.get_setting("physics/3d/default_gravity", 18.0))
 var _walk_time: float = 0.0
-var _sprite_rest_height: float
 var _facing_column: int = 0
 var _interaction_area: Area3D
 var _footsteps := Footsteps.new()
@@ -40,6 +84,17 @@ var _walking_offset: Vector2
 var scripted_path := PackedVector3Array()
 var scripted_speed: float = 2.4
 var scripted_hold: bool = false
+var _scripted_current_speed: float = 0.0
+var _walk_animating: bool = false
+var _walk_direction_sign: float = 1.0
+var _idle_time: float = 0.0
+## True while idle breathing owns sprite.scale.y. The flag lets the hero's
+## BodyLife nod write scale.y without being reset every physics tick.
+var _breathing: bool = false
+## World heading of the last deliberate facing; standing re-derives the screen
+## sector from it so a camera orbit does not turn the hero with the camera.
+var _idle_world_heading: Vector3 = Vector3.ZERO
+var _doorstep_offset: float = 0.0
 
 
 func _ready() -> void:
@@ -49,7 +104,6 @@ func _ready() -> void:
 	auto_walk.player = self
 	_last_step_position = global_position
 	SpriteGrounding.anchor(sprite, sprite.sprite_frames.get_frame_texture(&"down", 0))
-	_sprite_rest_height = sprite.position.y
 	_walking_offset = sprite.offset
 	SpriteGrounding.add_shadow(self, 0.32, 0.028)
 	_create_interaction_detector()
@@ -100,7 +154,7 @@ func _physics_process(delta: float) -> void:
 		_movement_facing.update(Vector2.ZERO, delta)
 		velocity = Vector3.ZERO
 		_last_step_position = global_position
-		_update_sprite(Vector2.ZERO, Vector3.ZERO, delta)
+		_update_sprite(Vector2.ZERO, Vector3.ZERO, delta, 0.0)
 		return
 	if _footstep_map != GameState.current_map or global_position.distance_to(_last_step_position) > 2.0:
 		_footsteps.advance(0.0, false, false, true)
@@ -111,32 +165,42 @@ func _physics_process(delta: float) -> void:
 	if GameState.is_input_locked():
 		_movement_facing.update(Vector2.ZERO, delta)
 		_footsteps.advance(0.0, false, false, true)
-		velocity.x = move_toward(velocity.x, 0.0, acceleration * delta)
-		velocity.z = move_toward(velocity.z, 0.0, acceleration * delta)
+		velocity.x = move_toward(velocity.x, 0.0, deceleration * delta)
+		velocity.z = move_toward(velocity.z, 0.0, deceleration * delta)
 		if not is_on_floor():
 			velocity.y -= _gravity * delta
+		var before_locked := global_position
 		move_and_slide()
 		_last_step_position = global_position
-		_update_sprite(Vector2.ZERO, Vector3.ZERO, delta)
+		# Momentum carried into a dialogue still finishes its last half step.
+		var coasting := Vector3(velocity.x, 0.0, velocity.z)
+		_update_sprite(Vector2.ZERO, coasting if coasting.length() > WALK_ANIMATION_MIN_SPEED else Vector3.ZERO, delta,
+			Vector2(global_position.x - before_locked.x, global_position.z - before_locked.z).length())
 		return
 	var input_vector := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var facing_input := _movement_facing.update(input_vector, delta)
 	var move_direction := _camera_relative_direction(input_vector)
+	# Keyboard vectors are unit length; a partly tilted stick or touch joystick
+	# walks proportionally slower (Input.get_vector already removed the deadzone).
+	var speed_scale: float = 1.0
 	if not input_vector.is_zero_approx():
+		speed_scale = clampf(input_vector.length(), ANALOG_MIN_SPEED_SCALE, 1.0)
 		auto_walk.cancel()
 	elif auto_walk.is_active():
 		move_direction = auto_walk.direction(delta)
 		input_vector = EightWayFacing.screen_direction(move_direction, get_viewport().get_camera_3d())
 		facing_input = input_vector
-	var target_velocity := move_direction * move_speed
+	var target_velocity := move_direction * move_speed * speed_scale
 	if is_instance_valid(field_combat):
 		target_velocity = field_combat.movement_velocity(target_velocity, delta, _camera_relative_direction(facing_input))
 		move_direction = target_velocity.normalized()
 		input_vector = EightWayFacing.screen_direction(move_direction, get_viewport().get_camera_3d())
 		facing_input = EightWayFacing.screen_direction(field_combat.get("facing"), get_viewport().get_camera_3d())
 
-	velocity.x = move_toward(velocity.x, target_velocity.x, acceleration * delta)
-	velocity.z = move_toward(velocity.z, target_velocity.z, acceleration * delta)
+	var planar_speed := Vector2(velocity.x, velocity.z).length()
+	var rate: float = deceleration if Vector2(target_velocity.x, target_velocity.z).length() < planar_speed - 0.001 else acceleration
+	velocity.x = move_toward(velocity.x, target_velocity.x, rate * delta)
+	velocity.z = move_toward(velocity.z, target_velocity.z, rate * delta)
 	if is_instance_valid(field_combat) and float(field_combat.get("dodge_time")) > 0.0:
 		velocity.x = target_velocity.x
 		velocity.z = target_velocity.z
@@ -148,10 +212,11 @@ func _physics_process(delta: float) -> void:
 	var before_move := global_position
 	move_and_slide()
 	var traveled := Vector2(global_position.x - before_move.x, global_position.z - before_move.z).length()
-	if _footsteps.advance(traveled, is_on_floor(), not input_vector.is_zero_approx(), GameState.is_input_locked()):
-		GameAudio.play_cue(_footsteps.next_cue(Footsteps.surface_at(get_tree(), global_position)))
 	_last_step_position = global_position
-	_update_sprite(facing_input, move_direction, delta)
+	# Walk or stand by what the body actually does, not by the held input:
+	# braking shows the last half step, pushing into a wall stands still.
+	var motion := Vector3(velocity.x, 0.0, velocity.z)
+	_update_sprite(facing_input, motion if motion.length() > WALK_ANIMATION_MIN_SPEED else Vector3.ZERO, delta, traveled)
 	if not auto_walk.is_active():
 		_update_automatic_interaction()
 
@@ -160,11 +225,13 @@ func play_scripted_walk(points: PackedVector3Array, speed: float) -> void:
 	scripted_path = points.duplicate()
 	scripted_speed = speed
 	scripted_hold = false
+	_scripted_current_speed = minf(Vector2(velocity.x, velocity.z).length(), speed)
 
 
 func stop_scripted_walk() -> void:
 	scripted_path.clear()
 	scripted_hold = false
+	_scripted_current_speed = 0.0
 	velocity = Vector3.ZERO
 
 
@@ -174,13 +241,23 @@ func is_scripted_walking() -> bool:
 
 func _follow_scripted_path(delta: float) -> void:
 	var flat := Vector3(global_position.x, 0.0, global_position.z)
-	while not scripted_path.is_empty() and flat.distance_to(Vector3(scripted_path[0].x, 0.0, scripted_path[0].z)) < 0.08:
+	# Interior corners are rounded, so accept them from a little further away.
+	while not scripted_path.is_empty():
+		var radius: float = SCRIPTED_ARRIVE_RADIUS if scripted_path.size() == 1 else SCRIPTED_CORNER_RADIUS
+		if flat.distance_to(Vector3(scripted_path[0].x, 0.0, scripted_path[0].z)) >= radius:
+			break
 		scripted_path.remove_at(0)
 	var move_direction := Vector3.ZERO
 	if not scripted_hold and not scripted_path.is_empty():
-		move_direction = (Vector3(scripted_path[0].x, 0.0, scripted_path[0].z) - flat).normalized()
-	velocity.x = move_direction.x * scripted_speed
-	velocity.z = move_direction.z * scripted_speed
+		move_direction = _scripted_heading(flat)
+	if move_direction.is_zero_approx():
+		_scripted_current_speed = 0.0
+	else:
+		# Ease in from a standstill and brake into the final mark.
+		var cap := sqrt(2.0 * SCRIPTED_DECELERATION * _remaining_scripted_length(flat))
+		_scripted_current_speed = minf(move_toward(maxf(_scripted_current_speed, SCRIPTED_START_SPEED), scripted_speed, SCRIPTED_ACCELERATION * delta), cap)
+	velocity.x = move_direction.x * _scripted_current_speed
+	velocity.z = move_direction.z * _scripted_current_speed
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
 	else:
@@ -188,12 +265,35 @@ func _follow_scripted_path(delta: float) -> void:
 	var before_move := global_position
 	move_and_slide()
 	var traveled := Vector2(global_position.x - before_move.x, global_position.z - before_move.z).length()
-	var moving := not move_direction.is_zero_approx()
-	if _footsteps.advance(traveled, is_on_floor(), moving, false):
-		GameAudio.play_cue(_footsteps.next_cue(Footsteps.surface_at(get_tree(), global_position)))
 	_last_step_position = global_position
+	var moving := not move_direction.is_zero_approx() and _scripted_current_speed > WALK_ANIMATION_MIN_SPEED
 	var screen := EightWayFacing.screen_direction(move_direction, get_viewport().get_camera_3d()) if moving else Vector2.ZERO
-	_update_sprite(screen, move_direction, delta)
+	_update_sprite(screen, move_direction if moving else Vector3.ZERO, delta, traveled)
+
+
+func _scripted_heading(flat: Vector3) -> Vector3:
+	var target := Vector3(scripted_path[0].x, 0.0, scripted_path[0].z)
+	var heading := (target - flat).normalized()
+	if scripted_path.size() < 2:
+		return heading
+	var distance := flat.distance_to(target)
+	if distance >= SCRIPTED_CORNER_BLEND:
+		return heading
+	var next_leg := (Vector3(scripted_path[1].x, 0.0, scripted_path[1].z) - target).normalized()
+	# The weight stays below one half, so the walker always keeps closing on the
+	# corner and cannot orbit it, even on a hairpin.
+	var weight: float = (1.0 - distance / SCRIPTED_CORNER_BLEND) * SCRIPTED_CORNER_MAX_WEIGHT
+	var blended := heading.lerp(next_leg, weight)
+	return heading if blended.is_zero_approx() else blended.normalized()
+
+
+func _remaining_scripted_length(flat: Vector3) -> float:
+	var remaining: float = flat.distance_to(Vector3(scripted_path[0].x, 0.0, scripted_path[0].z))
+	for index: int in range(1, scripted_path.size()):
+		var a := scripted_path[index - 1]
+		var b := scripted_path[index]
+		remaining += Vector2(b.x - a.x, b.z - a.z).length()
+	return remaining
 
 
 func reset_automatic_interaction() -> void:
@@ -287,11 +387,24 @@ func _camera_relative_direction(input_vector: Vector2) -> Vector3:
 	return (camera_right * input_vector.x + camera_forward * -input_vector.y).normalized()
 
 
-func _update_sprite(input_vector: Vector2, move_direction: Vector3, delta: float) -> void:
+## `traveled` is the planar distance the body really moved this tick. Live
+## movement passes it (>= 0): the walk phase then follows ground distance,
+## stops finish their stride, footsteps land on contact frames and standing
+## keeps its world heading. Direct presentation requests (tests, capture tools,
+## door gestures) omit it and get the deterministic time-based pose instead.
+func _update_sprite(input_vector: Vector2, move_direction: Vector3, delta: float, traveled: float = -1.0) -> void:
+	var live: bool = traveled >= 0.0
+	var walking: bool = not move_direction.is_zero_approx()
 	if _door_facing_locked:
 		input_vector = EightWayFacing.screen_direction(_door_facing_target - global_position, get_viewport().get_camera_3d())
-		_update_facing_column(input_vector)
+		_update_facing_column(input_vector, live)
+	elif live and not walking and _door_pose < 0 and not _idle_world_heading.is_zero_approx():
+		# Standing keeps its world heading while the camera orbits around it.
+		_update_facing_column(EightWayFacing.screen_direction(_idle_world_heading, get_viewport().get_camera_3d()), true, false)
 	_refresh_equipment()
+	if _breathing:
+		sprite.scale.y = 1.0
+		_breathing = false
 	if _door_pose >= 0:
 		sprite.animation = FACING_ANIMATIONS[_facing_column]
 		sprite.frame = _door_pose
@@ -306,20 +419,33 @@ func _update_sprite(input_vector: Vector2, move_direction: Vector3, delta: float
 	sprite.pixel_size = _base_pixel_size * _presentation_scale
 	sprite.offset = _walking_offset
 	sprite.flip_h = false
-	if not move_direction.is_zero_approx():
-		_walk_time += delta * 8.0
+	sprite.rotation.z = 0.0
+	var previous_frame: int = sprite.frame
+	if walking:
 		if not _door_facing_locked:
-			_update_facing_column(input_vector)
-		sprite.animation = FACING_ANIMATIONS[_facing_column]
-		sprite.frame = int(floor(_walk_time)) % 4
-		sprite.position.y = _sprite_rest_height
-		sprite.rotation.z = 0.0
+			_update_facing_column(input_vector, live)
+		if live:
+			_advance_walk_phase(move_direction, delta, traveled)
+		else:
+			_walk_time += delta * PRESENTATION_WALK_FPS
+		_idle_time = 0.0
+	elif live:
+		_settle_walk_phase(delta)
+		_idle_time = _idle_time + delta if not _walk_animating else 0.0
 	else:
 		_walk_time = 0.0
-		sprite.animation = FACING_ANIMATIONS[_facing_column]
-		sprite.frame = 0
-		sprite.position.y = move_toward(sprite.position.y, _sprite_rest_height, delta * 0.5)
-		sprite.rotation.z = move_toward(sprite.rotation.z, 0.0, delta * 0.5)
+		_walk_animating = false
+		_idle_time = 0.0
+	sprite.animation = FACING_ANIMATIONS[_facing_column]
+	sprite.frame = posmod(int(floor(_walk_time)), 4)
+	if live:
+		var audible := _footsteps.advance(traveled, is_on_floor(), walking, false)
+		if audible and sprite.frame != previous_frame and CONTACT_FRAMES.has(sprite.frame):
+			GameAudio.play_cue(_footsteps.next_cue(Footsteps.surface_at(get_tree(), global_position)))
+		if not walking and not _walk_animating and _idle_time > IDLE_BREATH_DELAY:
+			# Scales about the sprite origin, which SpriteGrounding puts at the feet.
+			_breathing = true
+			sprite.scale.y = 1.0 + IDLE_BREATH_AMPLITUDE * sin((_idle_time - IDLE_BREATH_DELAY) * TAU / IDLE_BREATH_PERIOD)
 	_refresh_equipment()
 	var standing := sprite.sprite_frames.get_frame_texture(sprite.animation, 0)
 	var texture := sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame)
@@ -331,6 +457,41 @@ func _update_sprite(input_vector: Vector2, move_direction: Vector3, delta: float
 	SpriteGrounding.anchor(sprite, texture, float(texture.get_meta("ground_y", 316.0)))
 	if texture.has_meta("anchor_x"):
 		sprite.offset.x = texture.get_width() * 0.5 - float(texture.get_meta("anchor_x"))
+	if not is_zero_approx(_doorstep_offset):
+		_doorstep_offset = move_toward(_doorstep_offset, 0.0, DOORSTEP_EASE_SPEED * delta)
+		sprite.position.y += _doorstep_offset
+
+
+func _advance_walk_phase(move_direction: Vector3, delta: float, traveled: float) -> void:
+	if not _walk_animating:
+		# Resume a stride still settling; otherwise lift the first foot at once.
+		if posmod(int(floor(_walk_time)), 2) == 0:
+			_walk_time = WALK_START_PHASE
+		_walk_animating = true
+	# Backing away while facing a locked target plays the stride in reverse.
+	_walk_direction_sign = 1.0
+	if _door_facing_locked and move_direction.dot(_door_facing_target - global_position) < 0.0:
+		_walk_direction_sign = -1.0
+	if traveled < 0.0005 or delta <= 0.0:
+		return
+	# One frame per half step of ground covered keeps the planted foot planted.
+	var frames: float = clampf(traveled / (STEP_LENGTH * 0.5), MIN_WALK_FPS * delta, MAX_WALK_FPS * delta)
+	if _walk_direction_sign < 0.0:
+		frames *= BACKSTEP_CADENCE_SCALE
+	_walk_time += frames * _walk_direction_sign
+
+
+func _settle_walk_phase(delta: float) -> void:
+	# Finish a contact pose to the following passing pose, then stand.
+	if _walk_animating and posmod(int(floor(_walk_time)), 2) == 1 and delta > 0.0:
+		var boundary: float = floor(_walk_time) + (1.0 if _walk_direction_sign > 0.0 else -0.0001)
+		# Show the passing pose for one tick before the standing pose.
+		_walk_time = move_toward(_walk_time, boundary, WALK_SETTLE_FPS * delta)
+		return
+	if _walk_animating and posmod(int(floor(_walk_time)), 2) == 1:
+		return
+	_walk_time = 0.0
+	_walk_animating = false
 
 
 func reach_for_door() -> void:
@@ -351,12 +512,17 @@ func withdraw_door_hand() -> void:
 	_update_sprite(Vector2.ZERO, Vector3.ZERO, 0.0)
 
 
-func _update_facing_column(input_vector: Vector2) -> void:
+func _update_facing_column(input_vector: Vector2, hysteresis: bool = false, remember: bool = true) -> void:
 	# Eight equal 45-degree sectors support keyboard and analog input alike.
-	# Facing stays screen-relative while the camera orbits; idle keeps its sector.
+	# Live motion adds a small hysteresis so boundary headings do not flicker.
 	if input_vector.is_zero_approx():
 		return
-	_facing_column = EightWayFacing.direction_index(input_vector)
+	if hysteresis:
+		_facing_column = MovementFacing.column_with_hysteresis(input_vector, _facing_column, FACING_HYSTERESIS_DEGREES)
+	else:
+		_facing_column = EightWayFacing.direction_index(input_vector)
+	if remember:
+		_idle_world_heading = _camera_relative_direction(input_vector)
 
 
 func make_conversation_space(partner: Node3D) -> void:
@@ -396,19 +562,24 @@ func walk_to_door_point(target: Vector3, speed: float = 2.8) -> bool:
 	var was_processing := is_physics_processing()
 	set_physics_process(false)
 	var reached: bool = false
+	# Carry any momentum along the new heading, then ease in and brake to the mark.
+	var initial := Vector3(target.x - global_position.x, 0, target.z - global_position.z)
+	var current_speed: float = clampf(Vector3(velocity.x, 0.0, velocity.z).dot(initial.normalized()), 0.0, speed)
+	var delta: float = get_physics_process_delta_time()
 	for step: int in range(240):
 		await get_tree().physics_frame
 		var offset := Vector3(target.x - global_position.x, 0, target.z - global_position.z)
 		if offset.length() < 0.035:
 			reached = true
 			break
-		var delta := get_physics_process_delta_time()
+		delta = get_physics_process_delta_time()
 		var direction := offset.normalized()
-		velocity = direction * minf(speed, offset.length() / delta)
+		current_speed = minf(move_toward(maxf(current_speed, SCRIPTED_START_SPEED), speed, SCRIPTED_ACCELERATION * delta), sqrt(2.0 * SCRIPTED_DECELERATION * offset.length()))
+		velocity = direction * minf(current_speed, offset.length() / delta)
 		velocity.y = -2.0
 		var before := global_position
 		# Climb the real low doorstep using sweeps, never teleport through walls.
-		var horizontal := direction * minf(speed * delta, offset.length())
+		var horizontal := direction * minf(current_speed * delta, offset.length())
 		var raised := global_transform
 		raised.origin.y += 0.34
 		var climb := test_move(global_transform, horizontal) and not test_move(global_transform, Vector3.UP * 0.34) and not test_move(raised, horizontal)
@@ -417,13 +588,19 @@ func walk_to_door_point(target: Vector3, speed: float = 2.8) -> bool:
 		move_and_slide()
 		if climb:
 			move_and_collide(Vector3.DOWN * 0.36)
+			# The body mounts the step inside one tick; let the art follow over ~0.1 s.
+			_doorstep_offset -= global_position.y - before.y
 		var traveled := Vector2(global_position.x - before.x, global_position.z - before.z).length()
-		if _footsteps.advance(traveled, is_on_floor(), true, false):
-			GameAudio.play_cue(_footsteps.next_cue(Footsteps.surface_at(get_tree(), global_position)))
-		_update_sprite(EightWayFacing.screen_direction(direction, get_viewport().get_camera_3d()), direction, delta)
-		if Vector2(global_position.x - before.x, global_position.z - before.z).length() < 0.001:
+		_update_sprite(EightWayFacing.screen_direction(direction, get_viewport().get_camera_3d()), direction, delta, traveled)
+		if traveled < 0.001:
 			break
 	velocity = Vector3.ZERO
+	# Finish a mid-stride contact pose (at most a few ticks) instead of snapping.
+	for settle: int in range(8):
+		if not _walk_animating and is_zero_approx(_doorstep_offset):
+			break
+		await get_tree().physics_frame
+		_update_sprite(Vector2.ZERO, Vector3.ZERO, delta, 0.0)
 	_update_sprite(Vector2.ZERO, Vector3.ZERO, 0.0)
 	_last_step_position = global_position
 	set_physics_process(was_processing)
@@ -443,9 +620,26 @@ func release_door_facing() -> void:
 
 
 func face_world_position(target: Vector3) -> void:
+	var previous_column: int = _facing_column
 	var direction := EightWayFacing.screen_direction(target - global_position, get_viewport().get_camera_3d())
 	_update_facing_column(direction)
+	var heading := Vector3(target.x - global_position.x, 0.0, target.z - global_position.z)
+	if not heading.is_zero_approx():
+		_idle_world_heading = heading.normalized()
+	# Conversation partners re-aim the hero every frame. A live stride (such as
+	# the conversation back-step) renders itself each tick, and a live idle
+	# re-derives the column from the heading; the static redraw below would
+	# reset the walk phase and the breathing clock, so skip it in those cases.
+	if _walk_animating:
+		return
+	if is_physics_processing() and previous_column == _facing_column and _door_pose < 0:
+		return
 	_update_sprite(Vector2.ZERO, Vector3.ZERO, 0.0)
+
+
+## World heading of the last deliberate facing (zero before the first one).
+func idle_world_heading() -> Vector3:
+	return _idle_world_heading
 
 
 func _create_interaction_detector() -> void:

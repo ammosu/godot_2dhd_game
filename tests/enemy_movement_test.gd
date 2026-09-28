@@ -48,9 +48,21 @@ func _run() -> void:
 		camera.rotation.y = quarter * PI / 2
 		check(Movement.direction(Facing.screen_direction(Vector3.BACK, camera)) == posmod(-quarter * 2, 8), "Camera orbit updates relative direction")
 	check(Art.directional_texture("wanderer", "idle", Vector2.RIGHT, sprite) == Art.texture_for("wanderer", "idle", 1), "Allied equipment path preserved")
+	# Combat fallback: diagonals use side profiles, never a back view sliding sideways.
+	for screen: Vector2 in [Vector2(1, -1), Vector2(1, 1)]:
+		check(Art.direction(screen) == 1, "Right diagonals use the right profile")
+	for screen: Vector2 in [Vector2(-1, -1), Vector2(-1, 1)]:
+		check(Art.direction(screen) == 3, "Left diagonals use the left profile")
+	# Distance-driven gait: the phase index maps straight onto the walk cycle.
+	for index: int in range(8):
+		check(Movement.walk_pose(float(index) / 10.0) == ["walk_a", "idle", "walk_b", "idle"][index % 4], "Gait phase selects the walk frame")
+	var Field: GDScript = load("res://scripts/gameplay/field_combat.gd")
+	var turned: Vector3 = Field.turn_toward(Vector3.FORWARD, Vector3.BACK, 0.5)
+	check(is_equal_approx(turned.length(), 1.0) and absf(turned.z) < 0.01, "Reversals turn through a side view")
+	check(Field.turn_toward(Vector3.FORWARD, Vector3.RIGHT, 1.0).is_equal_approx(Vector3.RIGHT), "Full turn reaches the heading")
 	camera.queue_free()
 	sprite.queue_free()
 	await process_frame
 	if failures == 0:
-		print("ENEMY_MOVEMENT_TEST_PASS five_species eight_directions steps camera hysteresis combat_fallback alpha grounding")
+		print("ENEMY_MOVEMENT_TEST_PASS five_species eight_directions steps camera hysteresis combat_fallback alpha grounding side_profiles gait turning")
 	quit(0 if failures == 0 else 1)

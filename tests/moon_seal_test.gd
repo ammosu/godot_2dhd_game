@@ -31,7 +31,10 @@ func _run() -> void:
 	assert(seal.get("pose_index") == 0)
 	assert(elder.texture != original)
 	assert(is_equal_approx(elder.pixel_size * 739.0, original_height))
+	# Non-uniform schedule: anticipation 0.30 s, raise 0.18 s, then the held seal.
 	seal.call("_process", 0.25)
+	assert(seal.get("pose_index") == 0)
+	seal.call("_process", 0.10)
 	assert(seal.get("pose_index") == 1)
 	seal.call("_process", 0.25)
 	assert(seal.get("pose_index") == 2)
@@ -47,6 +50,10 @@ func _run() -> void:
 	assert(seal.visible)
 	dialogue.call("advance")
 	assert(not seal.visible)
+	# The staff lowers back through the raise pose before the standing pose returns.
+	assert(seal.get("pose_index") == 1 and elder.texture != original)
+	seal.call("_process", 0.2)
+	assert(seal.get("pose_index") == -1)
 	assert(elder.texture == original)
 	assert(picture.visible and picture.texture.resource_path.ends_with("fog_awakening.png"))
 	assert(picture.material is ShaderMaterial)

@@ -19,6 +19,27 @@ func check(value: bool, message: String) -> void:
 		push_error(message)
 
 
+## Watch a real-time turn: the pose holds for `hold` seconds, every change moves
+## to an adjacent drawn view, and the target view is reached before `timeout`.
+func _turn_is_stepped(sprite: Sprite3D, target: StringName, timeout: float = 0.8, hold: float = 0.06) -> bool:
+	var start := sprite.texture
+	var previous: int = Facing.ANIMATIONS.find(start.get_meta("facing", &""))
+	var elapsed: float = 0.0
+	var stepped: bool = true
+	while elapsed < timeout:
+		await process_frame
+		elapsed += root.get_process_delta_time()
+		var current: int = Facing.ANIMATIONS.find(sprite.texture.get_meta("facing", &""))
+		if elapsed < hold and sprite.texture != start:
+			stepped = false
+		if absi(posmod(Facing.SECTORS.find(current) - Facing.SECTORS.find(previous) + 4, 8) - 4) > 1:
+			stepped = false
+		previous = current
+		if Facing.ANIMATIONS[current] == target and elapsed >= hold:
+			return stepped
+	return false
+
+
 func _run() -> void:
 	var state := root.get_node("GameState")
 	state.call("reset_new_game", false)
@@ -69,6 +90,12 @@ func _run() -> void:
 						check(root.get_texture().get_image().save_png(idle_path) == OK, "Idle capture failed")
 					world.call("_handle_interaction", actor)
 					check(dialogue.call("is_open"), "Interaction did not open dialogue")
+					# Real-time sample: the listener reacts, then steps one view at a time.
+					var timed: bool = row == 0 and yaw in [0.0, 135.0]
+					if timed:
+						check(await _turn_is_stepped(sprite, Facing.ANIMATIONS[index]), "NPC turn snapped or never arrived: %s/%s" % [actor, index])
+					else:
+						sprite.call("settle_facing")
 					check(sprite.texture.get_meta("facing", &"") == Facing.ANIMATIONS[index], "NPC is not facing player: %s/%s" % [actor, index])
 					check(player_art.animation == OPPOSITES[index] and player_art.frame == 0, "Player is not facing NPC")
 					check(sprite.texture.get_meta("loadout_row", -1) == row, "Conversation dropped equipment")
@@ -86,9 +113,16 @@ func _run() -> void:
 						await RenderingServer.frame_post_draw
 						var path := "/tmp/conversation-%s-%s-%s.png" % [actor, index, RenderingServer.get_current_rendering_method()]
 						check(root.get_texture().get_image().save_png(path) == OK, "Capture failed")
+					var talking_texture := sprite.texture
 					while dialogue.call("is_open"):
 						dialogue.call("advance")
-					check(sprite.texture == original and is_equal_approx(sprite.pixel_size, original_scale), "Dialogue end did not restore NPC immediately")
+					if timed:
+						# Goodbye beat first, then the NPC turns back to its post.
+						check(sprite.texture == talking_texture, "NPC turned away as the box closed")
+						check(await _turn_is_stepped(sprite, original.get_meta("facing", &""), 1.2, 0.25), "NPC skipped the goodbye beat or did not step back to idle")
+					else:
+						sprite.call("snap_to_idle")
+					check(sprite.texture == original and is_equal_approx(sprite.pixel_size, original_scale), "Dialogue end did not restore NPC")
 	# Close and exactly coincident approaches must separate before framing.
 	var rumi := world.get("_map_root").get_node("Rumi") as Node3D
 	for distance: float in [0.0, 0.1, 0.65, 1.8]:
@@ -96,12 +130,27 @@ func _run() -> void:
 		var before: Vector3 = player.global_position
 		player.velocity = Vector3(-4.2, 0.0, 0.0)
 		world.call("_handle_interaction", "rumi")
+		check(is_zero_approx(player.velocity.x) and is_zero_approx(player.velocity.z), "Conversation retains approach momentum")
+		check(Vector2(player.global_position.x, player.global_position.z).is_equal_approx(Vector2(before.x, before.z)), "Conversation spacing teleported the player")
+		# The hero eases back over several physics frames while dialogue locks input.
+		var step_frames: int = 0
+		var contact_shown: bool = false
+		while world.call("is_conversation_step_active") and step_frames < 180:
+			check(state.call("is_input_locked"), "Conversation step released input")
+			await physics_frame
+			# Sampled after the partner's per-frame re-aim: the stride must survive it.
+			contact_shown = contact_shown or player_art.frame in [1, 3]
+			step_frames += 1
+		check(distance == 1.8 or step_frames >= 6, "Conversation spacing was not a visible step")
+		check(distance > 0.5 or contact_shown, "Hero slid through the conversation back-step without a stride (%.2f m)" % distance)
+		var toward_npc := Facing.screen_direction(rumi.global_position - player.global_position, camera)
+		check(player_art.animation == Facing.ANIMATIONS[Facing.direction_index(toward_npc)], "Player stopped facing the NPC while stepping back")
 		check(not player.get_collision_exceptions().has(rumi.get_node("ActorBody")), "Conversation did not restore NPC collision")
 		var gap: Vector3 = player.global_position - rumi.global_position
 		gap.y = 0.0
 		check(gap.length() >= 1.34, "Close conversation overlaps the NPC")
-		check(is_zero_approx(player.velocity.x) and is_zero_approx(player.velocity.z), "Conversation retains approach momentum")
-		check(is_equal_approx(player.global_position.y, before.y), "Spacing changed floor height")
+		check(is_zero_approx(player.velocity.x) and is_zero_approx(player.velocity.z), "Conversation step left momentum")
+		check(absf(player.global_position.y - before.y) < 0.05, "Spacing changed floor height")
 		if distance == 1.8:
 			check(player.global_position.is_equal_approx(before), "Already spaced player was moved")
 		while dialogue.call("is_open"):

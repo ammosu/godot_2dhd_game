@@ -2,12 +2,17 @@ class_name DialogueUI
 extends CanvasLayer
 
 signal page_shown(index: int)
+## A speaker's line starts (true) or stops (false) typing, for world body language.
+signal line_revealing(speaker: String, active: bool)
 
 const Cinematic = preload("res://scripts/ui/dialogue_cinematic.gd")
 const Presentation = preload("res://scripts/ui/presentation_theme.gd")
 const Faces = preload("res://scripts/ui/portrait_faces.gd")
 ## Typewriter pace for body text; a press while revealing shows the full page.
 const REVEAL_CHARS_PER_SECOND: float = 42.0
+const FADE_IN_SECONDS: float = 0.16
+## The box fades out after closing; game mode and callbacks stay synchronous.
+const FADE_OUT_SECONDS: float = 0.12
 
 var _cinematic: Control
 var _panel: PanelContainer
@@ -27,10 +32,13 @@ var _nameplate: PanelContainer
 var _portrait_frame: PanelContainer
 var _portrait: TextureRect
 var _arrow_time: float = 0.0
+var _open: bool = false
+var _fade: Tween
+var _revealing_speaker: String = ""
 
 
 func _process(delta: float) -> void:
-	if _root.visible and _continue_arrow.visible:
+	if _open and _continue_arrow.visible:
 		_arrow_time += delta
 		_continue_arrow.position.y = sin(_arrow_time * 5.0) * 3.0
 	if _motion == "awakening" and _illustration.material != null:
@@ -52,16 +60,24 @@ func show_dialogue(lines: Array, finished_callback: Callable = Callable()) -> vo
 	_lines = lines.duplicate(true)
 	_line_index = 0
 	_finished_callback = finished_callback
+	if _fade != null:
+		_fade.kill()
+		_fade = null
 	if not _root.visible:
 		_root.modulate.a = 0.0
-		create_tween().tween_property(_root, "modulate:a", 1.0, 0.16)
+		_fade = create_tween()
+		_fade.tween_property(_root, "modulate:a", 1.0, FADE_IN_SECONDS)
+	else:
+		# Reopened while the previous box was fading out: stay solid.
+		_root.modulate.a = 1.0
 	_root.visible = true
+	_open = true
 	GameState.set_mode(GameState.Mode.DIALOGUE)
 	_show_current_line()
 
 
 func advance() -> void:
-	if not _root.visible:
+	if not _open:
 		return
 	_line_index += 1
 	if _line_index >= _lines.size():
@@ -71,7 +87,12 @@ func advance() -> void:
 
 
 func is_open() -> bool:
-	return _root.visible
+	return _open
+
+
+## Speaker whose line is currently typing, or "" when none is.
+func revealing_speaker() -> String:
+	return _revealing_speaker
 
 
 func is_revealing() -> bool:
@@ -98,7 +119,7 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not _root.visible or event.is_echo():
+	if not _open or event.is_echo():
 		return
 	if (
 		event.is_action_pressed("interact")
@@ -157,6 +178,7 @@ func _place_nameplate() -> void:
 func _start_reveal() -> void:
 	if _reveal != null:
 		_reveal.kill()
+	_set_revealing(_speaker_label.text)
 	_continue_arrow.hide()
 	var count: int = _body_label.get_total_character_count()
 	_body_label.visible_ratio = 0.0
@@ -169,22 +191,51 @@ func _complete_reveal() -> void:
 	if _reveal != null:
 		_reveal.kill()
 		_reveal = null
+	_set_revealing("")
 	_body_label.visible_ratio = 1.0
 	_arrow_time = 0.0
 	_continue_arrow.show()
+
+
+func _set_revealing(speaker: String) -> void:
+	if not _revealing_speaker.is_empty():
+		var previous := _revealing_speaker
+		_revealing_speaker = ""
+		line_revealing.emit(previous, false)
+	if not speaker.is_empty():
+		_revealing_speaker = speaker
+		line_revealing.emit(speaker, true)
 
 
 func _finish_dialogue() -> void:
 	if _reveal != null:
 		_reveal.kill()
 		_reveal = null
-	_root.visible = false
+	_set_revealing("")
+	_open = false
+	_continue_arrow.hide()
+	if _fade != null:
+		_fade.kill()
+		_fade = null
+	if _panel.visible:
+		_fade = create_tween()
+		_fade.tween_property(_root, "modulate:a", 0.0, FADE_OUT_SECONDS)
+		_fade.tween_callback(_hide_closed_root)
+	else:
+		_hide_closed_root() # A full-screen cinematic insert cuts straight out.
 	clear_illustration()
 	GameState.set_mode(GameState.Mode.EXPLORE)
 	var callback := _finished_callback
 	_finished_callback = Callable()
 	if callback.is_valid():
 		callback.call()
+
+
+func _hide_closed_root() -> void:
+	_fade = null
+	if not _open:
+		_root.visible = false
+		_root.modulate.a = 1.0
 
 
 func _stop_cinematic() -> void:

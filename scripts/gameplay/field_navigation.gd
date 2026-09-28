@@ -37,9 +37,13 @@ func build(world: World3D, player: CharacterBody3D) -> void:
 			graph.add_point(id, point)
 			cells[Vector2i(x, z)] = id
 	for cell: Vector2i in cells:
-		for offset: Vector2i in [Vector2i.RIGHT, Vector2i.DOWN]:
+		for offset: Vector2i in [Vector2i.RIGHT, Vector2i.DOWN, Vector2i(1, 1), Vector2i(-1, 1)]:
 			var neighbor := cell + offset
 			if not cells.has(neighbor):
+				continue
+			# Diagonals only across open floor: both side cells must be walkable,
+			# so a path never cuts a wall or ledge corner.
+			if offset.x != 0 and offset.y != 0 and not (_level_with(cell, cell + Vector2i(offset.x, 0)) and _level_with(cell, cell + Vector2i(0, offset.y))):
 				continue
 			var a: Vector3 = graph.get_point_position(cells[cell])
 			var b: Vector3 = graph.get_point_position(cells[neighbor])
@@ -48,6 +52,9 @@ func build(world: World3D, player: CharacterBody3D) -> void:
 			var ray := PhysicsRayQueryParameters3D.create(a + Vector3.UP * 0.4, b + Vector3.UP * 0.4, 1, ignored)
 			if space.intersect_ray(ray).is_empty() and _continuous_floor(a, b):
 				graph.connect_points(cells[cell], cells[neighbor])
+
+func _level_with(cell: Vector2i, side: Vector2i) -> bool:
+	return cells.has(side) and absf(graph.get_point_position(cells[cell]).y - graph.get_point_position(cells[side]).y) <= 0.25
 
 func _continuous_floor(from: Vector3, to: Vector3) -> bool:
 	# Endpoint heights alone mistake the low side wall of a ramp for a slope.

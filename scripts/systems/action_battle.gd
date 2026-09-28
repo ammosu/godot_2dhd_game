@@ -1,6 +1,27 @@
 extends "res://scripts/systems/party_battle.gd"
 ## Fixed-step spatial combat. Owned by GameState; presentation never resolves damage.
+const HitFeedback = preload("res://scripts/gameplay/hit_feedback.gd")
 const BOUNDS := Rect2(-8.0, -3.2, 16.0, 6.4)
+## Hurt pose length after a landed hit (frozen while the victim is held in hit stop).
+const HURT_TIME: float = 0.20
+## Knockback leaves as a velocity and bleeds off, instead of a one-tick shove.
+## Total push = speed^2 / (2 * damping): about 0.30 m basic, 0.40 m skill.
+const KNOCKBACK_SPEED: float = 3.3
+const KNOCKBACK_SKILL_SPEED: float = 3.8
+const KNOCKBACK_DAMPING: float = 18.0
+## Committed attacks root the feet: no sliding in the strike pose.
+const SWING_MOVE_SCALE: float = 0.0
+const RECOVERY_MOVE_SCALE: float = 0.5
+## Melee strikes carry the body a short, front-loaded step toward the target.
+const STEP_IN_DISTANCE: float = 0.25
+const STEP_IN_TIME: float = 0.07
+## Never step closer than this to the nearest opponent (separation spacing).
+const STEP_IN_CLEARANCE: float = 0.7
+## Dodge covers the same ground as before but bursts out and decelerates.
+## Remaining distance fraction is (time_left / DASH_TIME) ^ DASH_EASE.
+const DASH_TIME: float = 0.22
+const DASH_DISTANCE: float = 2.64
+const DASH_EASE: float = 1.7
 var bounds: Rect2 = BOUNDS
 var movement_resolver: Callable
 var steering_resolver: Callable
@@ -30,6 +51,10 @@ func setup(hp: int, mp: int, attack: int, defense: int, enemy: Dictionary) -> vo
 		actor.skill_cd = 0.0
 		actor.dodge_cd = 0.0
 		actor.dash = 0.0
+		actor.hit_stop = 0.0
+		actor.knock = Vector2.ZERO
+		actor.step_in = Vector2.ZERO
+		actor.step_in_time = 0.0
 		actor.invulnerable = 0.0
 		actor.hurt = 0.0
 		actor.swing = 0.0
@@ -61,7 +86,9 @@ func command(action: String) -> bool:
 		if float(actor.dodge_cd) > 0.0:
 			return false
 		actor.dodge_cd = float(hero_profile(controlled).dodge) if controlled == 0 else 1.1
-		actor.dash = 0.22
+		actor.dash = DASH_TIME
+		actor.step_in = Vector2.ZERO
+		actor.step_in_time = 0.0
 		actor.invulnerable = 0.30
 		actor.windup = 0.0
 		actor.intent = ""
@@ -160,16 +187,26 @@ func step(delta: float, movement: Vector2) -> void:
 		var actor: Dictionary = actors[index]
 		if int(actor.hp) <= 0:
 			continue
+		# Hit stop holds the whole actor: timers, AI, movement and knockback.
+		if float(actor.get("hit_stop", 0.0)) > 0.0:
+			actor.hit_stop = maxf(0.0, float(actor.hit_stop) - dt)
+			continue
+		_advance_impulses(index, dt)
 		for timer: String in ["cooldown", "skill_cd", "dodge_cd", "invulnerable", "hurt", "swing", "ward", "recovery", "support_cast", "slow"]:
 			actor[timer] = maxf(0.0, float(actor[timer]) - dt)
 		if index == controlled and auto_enabled:
 			_auto_dodge()
 		if float(actor.dash) > 0.0:
-			actor.dash = maxf(0.0, float(actor.dash) - dt)
-			_move(index, Vector2(actor.facing) * 12.0 * dt)
+			var dash_before: float = float(actor.dash)
+			actor.dash = maxf(0.0, dash_before - dt)
+			_move(index, Vector2(actor.facing) * dash_offset(dash_before, float(actor.dash)))
 			continue
 		if float(actor.windup) > 0.0:
-			actor.windup = maxf(0.0, float(actor.windup) - dt)
+			var windup_before: float = float(actor.windup)
+			actor.windup = maxf(0.0, windup_before - dt)
+			# The step lands with the blow: start it just before contact.
+			if _melee(index) and windup_before > STEP_IN_TIME and float(actor.windup) <= STEP_IN_TIME:
+				_begin_step_in(index)
 			if float(actor.windup) == 0.0:
 				_impact(index)
 				_check_end()
@@ -177,13 +214,51 @@ func step(delta: float, movement: Vector2) -> void:
 					return
 			continue
 		if index == controlled and not auto_enabled:
-			if movement.length_squared() > 0.01:
+			var planted: float = locomotion_scale(actor)
+			if movement.length_squared() > 0.01 and planted > 0.0:
 				actor.facing = movement.normalized()
-				_move(index, movement.limit_length() * 4.5 * dt)
+				_move(index, movement.limit_length() * 4.5 * planted * dt)
 		else:
 			_ai(index, dt)
 	_separate()
 	_check_end()
+
+## Distance covered by a dodge between two remaining-time samples.
+static func dash_offset(time_before: float, time_after: float) -> float:
+	var before: float = pow(clampf(time_before / DASH_TIME, 0.0, 1.0), DASH_EASE)
+	var after: float = pow(clampf(time_after / DASH_TIME, 0.0, 1.0), DASH_EASE)
+	return DASH_DISTANCE * (before - after)
+
+## Walking speed multiplier while an attack is committed or recovering.
+static func locomotion_scale(actor: Dictionary) -> float:
+	if float(actor.get("swing", 0.0)) > 0.0:
+		return SWING_MOVE_SCALE
+	if float(actor.get("recovery", 0.0)) > 0.0:
+		return RECOVERY_MOVE_SCALE
+	return 1.0
+
+## Decaying knockback and the melee step-in, both consumed over several steps.
+func _advance_impulses(index: int, dt: float) -> void:
+	var actor: Dictionary = actors[index]
+	var knock: Vector2 = actor.get("knock", Vector2.ZERO)
+	if not knock.is_zero_approx():
+		_move(index, knock * dt)
+		actor.knock = knock.move_toward(Vector2.ZERO, KNOCKBACK_DAMPING * dt)
+	var remaining: Vector2 = actor.get("step_in", Vector2.ZERO)
+	var time_left: float = float(actor.get("step_in_time", 0.0))
+	if remaining.is_zero_approx() or time_left <= 0.0:
+		return
+	# Front-loaded ease-out: a larger share of what is left on every step.
+	var share: float = clampf(2.0 * dt / time_left, 0.0, 1.0)
+	_move(index, remaining * share)
+	actor.step_in = remaining * (1.0 - share)
+	actor.step_in_time = maxf(0.0, time_left - dt)
+	if share >= 1.0:
+		actor.step_in = Vector2.ZERO
+		actor.step_in_time = 0.0
+
+func _melee(index: int) -> bool:
+	return not (index in [2, 5] or (index == 0 and bool(hero_profile(index).ranged)))
 
 func _move(index: int, offset: Vector2) -> void:
 	var point: Vector2 = actors[index].position + offset * (0.5 if float(actors[index].get("slow", 0.0)) > 0 else 1.0)
@@ -223,8 +298,11 @@ func _ai(index: int, dt: float) -> void:
 	var reach: float = float(hero_profile(index).reach) - 0.3 if index == 0 else 5.0 if ranged else 1.35
 	actor.facing = diff.normalized()
 	if diff.length() > reach or not _visible(index, target, actors[target].position):
+		var planted: float = locomotion_scale(actor)
+		if planted <= 0.0:
+			return
 		var direction: Vector2 = steering_resolver.call(index, target) if steering_resolver.is_valid() else diff.normalized()
-		_move(index, direction * (2.8 if index < 3 else 2.0 if index != 4 else 3.0) * dt)
+		_move(index, direction * (2.8 if index < 3 else 2.0 if index != 4 else 3.0) * planted * dt)
 	elif float(actor.cooldown) <= 0.0:
 		if auto_use_skills and index == 2 and int(actor.mp) >= 6:
 			for ally: int in living(0):
@@ -278,6 +356,7 @@ func _impact(index: int) -> void:
 	var actor: Dictionary = actors[index]
 	actor.swing = 0.18
 	actor.recovery = 0.32
+	var landed: float = 0.0
 	events.append({"kind": "swing", "index": index, "amount": 0, "aim": Vector2(actor.aim), "intent": str(actor.intent), "facing": Vector2(actor.facing), "radius": float(actor.radius)})
 	for target: int in living(1 - int(actor.team)):
 		var victim: Dictionary = actors[target]
@@ -304,13 +383,33 @@ func _impact(index: int) -> void:
 		if float(victim.ward) > 0.0:
 			amount = maxi(1, amount / 2)
 		victim.hp = maxi(0, int(victim.hp) - amount)
-		victim.hurt = 0.20
+		victim.hurt = HURT_TIME
 		victim.invulnerable = 0.25
 		# Hits interrupt windups and create room, including on enemies.
 		victim.windup = 0.0
+		victim.step_in = Vector2.ZERO
+		victim.step_in_time = 0.0
 		victim.cooldown = maxf(float(victim.cooldown), 0.35)
-		_move(target, (Vector2(victim.position) - Vector2(actor.position)).normalized() * 0.30)
+		var skill: bool = actor.intent == "skill"
+		var stop: float = HitFeedback.stop_time(amount, int(victim.max_hp), skill, int(victim.hp) == 0)
+		victim.hit_stop = maxf(float(victim.get("hit_stop", 0.0)), stop)
+		landed = maxf(landed, stop)
+		var away: Vector2 = Vector2(victim.position) - Vector2(actor.position)
+		away = away.normalized() if away.length() > 0.01 else Vector2(actor.facing)
+		victim.knock = away * (KNOCKBACK_SKILL_SPEED if skill else KNOCKBACK_SPEED)
 		events.append({"kind": "hit", "index": target, "amount": amount, "source": index})
+	# The striker shares the freeze on melee contact; ranged shooters keep moving.
+	if landed > 0.0 and _melee(index):
+		actor.hit_stop = maxf(float(actor.get("hit_stop", 0.0)), landed)
+
+func _begin_step_in(index: int) -> void:
+	var actor: Dictionary = actors[index]
+	var reach: float = STEP_IN_DISTANCE
+	var target: int = nearest_enemy(index)
+	if target >= 0:
+		reach = minf(reach, maxf(0.0, Vector2(actor.position).distance_to(actors[target].position) - STEP_IN_CLEARANCE))
+	actor.step_in = Vector2(actor.facing).normalized() * reach
+	actor.step_in_time = STEP_IN_TIME if reach > 0.0 else 0.0
 
 func _check_end() -> void:
 	if living(0).is_empty():

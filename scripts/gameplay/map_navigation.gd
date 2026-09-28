@@ -3,6 +3,8 @@ extends Node
 
 const Mountains = preload("res://scripts/gameplay/mountain_maps.gd")
 const CELL: float = 0.25
+## Braking (m/s^2) used to ease the final approach of an auto-walk.
+const ARRIVAL_DECELERATION: float = 5.0
 var player: CharacterBody3D
 var path := PackedVector3Array()
 var _target := Vector3.ZERO
@@ -122,9 +124,9 @@ func direction(delta: float) -> Vector3:
 	while not path.is_empty() and current.distance_to(path[0]) < 0.14:
 		path.remove_at(0)
 	if path.is_empty():
-		cancel()
-		player.velocity.x = 0.0
-		player.velocity.z = 0.0
+		# The approach below already slowed to a stroll; the walker's own
+		# braking finishes the last half step instead of freezing mid-stride.
+		_stalled = 0.0
 		player.call("face_world_position", _target)
 		GameState.notification_requested.emit("已抵達目的地")
 		return Vector3.ZERO
@@ -141,5 +143,10 @@ func direction(delta: float) -> Vector3:
 		GameState.notification_requested.emit("前方受阻，自動移動已停止")
 		return Vector3.ZERO
 	var offset := path[0] - current
-	# Slow down near corners, avoiding overshoot and oscillation.
-	return offset.normalized() * minf(1.0, offset.length() / 0.4)
+	# Slow down near corners, avoiding overshoot and oscillation, and brake
+	# over the whole remaining route so arrival eases into a stop.
+	var remaining: float = offset.length()
+	for index: int in range(1, path.size()):
+		remaining += path[index - 1].distance_to(path[index])
+	var arrival: float = sqrt(2.0 * ARRIVAL_DECELERATION * remaining) / maxf(float(player.get("move_speed")), 0.01)
+	return offset.normalized() * minf(minf(1.0, offset.length() / 0.4), arrival)

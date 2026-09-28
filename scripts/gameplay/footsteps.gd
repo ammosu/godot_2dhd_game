@@ -1,22 +1,31 @@
 extends RefCounted
-## Presentation-only cadence. Surface rectangles derive from the visible map
-## geometry, including non-colliding road overlays. No save or quest state.
+## Presentation-only footstep gate. The walker's animation decides *when* a foot
+## lands (its contact frames); this only decides whether that landing may sound.
+## Surface rectangles derive from the visible map geometry, including
+## non-colliding road overlays. No save or quest state.
 
-const STRIDE: float = 1.05
 const GROUP: StringName = &"footstep_surfaces"
+## Ground covered after a lock, map change or teleport before steps sound again,
+## so a scene cut or a snapped position never lands with a stray footfall.
+const RESUME_DISTANCE: float = 0.35
 var _distance: float = 0.0
+var _required: float = 0.0
 var _variant: int = 0
 
 
 func advance(distance: float, grounded: bool, moving: bool, locked: bool) -> bool:
 	# Suppress walls, airborne motion, map teleports and catch-up sound bursts.
-	if locked or not grounded or not moving or distance < 0.002 or distance > 2.0:
+	if locked or distance > 2.0:
+		_distance = 0.0
+		_required = RESUME_DISTANCE
+		return false
+	if not grounded or not moving or distance < 0.002:
 		_distance = 0.0
 		return false
 	_distance += distance
-	if _distance < STRIDE:
+	if _distance < _required:
 		return false
-	_distance = fmod(_distance, STRIDE)
+	_required = 0.0
 	return true
 
 

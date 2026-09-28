@@ -70,12 +70,29 @@ func _run() -> void:
 		camera.look_at(actor.global_position + Vector3.UP * 0.7)
 		for heading: Vector3 in HEADINGS:
 			player.global_position = actor.global_position + heading.normalized() * 1.4
+			sprite.call("_update_presentation", 0.0)
+			var idle_view: StringName = sprite.animation
 			world.call("_handle_interaction", "house_resident")
 			check(world.get_node("DialogueUI").call("is_open"), "Household dialogue failed")
-			check(sprite.animation == Facing.ANIMATIONS[Facing.direction_index(Facing.screen_direction(heading, camera))], "Resident does not face conversation partner")
+			var wanted: StringName = Facing.ANIMATIONS[Facing.direction_index(Facing.screen_direction(heading, camera))]
+			# The listener reacts for a beat, then turns one drawn view at a time.
+			sprite.call("_update_presentation", 0.05)
+			check(sprite.animation == idle_view, "Resident turned before its reaction beat")
+			var previous: int = Facing.ANIMATIONS.find(sprite.animation)
+			for step: int in range(8):
+				sprite.call("_update_presentation", 0.07)
+				var current: int = Facing.ANIMATIONS.find(sprite.animation)
+				var sector_gap: int = absi(posmod(Facing.SECTORS.find(current) - Facing.SECTORS.find(previous) + 4, 8) - 4)
+				check(sector_gap <= 1, "Resident turn skipped a drawn view")
+				previous = current
+			check(sprite.animation == wanted, "Resident does not face conversation partner")
 			while world.get_node("DialogueUI").call("is_open"):
 				world.get_node("DialogueUI").call("advance")
-			sprite.call("end_conversation")
+			# Goodbye beat, then back to the post; snapping restores it synchronously.
+			sprite.call("_update_presentation", 0.1)
+			check(sprite.animation == wanted, "Resident dropped the goodbye beat")
+			sprite.call("snap_to_idle")
+			check(sprite.animation == idle_view, "Snap did not restore the idle view")
 		# Deterministic time samples exercise actual cycle, stop, and input lock.
 		sprite.walking = true
 		var poses: Dictionary = {}

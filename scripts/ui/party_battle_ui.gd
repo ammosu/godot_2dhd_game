@@ -12,6 +12,21 @@ const SCALE: float = 56.0
 const WORLD_SCALE: float = 1.25
 const Arena3D = preload("res://scripts/gameplay/battle_arena_3d.gd")
 const EquipmentPortrait = preload("res://scripts/ui/equipment_portrait.gd")
+## Physical attack beats: anticipation pull-back, accelerating lunge that lands
+## at peak speed, a short hold on contact, then an eased settle home.
+const WINDUP_TIME: float = 0.14
+const WINDUP_PULL: float = 6.0
+const LUNGE_DISTANCE: float = 26.0
+const LUNGE_TIME: float = 0.09
+const UNPHASED_LUNGE_TIME: float = 0.13
+const CONTACT_HOLD: float = 0.08
+const RECOVER_TIME: float = 0.18
+## How long the weapon trail stays on screen; it outlives the hold.
+const SLASH_TIME: float = 0.16
+## Victims rock away from the blow and settle back.
+const FLINCH_DISTANCE: float = 12.0
+const FLINCH_OUT_TIME: float = 0.06
+const FLINCH_BACK_TIME: float = 0.16
 var session: RefCounted
 var _root: Control
 var _stage: Control
@@ -48,6 +63,10 @@ var _selection_labels: Array[Label] = []
 var _baseline_cache: Dictionary = {}
 # Displayed pose per actor; dressed portraits are fitted copies without a resource path.
 var _poses: Dictionary[int, String] = {}
+## Motion offsets survive pose swaps: _pose re-anchors on the new art, then adds these.
+var _offsets: Dictionary[int, Vector2] = {}
+var _anchors: Dictionary[int, Vector2] = {}
+var _offset_tweens: Dictionary[int, Tween] = {}
 var _ring: Line2D
 var _busy: bool = false
 var _resolved: bool = false
@@ -328,9 +347,43 @@ func _pose(index: int, pose: String) -> void:
 	var ratio: float = 175.0 / float(texture.get_meta("body_height")) if index < 3 and texture.has_meta("body_height") else float(texture.get_meta("display_height", default_height)) / texture.get_height()
 	_portraits[index].texture = texture
 	_portraits[index].size = texture.get_size() * ratio * Vector2(float(texture.get_meta("width_scale", 1.0)), 1.0)
-	_portraits[index].position = _point(index) - Vector2(_portraits[index].size.x * 0.5, float(_baseline_cache[texture_key]) * ratio)
-	_shadows[index].position = _point(index)
+	_anchors[index] = _point(index) - Vector2(_portraits[index].size.x * 0.5, float(_baseline_cache[texture_key]) * ratio)
+	_place(index)
 	_shadows[index].scale = Vector2(1.8, 0.8) if pose == "defeated" else Vector2.ONE
+
+
+func _place(index: int) -> void:
+	var offset: Vector2 = _offsets.get(index, Vector2.ZERO)
+	_portraits[index].position = _anchors.get(index, _point(index)) + offset
+	_shadows[index].position = _point(index) + offset
+
+
+func _set_offset(offset: Vector2, index: int) -> void:
+	_offsets[index] = offset
+	_place(index)
+
+
+func _tween_offset(index: int, to: Vector2, duration: float, transition: Tween.TransitionType, easing: Tween.EaseType) -> Tween:
+	_stop_offset(index)
+	var tween := create_tween()
+	tween.tween_method(_set_offset.bind(index), _offsets.get(index, Vector2.ZERO), to, duration).set_trans(transition).set_ease(easing)
+	_offset_tweens[index] = tween
+	return tween
+
+
+func _stop_offset(index: int) -> void:
+	var running: Tween = _offset_tweens.get(index)
+	if running != null and running.is_valid():
+		running.kill()
+	_offset_tweens.erase(index)
+
+
+func _flinch(index: int, source: int) -> void:
+	var away: float = signf(_point(index).x - _point(source).x)
+	if is_zero_approx(away):
+		away = 1.0 if index >= 3 else -1.0
+	var tween := _tween_offset(index, Vector2(away * FLINCH_DISTANCE, 0.0), FLINCH_OUT_TIME, Tween.TRANS_QUAD, Tween.EASE_OUT)
+	tween.tween_method(_set_offset.bind(index), Vector2(away * FLINCH_DISTANCE, 0.0), Vector2.ZERO, FLINCH_BACK_TIME).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func _physical_kind(index: int, action: String) -> String:
@@ -407,17 +460,14 @@ func _execute(action: String, target: int) -> void:
 	else:
 		GameAudio.play_cue(_physical_cue(caster, action))
 		var phased: bool = session.actors[caster].art in ["wanderer", "noah", "moss_wolf", "guardian", "elder", "eclipse_mage"]
+		var direction: float = LUNGE_DISTANCE if caster < 3 else -LUNGE_DISTANCE
 		if phased:
+			# Weight shifts back before the body commits forward.
 			_pose(caster, "windup")
-			await get_tree().create_timer(0.06).timeout
+			await _tween_offset(caster, Vector2(-signf(direction) * WINDUP_PULL, 0.0), WINDUP_TIME, Tween.TRANS_QUAD, Tween.EASE_OUT).finished
 			_pose(caster, "attack")
-		var home := _portraits[caster].position
-		var direction: float = 26.0 if caster < 3 else -26.0
-		var duration: float = 0.07 if phased else 0.13
-		var tween := create_tween().set_parallel(true)
-		tween.tween_property(_portraits[caster], "position:x", home.x + direction, duration)
-		tween.tween_property(_shadows[caster], "position:x", _point(caster).x + direction, duration)
-		await tween.finished
+		# Accelerate into contact so the blow lands at peak speed.
+		await _tween_offset(caster, Vector2(direction, 0.0), LUNGE_TIME if phased else UNPHASED_LUNGE_TIME, Tween.TRANS_EXPO, Tween.EASE_IN).finished
 		_apply(action, target)
 		var slash := TextureRect.new()
 		slash.name = "PhysicalHit"
@@ -430,20 +480,14 @@ func _execute(action: String, target: int) -> void:
 		slash.position = _point(target) - slash.size * 0.5 - Vector2(0, 70)
 		slash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_stage.add_child(slash)
-		await get_tree().create_timer(0.16).timeout
-		slash.queue_free()
+		get_tree().create_timer(SLASH_TIME).timeout.connect(slash.queue_free)
+		await get_tree().create_timer(CONTACT_HOLD).timeout
 		if phased:
 			_pose(caster, "recover")
-			var recovery_home := _portraits[caster].position
-			_portraits[caster].position.x += direction
-			_shadows[caster].position.x += direction
-			var recovery := create_tween().set_parallel(true)
-			recovery.tween_property(_portraits[caster], "position", recovery_home, 0.10)
-			recovery.tween_property(_shadows[caster], "position", _point(caster), 0.10)
-			await recovery.finished
-		else:
-			_portraits[caster].position = home
+		await _tween_offset(caster, Vector2.ZERO, RECOVER_TIME, Tween.TRANS_SINE, Tween.EASE_IN_OUT).finished
 	for index: int in range(6):
+		_stop_offset(index)
+		_offsets[index] = Vector2.ZERO
 		_pose(index, _resting_pose(index))
 	if int(session.winner) != -1:
 		_resolved = true
@@ -483,6 +527,7 @@ func _resting_pose(index: int) -> String:
 
 
 func _apply(action: String, target: int) -> void:
+	var source: int = session.current
 	var result: Dictionary = GameState.resolve_party_action(action, target)
 	if result.has("error"):
 		_log.text = result.error
@@ -492,6 +537,7 @@ func _apply(action: String, target: int) -> void:
 		for offset: int in range(result.targets.size()):
 			var index: int = result.targets[offset]
 			_pose(index, "hurt")
+			_flinch(index, source)
 			_floating_text(index, "−%d" % int(result.damage[offset]), Color("fff0af"))
 	elif int(result.healing) > 0:
 		_floating_text(result.targets[0], "+%d" % int(result.healing), Color("9affb6"))

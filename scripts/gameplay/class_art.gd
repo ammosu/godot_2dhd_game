@@ -7,7 +7,13 @@ const Heroines = preload("res://assets/generated/heroines/regions.gd")
 const ARCHER_DIAGONALS: SpriteFrames = preload("res://assets/generated/classes/archer_diagonal_frames.tres")
 const EightWayFacing = preload("res://scripts/gameplay/eight_way_facing.gd")
 const POSES: Array[String] = ["idle", "walk_a", "walk_b", "windup", "attack", "recover", "cast", "release", "dodge_a", "dodge_b", "hurt", "defeated"]
-const FACINGS: Dictionary = {"down": 0, "down_right": 1, "right": 1, "up_right": 2, "up": 2, "up_left": 2, "left": 3, "down_left": 3}
+## Four-column atlases show every diagonal in side profile: sideways motion
+## reads as walking, while the back view made up-diagonals look like strafing.
+const FACINGS: Dictionary = {"down": 0, "down_right": 1, "right": 1, "up_right": 1, "up": 2, "up_left": 3, "left": 3, "down_left": 3}
+## Two contact poses, each held for two ticks so consumers keep four frame
+## indices; the combat idle stance is never shown as a passing pose.
+const WALK_CYCLE: Array[String] = ["walk_a", "walk_a", "walk_b", "walk_b"]
+const DOOR_CYCLE: Array[String] = ["cast", "release"]
 static var _textures: Dictionary[String, AtlasTexture] = {}
 static var _walk: Dictionary[String, SpriteFrames] = {}
 
@@ -94,9 +100,7 @@ static func walking_frames(loadout: Dictionary, door: bool = false) -> SpriteFra
 			for index: int in range(ARCHER_DIAGONALS.get_frame_count(direction)):
 				frames.add_frame(direction, ARCHER_DIAGONALS.get_frame_texture(direction, index))
 			continue
-		var poses: Array[String] = ["idle", "walk_a", "idle", "walk_b"]
-		if door:
-			poses.assign(["cast", "release"])
+		var poses: Array[String] = DOOR_CYCLE if door else WALK_CYCLE
 		for pose: String in poses:
 			frames.add_frame(direction, texture_for(id, pose, int(FACINGS[direction])))
 	_walk[key] = frames

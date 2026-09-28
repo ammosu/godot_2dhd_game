@@ -1,6 +1,8 @@
 extends SceneTree
 ## Integration coverage: physical slope, AI path, combat timing, rewards and v3 migration.
 const SAVE := "user://field_combat_test.json"
+const EightWayFacing = preload("res://scripts/gameplay/eight_way_facing.gd")
+const ActionArt = preload("res://scripts/gameplay/action_sprite_library.gd")
 var state: Node
 var world: Node3D
 
@@ -21,7 +23,10 @@ func _run() -> void:
 	while not field.ready_for_combat:
 		await physics_frame
 	field.set_physics_process(false)
+	assert(field.stance == &"relaxed", "Arriving on a field map keeps the weapon sheathed")
+	assert(not field.get("_hero_sprite").visible and player.get_node("Sprite3D").visible, "Calm field exploration uses the sheathed exploration sprite")
 	_check_hero_art(field, player)
+	await _check_stance(field, player)
 	assert(field.enemies.size() == 4)
 	assert(field.enemies[1].max_hp > field.enemies[0].max_hp, "Elite wolf is tougher")
 	assert(field.enemies[2].max_hp < field.enemies[0].max_hp, "Caster trades durability for damage")
@@ -59,6 +64,8 @@ func _run() -> void:
 		player.call("_physics_process", 1.0 / 60.0)
 		field.dodge_time = maxf(0, field.dodge_time - 1.0 / 60.0)
 	assert(player.position.x > -5.2, "Dodge must visibly cover ground")
+	assert(player.position.x < -4.5, "Dodge keeps its distance while easing out")
+	assert(field.dodge_speed(0.2) > 10.0 and field.dodge_speed(0.02) < 2.0, "Dodge pushes off hard and slows into the landing")
 	field.dodge_time = 0
 	field.dodge_cooldown = 0
 	# Actual AI body follows the sampled slope while chasing an elevated player.
@@ -85,10 +92,15 @@ func _run() -> void:
 	first.body.position = Vector3(-4, 0.02, 10)
 	first.windup = 0.7
 	assert(field.perform("attack"))
+	assert(field.stance == &"drawn", "The first windup draws the weapon")
+	assert(field.movement_velocity(Vector3.RIGHT * 4.2, 1.0 / 60.0).is_zero_approx(), "Windup roots the feet")
 	assert(first.hp == 72)
 	assert(not field.perform("attack"))
 	field._physics_process(0.13)
 	assert(first.hp == 72 - state.player_attack)
+	assert(player.position.z > 9.15, "Melee strikes step into the blow")
+	assert(Vector2(player.position.x - first.body.position.x, player.position.z - first.body.position.z).length() >= field.STEP_IN_CONTACT_GAP - 0.02, "Step-in stops short of the target body")
+	assert(Vector3(first.knock).z > 0.0, "A landed hit pushes the enemy away from the hero")
 	assert(first.windup > 0, "Basic attacks cannot suppress a fighter")
 	# Dodge avoids the locked target strike and pauses respect GameState mode.
 	first.aim = player.position
@@ -166,11 +178,18 @@ func _run() -> void:
 	bat.cooldown = 0.0
 	field._advance_enemy(bat, 0.02)
 	assert(bat.windup > 0 and not bat.warning.visible, "Basic bite has a short startup without a skill warning")
+	assert(bat.sprite.texture.get_meta("pose") == "windup", "Basic attacks telegraph with the windup frame, not the strike")
 	assert(bat.sprite.position.y > 0.4, "Living bat hovers above its ground anchor")
 	field.invulnerable = 0.0
 	var before_bite: int = state.player_hp
 	field._advance_enemy(bat, 0.61)
 	assert(state.player_hp == before_bite - maxi(1, roundi(11 * 0.75) - state.player_defense))
+	assert(bat.sprite.texture.get_meta("pose") == "attack", "The strike frame appears as damage lands")
+	assert(field.stance == &"drawn" and field.get("_hero_hurt") > 0.0, "A landed bite makes the hero flinch")
+	field.call("_update_hero_art")
+	assert(field.get("_hero_sprite").texture.get_meta("pose") == "hurt" and field.get("_hero_sprite").material_overlay != null, "Hurt hero shows the hurt frame and flashes")
+	field._advance_enemy(bat, 0.15)
+	assert(bat.sprite.texture.get_meta("pose") == "recover", "Enemies recover after the strike")
 	bat.windup = 0.5
 	field._damage_enemy(bat, 1)
 	assert(bat.windup == 0 and not bat.warning.visible, "Hit interrupts bat windup")
@@ -218,12 +237,14 @@ func _run() -> void:
 	assert(state.player_max_hp == 100 and state.field_defeated.is_empty())
 	await process_frame
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE))
-	print("FIELD_COMBAT_TEST_PASS slope chase elevation timing dodge rewards save migration defeat bat")
+	print("FIELD_COMBAT_TEST_PASS slope chase elevation timing dodge rewards save migration defeat bat stance rooting step_in knockback enemy_frames")
 	quit()
 
 func _check_hero_art(field: Node3D, player: CharacterBody3D) -> void:
 	var loadout: Dictionary = state.equipped.duplicate()
 	var art: Sprite3D = field.get("_hero_sprite")
+	# Body-atlas stability applies to the drawn combat stance.
+	field.call("force_stance", &"drawn")
 	for equipment: Dictionary in [{}, {"armor": "moonward_cloak"}, {"weapon": "moonsteel_saber"}, {"armor": "moonward_cloak", "weapon": "moonsteel_saber"}]:
 		state.equipped = equipment
 		for factor: float in [1.0, 1.45]:
@@ -240,7 +261,7 @@ func _check_hero_art(field: Node3D, player: CharacterBody3D) -> void:
 				var idle_head: float = (_head_center(standing) - standing.get_width() * 0.5 + art.offset.x) * pixel_size
 				assert(is_equal_approx(float(standing.get_meta("body_height", standing.get_height())) * pixel_size, 1.45 * factor), "Field art must match exploration standing height")
 				for pose: String in ["walk_a", "walk_b", "windup", "attack", "dodge_a", "dodge_b", "idle"]:
-					field.clock = 0.0 if pose == "walk_a" else 0.2
+					field.set("_hero_gait", 0.0 if pose == "walk_a" else 1.0)
 					player.velocity = direction if pose.begins_with("walk") else Vector3.ZERO
 					field.windup = 0.1 if pose == "windup" else 0.0
 					field.swing = 0.1 if pose == "attack" else 0.0
@@ -259,7 +280,110 @@ func _check_hero_art(field: Node3D, player: CharacterBody3D) -> void:
 	player.call("set_presentation_scale", 1.0)
 	player.velocity = Vector3.ZERO
 	field.facing = Vector3.FORWARD
+	field.call("force_stance", &"relaxed")
+
+
+## The weapon is drawn only while combat is engaged; cutscenes and dialogue are always relaxed.
+func _check_stance(field: Node3D, player: CharacterBody3D) -> void:
+	var art: Sprite3D = field.get("_hero_sprite")
+	var exploration: Node3D = player.get_node("Sprite3D")
+	var saved: Vector3 = player.position
+	field.automation.set_enabled(false, field)
+	var calm := func() -> void:
+		for enemy: Dictionary in field.enemies:
+			enemy.state = "patrol"
+		field.windup = 0.0
+		field.swing = 0.0
+		field.recovery = 0.0
+		field.dodge_time = 0.0
+		field.hit_stop = 0.0
+		field.attack_cooldown = 0.0
+		field.dodge_cooldown = 0.0
+		field.set("_hero_hurt", 0.0)
+		field.set("_last_hurt_clock", -INF)
+	calm.call()
+	# Calm walking stays sheathed.
+	field.call("force_stance", &"relaxed")
+	player.velocity = Vector3(3.0, 0, 0)
+	field.set("_locomotion_requested", true)
+	for frame: int in range(30):
+		field.call("_update_stance", 1.0 / 60.0)
+		field.call("_update_hero_art")
+	assert(field.stance == &"relaxed" and exploration.visible and not art.visible, "Calm walking keeps the sword sheathed")
+	# An alerted enemy draws the weapon; from a standstill the swap hides behind 'recover'.
+	player.velocity = Vector3.ZERO
+	field.set("_locomotion_requested", false)
+	field.enemies[0].state = "chase"
+	field.call("_update_stance", 1.0 / 60.0)
 	field.call("_update_hero_art")
+	assert(field.stance == &"drawn" and art.visible and not exploration.visible, "A chasing enemy draws the weapon")
+	assert(art.texture.get_meta("pose") == "recover", "Awareness draws hide the atlas swap behind the recover frame")
+	# Sheathing waits for sustained calm and a minimum drawn dwell.
+	calm.call()
+	var elapsed: float = 0.0
+	while field.stance == &"drawn" and elapsed < 5.0:
+		field.call("_update_stance", 0.05)
+		elapsed += 0.05
+	assert(elapsed >= field.SHEATHE_CALM_TIME and elapsed < field.SHEATHE_CALM_TIME + 0.4, "Sheathe after the calm delay, not immediately: %s" % elapsed)
+	field.call("_update_hero_art")
+	assert(exploration.visible and not art.visible)
+	# A standing turn (spawn, door, dialogue partner) only moves the exploration
+	# heading. A draw from a standstill must keep it, and so must the sheathe.
+	var camera := player.get_viewport().get_camera_3d()
+	var screen_down: Vector3 = player.call("_camera_relative_direction", Vector2(0, 1))
+	field.facing = player.call("_camera_relative_direction", Vector2(1, 0))
+	player.call("face_world_position", player.global_position + screen_down)
+	var explore_column: int = int(player.get("_facing_column"))
+	field.call("_update_stance", 1.0 / 60.0)
+	field.enemies[0].state = "chase"
+	field.call("_update_stance", 1.0 / 60.0)
+	field.call("_update_hero_art")
+	assert(field.stance == &"drawn" and art.texture.get_meta("pose") == "recover")
+	assert(EightWayFacing.direction_index(EightWayFacing.screen_direction(field.facing, camera)) == explore_column, "The awareness draw turned the hero away from its standing heading")
+	assert(art.texture.get_meta("facing") == ActionArt.direction(EightWayFacing.screen_direction(screen_down, camera)), "Drawn art column differs from the exploration heading")
+	# The drawn hero turns (as an attack would) and then sheathes from a standstill.
+	var screen_left: Vector3 = player.call("_camera_relative_direction", Vector2(-1, 0))
+	field.facing = screen_left
+	calm.call()
+	elapsed = 0.0
+	while field.stance == &"drawn" and elapsed < 5.0:
+		field.call("_update_stance", 0.05)
+		elapsed += 0.05
+	field.call("_update_hero_art")
+	assert(field.stance == &"relaxed" and exploration.visible)
+	assert(int(player.get("_facing_column")) == EightWayFacing.direction_index(EightWayFacing.screen_direction(screen_left, camera)), "Sheathing snapped the hero back to an old heading")
+	# Actions draw immediately on their own silhouette.
+	player.position = Vector3(-12, 0.1, 5)
+	assert(field.perform("dodge"))
+	field.call("_update_hero_art")
+	assert(field.stance == &"drawn" and art.texture.get_meta("pose") == "dodge_a", "Dodge draws on the dodge frame")
+	calm.call()
+	field.call("force_stance", &"relaxed")
+	# Cutscenes and dialogue are always relaxed, even mid-stride in combat.
+	for mode: int in [state.Mode.CUTSCENE, state.Mode.DIALOGUE]:
+		field.call("force_stance", &"drawn")
+		player.velocity = Vector3(3.0, 0, 0)
+		field.set("_locomotion_requested", true)
+		field.call("_update_hero_art")
+		state.set_mode(mode)
+		field._physics_process(1.0 / 60.0)
+		assert(field.stance == &"relaxed" and exploration.visible and not art.visible, "Mode %d must show the sheathed exploration sprite" % mode)
+		state.set_mode(state.Mode.EXPLORE)
+	player.velocity = Vector3.ZERO
+	field.set("_locomotion_requested", false)
+	# Recovery follows the swing and slows, but does not root, the feet.
+	field.call("force_stance", &"drawn")
+	field.swing = 0.01
+	field._physics_process(0.02)
+	assert(field.recovery > 0.0, "A recover beat follows every swing")
+	field.call("_update_hero_art")
+	assert(art.texture.get_meta("pose") == "recover")
+	var slowed: Vector3 = field.movement_velocity(Vector3.RIGHT * 4.0, 1.0 / 60.0)
+	assert(slowed.length() > 0.5 and slowed.length() < 4.0, "Recovery slows the feet")
+	calm.call()
+	field.call("force_stance", &"relaxed")
+	player.position = saved
+	player.velocity = Vector3.ZERO
 
 
 func _head_center(texture: AtlasTexture) -> float:

@@ -3,7 +3,8 @@ extends SceneTree
 const Facing = preload("res://scripts/gameplay/eight_way_facing.gd")
 const Art = preload("res://scripts/gameplay/action_sprite_library.gd")
 const INPUTS: Array[Vector2] = [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]
-const COLUMNS: Array[int] = [1, 3, 2, 2]
+## While drawn, every diagonal uses the side profile of its horizontal component.
+const COLUMNS: Array[int] = [1, 3, 1, 3]
 var failures: int = 0
 
 func _initialize() -> void:
@@ -45,8 +46,15 @@ func _run() -> void:
 						var input: Vector2 = INPUTS[index] + Vector2(epsilon, 0)
 						var direction: Vector3 = player.call("_camera_relative_direction", input)
 						player.velocity = field.movement_velocity(direction * 4.2)
+						# Calm exploration: the sheathed eight-way exploration walk.
+						field.call("force_stance", &"relaxed")
+						player.call("_update_sprite", Facing.screen_direction(field.facing, world.get_viewport().get_camera_3d()), direction, 1.0 / 60.0)
+						var exploration: AnimatedSprite3D = player.get_node("Sprite3D")
+						check(exploration.visible and not sprite.visible, "Relaxed field walk must use the exploration sprite: %s/%s input=%s" % [vocation, body, input])
+						check(exploration.animation == Facing.ANIMATIONS[Facing.direction_index(INPUTS[index])], "Relaxed diagonal lost its eight-way view: %s/%s yaw=%s input=%s" % [vocation, body, yaw, input])
+						field.call("force_stance", &"drawn")
 						for phase: int in range(4):
-							field.clock = float(phase) * 0.1
+							field.set("_hero_gait", float(phase))
 							field.call("_update_hero_art")
 							var texture: AtlasTexture = sprite.texture
 							var label := "%s/%s yaw=%s input=%s phase=%s" % [vocation, body, yaw, input, phase]
@@ -62,7 +70,7 @@ func _run() -> void:
 		root.get_node(singleton).call("stop_all")
 	await create_timer(0.2).timeout
 	if failures == 0:
-		print("FIELD_DIRECTION_TEST_PASS four_classes both_bodies four_diagonals camera_yaws float_jitter walk_phases single_sprite")
+		print("FIELD_DIRECTION_TEST_PASS four_classes both_bodies four_diagonals camera_yaws float_jitter walk_phases single_sprite relaxed_eight_way drawn_profiles")
 	else:
 		print("FIELD_DIRECTION_TEST_FAILURES ", failures)
 	quit(0 if failures == 0 else 1)

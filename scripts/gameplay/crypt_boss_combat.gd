@@ -7,6 +7,13 @@ const BOSS_ART := "res://assets/generated/dungeon/ash_warden.png"
 var _boss_frames: Array[AtlasTexture] = []
 var _boss_title: Label
 var _boss_health: ProgressBar
+## Heavy slam: a short contact frame, then the axe is hauled back up while the
+## feet stay planted. The recover beat reuses the windup frame until dedicated art lands.
+const BOSS_SWING_TIME: float = 0.18
+const BOSS_RECOVERY_TIME: float = 0.35
+## A heavy body shivers less under hit stop and cannot be shoved.
+const BOSS_TREMOR_SCALE: float = 0.5
+const BOSS_KNOCKBACK_WEIGHT: float = 0.0
 
 func _ready() -> void:
 	var sheet: Texture2D = load(BOSS_ART)
@@ -69,13 +76,14 @@ func _spawn_enemy(spawn: Dictionary) -> void:
 	enemy.label.position.y = 3.75
 	enemy.bar.position.y = 3.5
 	enemy.cooldown = 1.5
+	enemy.weight = BOSS_KNOCKBACK_WEIGHT
 	_art(enemy.sprite, enemy.art, "idle", Vector3.FORWARD)
 
 func _art(sprite: Sprite3D, actor: String, pose: String, direction: Vector3) -> void:
 	if actor != "ash_warden" or Art.Movement.supports(actor, pose):
 		super._art(sprite, actor, pose, direction)
 		return
-	var index: int = int({"idle": 0, "walk_a": 1, "walk_b": 2, "windup": 3, "attack": 4, "cast": 5, "hurt": 6, "defeated": 7}.get(pose, 0))
+	var index: int = int({"idle": 0, "walk_a": 1, "walk_b": 2, "windup": 3, "recover": 3, "attack": 4, "cast": 5, "hurt": 6, "defeated": 7}.get(pose, 0))
 	var frame: AtlasTexture = _boss_frames[index]
 	sprite.texture = frame
 	sprite.pixel_size = 3.7 / frame.get_height()
@@ -97,8 +105,22 @@ func _damage_enemy(enemy: Dictionary, damage: int) -> void:
 func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 	_spell_visual.advance(delta)
 	var body: CharacterBody3D = enemy.body
+	# Released spells keep real time; only the boss's own body freezes on contact.
+	var world_delta: float = delta
+	enemy.flash = maxf(0.0, float(enemy.get("flash", 0.0)) - delta)
+	var held: bool = false
+	if enemy.hp > 0 and float(enemy.get("hit_stop", 0.0)) > 0.0:
+		var unheld: float = HitFeedback.after_stop(float(enemy.hit_stop), delta)
+		enemy.hit_stop = maxf(0.0, float(enemy.hit_stop) - delta)
+		held = unheld <= 0.0
+		delta = unheld
 	enemy.hurt = maxf(0, float(enemy.hurt) - delta)
+	var swinging: bool = float(enemy.swing) > 0
 	enemy.swing = maxf(0, float(enemy.swing) - delta)
+	if swinging and float(enemy.swing) == 0:
+		enemy.recovery = BOSS_RECOVERY_TIME
+	else:
+		enemy.recovery = maxf(0, float(enemy.get("recovery", 0.0)) - delta)
 	enemy.cooldown = maxf(0, float(enemy.cooldown) - delta)
 	enemy.bar.set_health(enemy.hp, enemy.max_hp)
 	_boss_health.max_value = enemy.max_hp
@@ -110,11 +132,17 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 		enemy.label.hide()
 		_art(enemy.sprite, enemy.art, "defeated", enemy.facing)
 		enemy.presentation.advance(clock, "defeated", 0, 0, 0)
+		enemy.sprite.position.x = 0.0
+		enemy.sprite.position.z = 0.0
+		HitFeedback.apply_flash(enemy.sprite, 0.0)
 		return
 	if enemy.spell_age >= 0:
-		_advance_global(enemy, delta)
+		_advance_global(enemy, world_delta)
 		if GameState.mode != GameState.Mode.EXPLORE:
 			return
+	if held:
+		_hold_enemy(enemy, BOSS_TREMOR_SCALE)
+		return
 	if not enemy.enraged and enemy.hp <= enemy.max_hp / 2:
 		enemy.enraged = true
 		GameState.notification_requested.emit("維爾莫的血晶碎裂！灰燼狂怒・預警縮短")
@@ -123,6 +151,7 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 	if enemy.state == "patrol" and distance < 9.0:
 		enemy.state = "chase"
 	var movement := Vector3.ZERO
+	var committed: bool = float(enemy.swing) > 0 or float(enemy.recovery) > 0
 	if enemy.windup > 0:
 		enemy.windup = maxf(0, float(enemy.windup) - delta)
 		_spell_visual.charge(1.0 - float(enemy.windup) / float(enemy.cast_duration), clock)
@@ -134,7 +163,11 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 			var cycle: int = int(enemy.cycle) % 6
 			_begin_cast(enemy, "ash_tide" if cycle == 2 else "crystal_rain" if cycle == 5 else "eruption" if cycle % 2 == 1 else "slam")
 			enemy.cycle += 1
-		elif distance > 1.8:
+			enemy.swing = 0.0
+			enemy.recovery = 0.0
+		elif distance > 1.8 and float(enemy.hurt) <= 0 and not committed:
+			# The slam's follow-through keeps the feet planted, and a flinch
+			# reads as a stagger rather than a glide toward the hero.
 			enemy.repath -= delta
 			if enemy.repath <= 0:
 				enemy.path = navigation.path(body.position, player.position)
@@ -145,20 +178,29 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 			enemy.path = path
 			if not path.is_empty():
 				movement = ((path[0] - body.position) * Vector3(1, 0, 1)).normalized()
-	body.velocity = movement * (0.5 if float(enemy.get("slow", 0.0)) > 0 else 1.0) * (2.2 if enemy.enraged else 1.7) + Vector3.DOWN * 2
+	var at: Vector3 = body.global_position
+	var planar: Vector3 = _smooth_enemy_velocity(enemy, movement * (0.5 if float(enemy.get("slow", 0.0)) > 0 else 1.0) * (2.2 if enemy.enraged else 1.7), delta)
+	body.velocity = planar + Vector3.DOWN * 2
 	body.move_and_slide()
+	var travelled: float = Vector2(body.global_position.x - at.x, body.global_position.z - at.z).length()
 	if not movement.is_zero_approx():
-		enemy.facing = movement
-	var pose: String = "cast" if enemy.windup > 0 and enemy.spell else "windup" if enemy.windup > 0 else "attack" if enemy.swing > 0 else "hurt" if enemy.hurt > 0 else Art.Movement.walk_pose(clock * 0.7) if not movement.is_zero_approx() else "idle"
+		enemy.facing = turn_toward(enemy.facing, movement, 1.0 - exp(-ENEMY_TURN_RATE * delta))
+	var walking: bool = travelled > ENEMY_WALK_MIN_SPEED * delta
+	_advance_gait(enemy, travelled, delta, walking)
+	var pose: String = "cast" if enemy.windup > 0 and enemy.spell else "windup" if enemy.windup > 0 else "attack" if enemy.swing > 0 else "recover" if float(enemy.recovery) > 0 else "hurt" if enemy.hurt > 0 else Art.Movement.walk_pose(float(enemy.gait) / 10.0) if walking else "idle"
 	_art(enemy.sprite, enemy.art, pose, enemy.facing)
 	enemy.presentation.advance(clock, pose, enemy.hurt, enemy.windup, enemy.swing)
+	enemy.sprite.position.x = 0.0
+	enemy.sprite.position.z = 0.0
+	HitFeedback.apply_flash(enemy.sprite, float(enemy.flash) / 0.03)
 	var callout: String = "灰燼潮汐・閃避穿越火環" if enemy.global_kind == "ash_tide" else "血晶天墜・避開落點" if enemy.global_kind == "crystal_rain" else "灰燼爆發・離開紅圈" if enemy.spell else "斷罪重擊・遠離斧刃"
 	enemy.label.text = callout if enemy.windup > 0 and str(enemy.global_kind).is_empty() else ""
 	_cast_label.text = "%s  %.1f 秒" % [callout, enemy.windup] if enemy.windup > 0 else callout if enemy.spell_age >= 0 else ""
 
 func _enemy_strike(enemy: Dictionary) -> void:
 	enemy.warning.hide()
-	enemy.swing = 0.4
+	enemy.swing = BOSS_SWING_TIME
+	enemy.recovery = 0.0
 	_spell_visual.release()
 	GameAudio.play_cue(&"skill" if enemy.spell else &"impact")
 	player.get_parent().get_node("CameraRig").add_combat_impact(0.12)
@@ -203,6 +245,7 @@ func _deal_spell_damage(enemy: Dictionary) -> void:
 		var damage: int = maxi(1, int(enemy.attack_power) + (6 if enemy.enraged else 0) - GameState.player_defense)
 		GameState.damage_player(damage)
 		invulnerable = 0.45
+		_hurt_hero()
 		_number(player.position, "−%d" % damage, Color("ff9985"))
 		if GameState.player_hp == 0:
 			GameState.restore_after_defeat()

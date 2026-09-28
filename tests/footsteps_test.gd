@@ -21,13 +21,22 @@ func _frames(count: int) -> void:
 
 
 func _run() -> void:
+	# The walk animation's contact frames time each step; the gate only decides
+	# whether a landing may sound.
 	var cadence := Footsteps.new()
-	_check(not cadence.advance(1.0, true, true, false), "Step before stride")
-	_check(cadence.advance(0.1, true, true, false), "Stride failed to emit")
+	_check(cadence.advance(0.1, true, true, false), "Grounded walking must allow contact steps")
 	_check(cadence.next_cue(&"dirt") == &"step_dirt_1" and cadence.next_cue(&"dirt") == &"step_dirt_2", "Variants do not alternate")
-	for blocked: Array in [[0.0, true, true, false], [0.5, false, true, false], [0.5, true, false, false], [0.5, true, true, true], [20.0, true, true, false]]:
+	for blocked: Array in [[0.0, true, true, false], [0.5, false, true, false], [0.5, true, false, false]]:
 		_check(not cadence.advance(blocked[0], blocked[1], blocked[2], blocked[3]), "Blocked movement emitted footstep")
-		_check(not cadence.advance(0.1, true, true, false), "Blocked cadence did not reset")
+		_check(cadence.advance(0.1, true, true, false), "Ordinary stop delayed the next step")
+	for suppressed: Array in [[0.5, true, true, true], [20.0, true, true, false]]:
+		_check(not cadence.advance(suppressed[0], suppressed[1], suppressed[2], suppressed[3]), "Locked or teleported movement emitted footstep")
+		var resumed: float = 0.0
+		while not cadence.advance(0.1, true, true, false):
+			resumed += 0.1
+			if resumed > 1.0:
+				break
+		_check(resumed >= Footsteps.RESUME_DISTANCE - 0.11 and resumed <= Footsteps.RESUME_DISTANCE + 0.01, "Lock or teleport did not hold steps for the resume distance")
 	var state := root.get_node("GameState")
 	state.call("reset_new_game", false)
 	state.get("flags")["intro_seen"] = true

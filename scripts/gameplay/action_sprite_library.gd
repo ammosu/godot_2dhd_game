@@ -4,7 +4,10 @@ const Proportions = preload("res://scripts/gameplay/character_proportions.gd")
 const Appearance = preload("res://scripts/gameplay/equipment_appearance.gd")
 const Movement = preload("res://scripts/gameplay/enemy_movement_art.gd")
 const EightWayFacing = preload("res://scripts/gameplay/eight_way_facing.gd")
-const CARDINAL_COLUMNS: Array[int] = [0, 2, 3, 1, 3, 1, 2, 2]
+## Indexed by EightWayFacing.ANIMATIONS. Every diagonal falls back to the side
+## profile of its horizontal component: a back view translating sideways reads
+## as a crab walk.
+const CARDINAL_COLUMNS: Array[int] = [0, 2, 3, 1, 3, 1, 3, 1]
 const DATA: Dictionary = preload("res://assets/generated/action/regions.gd").DATA
 const ARMED_WALK: Dictionary = preload("res://assets/generated/action/armed_walk_anchors.gd").DATA
 const POSES: Array[String] = ["idle", "walk_a", "walk_b", "windup", "attack", "recover", "cast", "release", "dodge_a", "dodge_b", "hurt", "defeated"]

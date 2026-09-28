@@ -7,6 +7,16 @@ Created 2026-09-21 with the built-in ImageGen tool, using existing original proj
 - Columns: down-left, down-right, up-left, up-right. Rows: standing, left step, passing, right step.
 - Independently measured AtlasTexture crops retain a transparent gutter. Diagonal canvases are 352 × 352, foot baseline y=316; the existing 140 px sprite offset and 0.005 m/px scale remain valid. Cardinal art remains 320 × 320, baseline y=300. Each equipment sheet has its own measured regions.
 
+### Walk-cycle registration (metadata only)
+
+The default traveler's contact drawings were not registered to the neutral pose: the cardinal contacts rose ~2 px and sank ~6 px (an alternating limp), and the diagonal contact-B redraw had a 5-8 % larger head, shifted up to 6 px sideways and up to 13 px higher. `register_walk_cycle()` in `tools/art/repair_diagonal_stride.py`, run by `python3 tools/art/build_steady_wanderer_frames.py`, fixes this in `wanderer_steady_frames.tres` only, without pixel edits:
+
+- every non-neutral walk frame is rescaled about the feet with per-frame `body_height`/`width_scale` metadata (read by `player.gd`), so both contacts sit `CONTACT_DIP` (2.5 px) below the neutral crown and a separate passing drawing matches it;
+- where head widths still differ by more than 1.5 px (diagonal contact B), `width_scale` narrows the frame to the neutral head width, limited to 0.90-1.06 of the vertical scale;
+- `margin.x` puts the head centroid over the neutral head; the y=316 foot baseline and 352 canvas are unchanged. `metadata/walk_registration` records the applied `Vector2(x, y)` scale.
+
+Measured after registration with the script's head metric (crown row, 70th-percentile head width, head centroid): both contacts exactly 2.5 px below the neutral crown in all eight facings, head widths within 3 px and head centres within 1.5 px of neutral. An independent bounding-box measurement (alpha ≥ 64 crown) gives contacts 1.5-3.5 px below neutral, at most 2 px apart, and head widths within 4 px. The largest correction is up_right contact B (0.946 vertical, 0.925 horizontal). `tests/traveler_walk_registration_test.gd` checks these against the runtime standing fit. Equipment variants (`wanderer_frames.tres`, `equipment/*_diagonal_frames.tres`) are unchanged.
+
 ## Prompts
 
 ### Opposite contact correction (2026-09-24)

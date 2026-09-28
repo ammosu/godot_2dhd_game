@@ -25,6 +25,8 @@ const VillageMap = preload("res://scripts/gameplay/village_map.gd")
 const RuinsMap = preload("res://scripts/gameplay/ruins_map.gd")
 const OpeningCutscene = preload("res://scripts/story/opening_cutscene.gd")
 const PlaythroughTest = preload("res://scripts/testing/playthrough_test.gd")
+const BodyLife = preload("res://scripts/gameplay/body_life.gd")
+const PortraitFaces = preload("res://scripts/ui/portrait_faces.gd")
 
 const PALETTE := {
 	"stone": Color("686176"),
@@ -40,6 +42,17 @@ const MAIN_QUEST_MARKER: StringName = &"main"
 const SIDE_CONTENT_MARKER: StringName = &"side"
 const MAIN_QUEST_MARKER_COLOR := Color("ffd45c")
 const SIDE_CONTENT_MARKER_COLOR := Color("64e6ff")
+## Conversation staging: the hero eases back to talking distance (never a
+## teleport) at this pace, aiming slightly past the spacing so the walk's
+## arrival tolerance still leaves a clear gap.
+const CONVERSATION_STEP_SPEED: float = 1.6
+const CONVERSATION_STEP_MARGIN: float = 0.05
+const CONVERSATION_STEP_TOLERANCE: float = 0.02
+const CONVERSATION_RETREAT_ANGLES: Array[float] = [0.0, 30.0, -30.0, 60.0, -60.0, 90.0, -90.0, 120.0, -120.0, 150.0, -150.0, 180.0]
+## Speakers with no body in the scene never nod.
+const NARRATOR_SPEAKERS: Array[String] = ["", "旁白", "系統"]
+## Street patrol strolling pace, tuned to each identity's drawn stride.
+const VILLAGER_SPEEDS: Array[float] = [0.6, 0.55, 0.62]
 
 @onready var player: Wanderer = $Player
 @onready var dialogue_ui: DialogueUI = $DialogueUI
@@ -77,6 +90,10 @@ var _player_status: PanelContainer
 var _hud: WorldHud
 var _interior_backdrop: ColorRect
 var _test_mode: bool = false
+var _conversation_art: Node3D
+var _speaking_life: Node
+var _conversation_step_active: bool = false
+var _conversation_step_bodies: Array[PhysicsBody3D] = []
 
 
 func _ready() -> void:
@@ -89,6 +106,11 @@ func _ready() -> void:
 	GameState.state_changed.connect(_refresh_hud)
 	GameState.notification_requested.connect(_show_notice)
 	battle_ui.battle_finished.connect(_on_battle_finished)
+	GameState.state_changed.connect(_on_conversation_state_changed)
+	dialogue_ui.line_revealing.connect(_on_line_revealing)
+	var hero_life := BodyLife.new()
+	hero_life.breathing = false # Idle motion of the hero belongs to the player script.
+	player.sprite.add_child(hero_life)
 	_load_map(GameState.current_map, GameState.spawn_id)
 	if _test_mode:
 		GameState.flags["intro_seen"] = true
@@ -295,6 +317,7 @@ func _on_map_change_requested(map_id: String, spawn_id: String) -> void:
 
 func _load_map(map_id: String, spawn_id: String) -> void:
 	player.auto_walk.cancel()
+	_cancel_conversation_step()
 	dialogue_ui.clear_illustration()
 	var profile_started: int = Time.get_ticks_usec()
 	if _map_root != null and is_instance_valid(_map_root):
@@ -538,7 +561,7 @@ func _add_wandering_villagers() -> void:
 		villager.display_name = str(resident.name)
 		villager.dialogue_text = str(patrol.text)
 		villager.conversation_requested.connect(_talk_to_wandering_villager)
-		villager.speed = 0.7 + float(index) * 0.12
+		villager.speed = VILLAGER_SPEEDS[index]
 		villager.wait_time = float(index) * 0.8
 		_map_root.add_child(villager)
 
@@ -546,12 +569,134 @@ func _add_wandering_villagers() -> void:
 func _talk_to_wandering_villager(villager: CharacterBody3D) -> void:
 	if GameState.is_input_locked() or _portal_transition_pending or GameState.current_map not in ["village", "starbay"]:
 		return
-	player.make_conversation_space(villager)
-	player.face_world_position(villager.global_position)
 	dialogue_ui.show_dialogue([{"speaker": str(villager.get("display_name")), "text": str(villager.get("dialogue_text"))}])
-	var art := villager.get_node("CharacterArt") as Sprite3D
-	art.call("turn_to", player)
-	($CameraRig as Hd2dCameraRig).begin_dialogue_shot(art)
+	_begin_actor_conversation(villager)
+
+
+## Stage a face-to-face talk after its dialogue has opened: both characters
+## turn (the partner after a short reaction), the camera frames the pair and
+## the hero eases back to talking distance while DIALOGUE locks input.
+func _begin_actor_conversation(actor: Node3D, frame_shot: bool = true) -> void:
+	if not is_instance_valid(actor) or not dialogue_ui.is_open():
+		return
+	player.velocity.x = 0.0
+	player.velocity.z = 0.0
+	player.face_world_position(actor.global_position)
+	var art := actor.get_node_or_null("CharacterArt") as Node3D
+	_conversation_art = art
+	if art != null:
+		art.call("turn_to", player)
+		if frame_shot:
+			($CameraRig as Hd2dCameraRig).begin_dialogue_shot(art)
+	# The first line began typing before the partner was known.
+	if not dialogue_ui.revealing_speaker().is_empty():
+		_on_line_revealing(dialogue_ui.revealing_speaker(), true)
+	_step_back_for_conversation(actor)
+
+
+func is_conversation_step_active() -> bool:
+	return _conversation_step_active
+
+
+func _step_back_for_conversation(partner: Node3D) -> void:
+	if _conversation_step_active:
+		return
+	# Saves or scripted placement can start inside the speaker; let the step
+	# leave that body while still sweeping against walls and other characters.
+	var bodies: Array[PhysicsBody3D] = []
+	var candidates: Array[Node] = partner.find_children("*", "PhysicsBody3D", true, false)
+	if partner is PhysicsBody3D:
+		candidates.append(partner)
+	for node: Node in candidates:
+		var body := node as PhysicsBody3D
+		if body != player and not player.get_collision_exceptions().has(body):
+			player.add_collision_exception_with(body)
+			bodies.append(body)
+	var destination := _conversation_step_destination(partner)
+	if destination.is_equal_approx(player.global_position):
+		for body: PhysicsBody3D in bodies:
+			player.remove_collision_exception_with(body)
+		return
+	_conversation_step_active = true
+	_conversation_step_bodies = bodies
+	player.lock_door_facing(partner.global_position)
+	await player.walk_to_door_point(destination, CONVERSATION_STEP_SPEED)
+	_finish_conversation_step()
+
+
+func _conversation_step_destination(partner: Node3D) -> Vector3:
+	var away: Vector3 = player.global_position - partner.global_position
+	away.y = 0.0
+	if away.length() >= Wanderer.CONVERSATION_DISTANCE - CONVERSATION_STEP_TOLERANCE:
+		return player.global_position
+	if away.is_zero_approx():
+		away = ($CameraRig/Camera3D as Camera3D).global_basis.x
+		away.y = 0.0
+	away = away.normalized()
+	# Shortest retreat first, then nearby sides when scenery blocks it.
+	for degrees: float in CONVERSATION_RETREAT_ANGLES:
+		var destination: Vector3 = partner.global_position + away.rotated(Vector3.UP, deg_to_rad(degrees)) * (Wanderer.CONVERSATION_DISTANCE + CONVERSATION_STEP_MARGIN)
+		destination.y = player.global_position.y
+		if not player.test_move(player.global_transform, destination - player.global_position):
+			return destination
+	return player.global_position
+
+
+func _finish_conversation_step() -> void:
+	if not _conversation_step_active:
+		return
+	_conversation_step_active = false
+	player.axis_lock_linear_x = false
+	player.axis_lock_linear_z = false
+	_restore_conversation_collisions()
+	if GameState.mode in [GameState.Mode.DIALOGUE, GameState.Mode.EXPLORE]:
+		player.release_door_facing()
+
+
+func _restore_conversation_collisions() -> void:
+	# Remove exceptions while the partner still exists; a freed body would
+	# leave a dangling physics RID in the player's exception list.
+	for body: PhysicsBody3D in _conversation_step_bodies:
+		if is_instance_valid(body):
+			player.remove_collision_exception_with(body)
+	_conversation_step_bodies.clear()
+
+
+## Stop an unfinished step when its conversation ends or the map changes.
+## Locked planar axes make the scripted walk see zero travel and return.
+func _cancel_conversation_step() -> void:
+	if _conversation_step_active:
+		player.axis_lock_linear_x = true
+		player.axis_lock_linear_z = true
+		_restore_conversation_collisions()
+
+
+func _on_conversation_state_changed() -> void:
+	if GameState.mode == GameState.Mode.DIALOGUE:
+		return
+	_cancel_conversation_step()
+	_set_speaking(null)
+	_conversation_art = null
+
+
+func _on_line_revealing(speaker: String, active: bool) -> void:
+	var life: Node = null
+	if PortraitFaces.speaker_face_id(speaker) == "hero":
+		life = BodyLife.find(player.sprite)
+	elif speaker not in NARRATOR_SPEAKERS and is_instance_valid(_conversation_art):
+		life = BodyLife.find(_conversation_art)
+	if active:
+		_set_speaking(life)
+	elif life == _speaking_life:
+		_set_speaking(null)
+
+
+func _set_speaking(life: Node) -> void:
+	if is_instance_valid(_speaking_life) and _speaking_life != life:
+		_speaking_life.set("speaking", false)
+	_speaking_life = life
+	if is_instance_valid(life):
+		life.set("speaking", true)
 
 
 func _build_ruins() -> void:
@@ -696,8 +841,9 @@ func _close_arrival_door(home_id: String) -> void:
 		closing.tween_property(hinge, "rotation:y", 0.0, 0.5)
 		await closing.finished
 	# Return outside the automatic-interaction zone before restoring input.
-	await player.walk_to_door_point(arrival, 2.0)
+	# Release the door facing first so the hero turns and walks away.
 	player.release_door_facing()
+	await player.walk_to_door_point(arrival, 2.0)
 	player.face_world_position(player.global_position + onward)
 
 
@@ -715,14 +861,15 @@ func _handle_interaction(interaction_id: String) -> void:
 	if interaction_id == "shop_inn_rest" and GameState.current_map == "house_city_01":
 		GameState.restore_player()
 		dialogue_ui.show_dialogue([{ "speaker": "小春・旅店掌櫃", "text": "睡得好嗎？熱茶已經泡好了。\n（生命與魔力已恢復。）" }])
+		var keeper := _map_root.get_node_or_null("HouseResident") as Node3D
+		if keeper != null:
+			_begin_actor_conversation(keeper, false)
 		return
 	if interaction_id == "house_resident" and HouseCatalog.is_interior(GameState.current_map):
 		var resident: Dictionary = HouseCatalog.resident(GameState.current_map)
 		var actor := _map_root.get_node("HouseResident") as Node3D
-		player.make_conversation_space(actor)
-		player.face_world_position(actor.global_position)
 		dialogue_ui.show_dialogue([{"speaker": resident.name, "text": resident.text}])
-		actor.get_node("CharacterArt").call("turn_to", player)
+		_begin_actor_conversation(actor, false)
 		return
 	if interaction_id.begins_with("enter_house_"):
 		var destination := interaction_id.trim_prefix("enter_")
@@ -753,6 +900,9 @@ func _handle_interaction(interaction_id: String) -> void:
 		var event: Array = Outskirts.EVENTS[interaction_id]
 		if GameState.current_map == event[0]:
 			dialogue_ui.show_dialogue([{ "speaker": event[2], "text": GameState.resolve_outskirts_event(interaction_id) }])
+			var traveler := _map_root.get_node_or_null(NodePath(interaction_id.capitalize())) as Node3D
+			if interaction_id == "road_traveler" and traveler != null:
+				_begin_actor_conversation(traveler)
 		return
 	if interaction_id == "leave_house":
 		if HouseCatalog.is_interior(GameState.current_map):
@@ -788,11 +938,9 @@ func _handle_interaction(interaction_id: String) -> void:
 		"guardian":
 			_talk_to_guardian()
 	if interaction_id in ["elder", "rumi", "noah"] and dialogue_ui.is_open():
-		var speaker := _map_root.get_node_or_null(NodePath(interaction_id.capitalize() + "/CharacterArt"))
+		var speaker := _map_root.get_node_or_null(NodePath(interaction_id.capitalize()))
 		if speaker != null:
-			player.make_conversation_space(speaker.get_parent() as Node3D)
-			speaker.call("turn_to", player)
-			($CameraRig as Hd2dCameraRig).begin_dialogue_shot(speaker as Node3D)
+			_begin_actor_conversation(speaker as Node3D)
 
 
 func _talk_to_elder() -> void:

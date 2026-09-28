@@ -440,7 +440,7 @@ godot --path . -- --mobile-controls
 
 ### 探索腳步
 
-執行 `python3 tests/audio_asset_test.py` 檢查原創腳步 PCM；`godot --headless --path . --script tests/footsteps_test.gd` 驗證三種材質、非碰撞道路、地圖切換、交替音色、實際移動、撞牆／停下／對話鎖定／傳送重置及清理。桌面音訊啟動檢查用 `godot --path . --rendering-method gl_compatibility --script tests/footsteps_test.gd -- --mute-audio`，不寫入音量偏好或正常存檔。這不是主觀聽感驗收。
+執行 `python3 tests/audio_asset_test.py` 檢查原創腳步 PCM；`godot --headless --path . --script tests/footsteps_test.gd` 驗證三種材質、非碰撞道路、地圖切換、交替音色、實際移動、撞牆／停下／對話鎖定／傳送重置及清理。腳步聲由行走動畫的著地影格觸發，`footsteps.gd` 只負責抑制（鎖定、騰空、傳送後需再走 `RESUME_DISTANCE`）。桌面音訊啟動檢查用 `godot --path . --rendering-method gl_compatibility --script tests/footsteps_test.gd -- --mute-audio`，不寫入音量偏好或正常存檔。這不是主觀聽感驗收。
 
 ### 戰鬥動作銜接
 
@@ -509,9 +509,11 @@ Checks mesh sharing, ground contact, outward pane normals and preserved lighting
 
 ### 對話轉身
 
-`godot --headless --path . --script tests/conversation_facing_test.gd` 驗證長老、露米、諾亞的八方向交談、兩個鏡頭角度、九組角色／裝備搭配、地圖待機與對話共用角色圖集、雙方互相面向、接地與高度、對話鎖定、立即還原及換圖清理。成功標記為 `CONVERSATION_FACING_TEST_PASS`。不寫入正常存檔。
+`godot --headless --path . --script tests/conversation_facing_test.gd` 驗證長老、露米、諾亞的八方向交談、兩個鏡頭角度、九組角色／裝備搭配、地圖待機與對話共用角色圖集、雙方互相面向、接地與高度、對話鎖定、逐格轉身（反應延遲後每 0.07 秒轉一個視角，對話結束先停留 0.35 秒再轉回）、`snap_to_idle()` 同步還原及換圖清理。成功標記為 `CONVERSATION_FACING_TEST_PASS`。不寫入正常存檔。
 
-對話開始時會先停止玩家水平慣性；與 NPC 的水平距離不足 1.35 時，優先向後退開，遇到障礙則搜尋側邊可通行位置。路徑皆受阻時保留原位，避免穿牆。`conversation_facing_test.gd` 另驗證近距離、完全同點、足夠距離不移動及牆邊退讓。
+對話開始時會先停止玩家水平慣性；與 NPC 的水平距離不足 1.35 時，玩家面向對方、以 `walk_to_door_point` 緩步後退（不再瞬移），遇到障礙則搜尋側邊可通行位置。路徑皆受阻時保留原位，避免穿牆。後退期間維持 DIALOGUE 輸入鎖定。`conversation_facing_test.gd` 另驗證近距離、完全同點、足夠距離不移動、後退為多幀步行及牆邊退讓。
+
+`godot --headless --path . --script tests/conversation_motion_test.gd` 驗證 `EightWayFacing.step_toward` 與防抖死區、後退途中關閉對話或換圖會立即停止、說話者（含主角）打字時點頭且旁白不觸發、NPC 待機呼吸只改 scale.y、對話框淡出而 `is_open()` 與回呼維持同步、村民加減速與 1.6／2.0 公尺讓路遲滯、過場中村民持續走動、驛路旅人延遲轉頭注視主角，以及月印姿勢時間表。成功標記 `CONVERSATION_MOTION_TEST_PASS`。
 
 實機以 `godot --path . --rendering-method forward_plus --script tests/conversation_facing_test.gd -- --facing-capture --mute-audio` 輸出三張待機 `/tmp/map-idle-*.png` 與六張對話 `/tmp/conversation-*.png`；另以 `gl_compatibility` 重跑。來源及提示詞見 `assets/generated/CONVERSATION_FACING.md`。轉身使用八個站姿切換，並非逐幀旋轉動畫。
 
@@ -592,7 +594,7 @@ godot --headless --path . --script tests/dialogue_occlusion_test.gd
 ```
 
 
-居民八方向與行走：`godot --headless --path . --script tests/resident_motion_test.gd`。檢查八個身分、256 個姿勢畫格、alpha 腳底、鏡頭八方位、實際住宅交談轉向、踏步／停止／對話鎖定，以及三位不重複的巡遊角色。成功標記 `RESIDENT_MOTION_TEST_PASS`。既有 `wandering_villager_test.gd` 繼續驗證實際路線移動、禮讓、停留與地圖重建；`house_interior_test.gd` 驗證八棟住宅互動。
+居民八方向與行走：`godot --headless --path . --script tests/resident_motion_test.gd`。檢查八個身分、256 個姿勢畫格、alpha 腳底、鏡頭八方位、實際住宅交談轉向（反應延遲、逐一視角轉身、道別停留）、踏步／停止／對話鎖定，以及三位不重複的巡遊角色。巡遊步頻依實際移動距離與各身分步幅（`resident_art.gd` 的 `STRIDE_METRES`）推算，限制在 4–9 fps。成功標記 `RESIDENT_MOTION_TEST_PASS`。既有 `wandering_villager_test.gd` 繼續驗證實際路線移動、禮讓、停留與地圖重建；`house_interior_test.gd` 驗證八棟住宅互動。
 
 居民美術對照：建立輸出目錄後，執行 `godot --path . --rendering-method gl_compatibility --script tests/resident_motion_capture.gd -- --capture-dir=/absolute/existing/directory`，再改為 `forward_plus`。透過 960 × 1600 SubViewport 捕捉實際共用角色腳本的八位 × 八方向 × 四姿勢。這是隔離美術診斷圖，成功標記 `RESIDENT_MOTION_CAPTURE_PASS` 只表示捕捉成功，不代表正常遊玩畫面或連續動畫驗收。兩者不寫玩家存檔。
 
@@ -742,6 +744,10 @@ Boss 全域招式回歸包含：擴散火環的遠距掃掠碰撞、單波僅命
 
 野外／地下城角色比例：`tests/field_combat_test.gd` 另驗證四向、四種裝備與一般／地下城縮放下，待機、走路、起手、攻擊與閃避使用同一動作圖集及固定比例，腳底保持接地；站立基準與探索角色身高一致。戰鬥區域採用動作圖集的四向行走，離開後恢復探索的八向行走。
 
+野外收劍／拔劍（stance）：`FieldCombat.stance` 平時為 `relaxed`，顯示玩家自己的收劍八向探索角色；只有交戰時（起手、揮擊、收招、閃避、受擊後 3 秒、敵人追擊、或自動戰鬥視野內有敵人）才切成 `drawn` 顯示動作圖集。攻擊／閃避／受擊直接以該姿勢換圖；僅因警覺而拔劍時，站立狀態先顯示 0.12 秒 `recover` 遮住換圖。連續平靜 2.5 秒且至少拔劍 1.5 秒後才收劍。過場（含開場）、對話、轉場一律 relaxed，不再凍結在戰鬥步伐中。`field_combat_test.gd` 的 `_check_stance` 驗證以上規則；測試或腳本可用 `force_stance(&"drawn")`。拔劍時戰鬥斜向改用水平分量的側面（不再以背面橫移），行走為兩格並依移動距離換格。
+
+野外戰鬥動作時序：玩家起手時雙腳固定（移動倍率 0）、揮擊 0.15、收招 `recover` 0.14 秒期間 0.5；近戰在起手最後 0.08 秒踏前最多 0.35 m，停在目標前方；閃避保持 2.2 m 但速度由快到慢。敵人一般與蓄力攻擊都先顯示 `windup`（術士 `cast`），命中時才顯示 `attack` 0.14 秒，再 `recover` 0.18 秒；受擊有依重量衰減的擊退。巡邏改為家點 1.5–3 m 內隨機漫步並停頓 1.2–3.5 秒（依 id 種子錯開），速度與朝向平滑變化，步伐依移動距離換格。典獄長受擊有 hit-stop／白閃（半幅震動），受擊時不滑行，重擊後以起手幀保持 0.35 秒重收招。常數皆集中於 `field_combat.gd`／`crypt_boss_combat.gd` 開頭，便於調整。
+
 ### Enemy eight-direction movement
 
 `godot --headless --path . --script tests/enemy_movement_test.gd`
@@ -760,6 +766,8 @@ to existing combat/equipment art. New original atlases and generation prompts li
 成功標記 `TOWN_APPEARANCE_TEST_PASS classes bodies walking doors map_transitions equipment`。
 涵蓋男女四職業在暮光村、星灣城、住宅與野外往返，檢查行走／待機／開門使用空手圖、離開城鎮恢復原圖且裝備不變；不寫存檔。
 男弓箭手仍有四個獨立空手斜向，其他職業沿用既有斜向對應。素材來源與提示詞記錄於 `assets/generated/town/`。
+
+城鎮斜向行走圖量測：`godot --headless --path . --script tests/town_diagonal_art_test.gd`，成功標記 `TOWN_DIAGONAL_ART_TEST_PASS`。此測試檢查每張 `town/<id>_diagonal.png` 都是 4 方向 × 3 姿勢，且裁切框位於圖內、依序排列。盜賊、女旅人與女盜賊另外檢查每列腳底基準線，以及兩個著地畫格的高度差（不可跛行）、下沉量與上彈量。只讀素材量測資料，不寫存檔。
 
 選角介面輸入與排版：`godot --headless --path . --script tests/class_selection_layout_test.gd`，成功標記 `CLASS_SELECTION_LAYOUT_TEST_PASS mouse keyboard responsive draft`。使用實際 viewport 事件點擊職業、性別、配色、動作、方向及暫停，再以 Enter 開始旅程；驗證預覽不修改進度、1280×720 首屏包含開始按鈕，以及 960×720、540×900、390×844 下無水平溢出且可捲動至開始按鈕。不寫入一般存檔。移除 `--headless` 並加 `-- --capture`，可輸出 `/tmp/wanderlight-class-layout-<width>x<height>.png`；須另行目視確認字體、角色與裝飾。
 
@@ -780,6 +788,8 @@ to existing combat/equipment art. New original atlases and generation prompts li
 斜向步伐修正：四套旅人外觀的第 4 幀共用 `diagonal_contact_b.png` 中各自的反側接地姿勢，第 3 幀回到收腳姿勢。`tools/art/repair_diagonal_stride.py` 可重建裁切資訊；`player_art_test.gd` 檢查腳底與方向，`equipment_replacement_test.gd` 檢查各裝備的姿勢來源。美術的左右腳交替仍需在實際遊戲中目視確認。
 
 預設旅人頭部穩定修正：四個直向改用 `wanderer_steady_walk.png` 與 `wanderer_steady_frames.tres`，統一頭部方向並依頭部軸心對齊；八方向使用 352 × 352 畫布與 y=316 腳底基準。以 `python3 tools/art/build_steady_wanderer_frames.py` 重建資源，原圖不做像素加工。`player_art_test.gd`、`grounding_test.gd` 與 `equipment_replacement_test.gd` 驗證換格、腳底、換裝；`player_motion_capture.gd` 用於雙 renderer 目視對照。素材與生成提示見 `assets/generated/STEADY_WALK.md`。
+
+預設旅人步伐登錄：`tools/art/build_steady_wanderer_frames.py` 另呼叫 `repair_diagonal_stride.register_walk_cycle()`，只改 `wanderer_steady_frames.tres` 的 `margin.x` 與 `body_height`／`width_scale` 中繼資料，讓八方向兩個接地格都比中立姿勢低約 2.5 px（不再一高一低跛行），斜向第 4 幀頭部大小與位置對齊中立格。`godot --headless --path . --script tests/traveler_walk_registration_test.gd` 以執行期站姿比例驗證：兩接地格頭頂差 ≤ 3 px、頭寬差 ≤ 3 px、頭部中心差 ≤ 1.5 px、腳底 y=316 不變。細節見 `assets/generated/DIAGONAL_WALK.md`。
 
 城鎮外持武器步行使用另一套 `action` 圖集與 `FieldCombat._hero_sprite`，不會套用城內的 `wanderer_steady_frames.tres`。`tools/art/build_armed_walk_anchors.py` 量測四套旅人裝備、四個方向的頭部中軸，寫入 `assets/generated/action/armed_walk_anchors.gd`；`action_sprite_library.gd` 讓 walk_a／walk_b 對齊 idle 的頭部位置，避免單腳或劍尖改變水平軸心。PNG、腳底高度、角色比例及其他戰鬥姿勢保留。`field_combat_test.gd` 直接檢查野外實際角色在四方向、四套裝備與兩種比例下的換格頭部位置；`action_art_test.gd` 檢查量測資料與來源圖的雜湊一致。
 
@@ -804,6 +814,8 @@ Repeat with `gl_compatibility`. Checks wood/gravel presence and the tilted/repai
 花朵移動閃爍：`garden_flowers.png` 啟用 mipmap，花朵 Sprite3D 使用 nearest-with-mipmaps，避免高解析花瓣在遠距縮小時直接跳取原圖像素。其他像素素材保留原過濾設定。鏡頭追蹤在距離小於 0.002、旋轉誤差小於 0.0001 弧度時收斂至精確目標，避免停步後持續微移。
 
 `godot --headless --path . --script tests/camera_settle_test.gd` 驗證 30／60／120 FPS 行走、旋轉後鏡頭確實停止；成功標記 `CAMERA_SETTLE_TEST_PASS`。花朵的連續移動畫面仍需分別以 Forward+ 與 Compatibility 目視確認。
+
+主角步伐節奏：`godot --headless --path . --fixed-fps 60 --script tests/player_locomotion_cadence_test.gd` 驗證行走影格依實際移動距離推進（`player.gd` 的 `STEP_LENGTH`，1.6／2.8／4.2 m/s 每公尺影格數相差不超過 10%）、腳步聲只落在著地影格（1、3）且數量與著地次數相同、搖桿半推按比例減速、放開後依實際速度煞車並把著地姿勢走完至過渡姿勢再站定、劇情與門口步行緩起緩停、鎖定朝向後退時倒放步伐、站立時鏡頭環繞仍面向原本的世界方向、八方向扇區遲滯，以及站立呼吸以腳底為軸。成功標記 `PLAYER_LOCOMOTION_CADENCE_TEST_PASS`。直接呼叫 `_update_sprite(方向, 移動, delta)`（不傳 `traveled`）的測試與擷取工具仍使用固定 8 fps 的時間節奏，結果可重現。步幅需以 `godot --path . --script tests/opening_cutscene_test.gd -- --capture-dir <目錄>` 目視微調。
 
 村莊道路交界：`godot --headless --path . --script tests/village_road_overlap_test.gd` 檢查廣場、十字路、環村步道與出村道路的所有同高重疊區，每處必須恰有一張路面顯示。村莊建立時由實際 BoxMesh 範圍產生 shader 排除區，先建立的路面擁有交界，保留原本路高與碰撞。成功標記 `VILLAGE_ROAD_OVERLAP_TEST_PASS`；移除 `--headless` 並分別使用 `--rendering-method forward_plus`／`gl_compatibility`，會擷取 `/tmp/village-road-overlap-<renderer>.png`，供東側交界目視檢查。
 

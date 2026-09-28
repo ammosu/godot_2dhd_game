@@ -2,6 +2,13 @@ extends RefCounted
 ## Opening film after class selection: the traveler walks the east road into Twilight Village.
 ## Pure data for CutscenePlayer; the traveler is the live player actor, so the chosen class,
 ## body and colour scheme appear without extra art.
+##
+## Staging: the east road shots keep the lens on the south side of the westward path (z = 5),
+## so the traveler always moves screen-left across the cuts instead of crossing the line.
+## Walking speeds sit near a relaxed stroll so the stride reads without foot sliding.
+
+const ROAD_WALK_SPEED: float = 1.9
+const VILLAGE_WALK_SPEED: float = 1.8
 
 static func shots() -> Array[Dictionary]:
 	return [
@@ -18,8 +25,8 @@ static func shots() -> Array[Dictionary]:
 		},
 		{
 			"duration": 10.0, "fov": 40.0, "actor_at": Vector3(11.0, 0.0, 5.0),
-			"actor_path": [Vector3(-3.2, 0.0, 5.0)], "actor_speed": 1.6, "actor_delay": 0.4,
-			"camera": {"look_actor": true, "from": Vector3(-3.0, 2.3, 2.6), "to": Vector3(-3.6, 2.1, 2.3),
+			"actor_path": [Vector3(-3.2, 0.0, 5.0)], "actor_speed": ROAD_WALK_SPEED, "actor_delay": 0.4,
+			"camera": {"look_actor": true, "from": Vector3(4.5, 3.2, 10.2), "to": Vector3(3.0, 2.3, 10.0),
 				"look_from": Vector3(0.0, 0.9, 0.0), "look_to": Vector3(0.0, 0.9, 0.0)},
 			"caption": "後來，路燈一盞盞熄滅，道路被人遺忘。",
 		},
@@ -28,7 +35,9 @@ static func shots() -> Array[Dictionary]:
 			"actor_face": Vector3(-12.0, 0.0, 5.0),
 			"camera": {"track": true, "from": Vector3(-2.6, 1.5, 3.4), "to": Vector3(-1.6, 1.25, 2.2),
 				"look_from": Vector3(-0.4, 1.05, 0.0), "look_to": Vector3(-0.5, 1.05, 0.0)},
-			"events": [{"at": 2.2, "id": "road_whisper"}],
+			# The whisper makes him glance around toward the lens side, then settle back on the road west.
+			"events": [{"at": 2.2, "id": "road_whisper"}, {"at": 2.5, "face": Vector3(-6.0, 0.0, 9.0)},
+				{"at": 3.5, "face": Vector3(-12.0, 0.0, 5.0)}],
 			"speaker": "低語", "caption": "……往西走。那裡還有一盞燈。",
 			"fade_out": 1.0,
 		},
@@ -41,7 +50,7 @@ static func shots() -> Array[Dictionary]:
 		},
 		{
 			"duration": 5.5, "fov": 40.0, "actor_at": Vector3(23.5, 0.0, 4.6),
-			"actor_path": [Vector3(16.5, 0.0, 4.6)], "actor_speed": 1.5,
+			"actor_path": [Vector3(16.5, 0.0, 4.6)], "actor_speed": VILLAGE_WALK_SPEED,
 			"camera": {"look_actor": true, "from": Vector3(26.4, 2.5, 4.9), "to": Vector3(26.2, 2.8, 4.8),
 				"look_from": Vector3(0.0, 0.9, 0.0), "look_to": Vector3(-2.0, 0.6, 0.0)},
 		},

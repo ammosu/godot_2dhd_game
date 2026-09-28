@@ -59,7 +59,9 @@ func _run() -> void:
 		model.step(1.0 / 60.0, Vector2.ZERO)
 	check(Art.pose(actor, false, 0) == "attack", "Contact pose at impact")
 	var hp_after_impact: int = model.actors[3].hp
-	for frame: int in range(12):
+	# Melee contact holds the striker in hit stop before the swing runs out.
+	check(float(actor.hit_stop) > 0.0, "Melee contact must share the hit stop")
+	for frame: int in range(12 + ceili(float(actor.hit_stop) * 60.0)):
 		model.step(1.0 / 60.0, Vector2.ZERO)
 	check(Art.pose(actor, false, 0) == "recover", "Recovery frame must actually play")
 	check(int(model.actors[3].hp) == hp_after_impact, "Recovery must not duplicate damage")

@@ -40,8 +40,12 @@ func _run() -> void:
 	battle.call("start_battle", {"arena_theme": "forest", "visual_seed": 42})
 	_check((battle.get("_arena_viewport") as SubViewport).render_target_update_mode != SubViewport.UPDATE_DISABLED, "Combat arena failed to render")
 	battle.call("_execute", "attack", 3)
-	await create_timer(0.18).timeout
-	var hit := (battle.get("_stage") as Control).get_node_or_null("PhysicalHit") as TextureRect
+	# Contact follows the eased windup and lunge; wait for it rather than a fixed delay.
+	var hit: TextureRect = null
+	var contact_deadline := Time.get_ticks_msec() + 1000
+	while hit == null and Time.get_ticks_msec() < contact_deadline:
+		await process_frame
+		hit = (battle.get("_stage") as Control).get_node_or_null("PhysicalHit") as TextureRect
 	_check(hit != null, "Physical impact missing")
 	if hit != null:
 		for portrait: TextureRect in battle.get("_portraits"):

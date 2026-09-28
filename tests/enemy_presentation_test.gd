@@ -45,6 +45,21 @@ func _run() -> void:
 			Grounding.anchor(sprite, texture, float(texture.get_meta("ground_y")))
 			view.advance(2.1, "attack", 0.0, 0.0, 0.2)
 			assert(sprite.scale.x > 1.0, "Strike has follow-through")
+			# Anticipation deepens toward release; the strike stretch decays; hurt tint fades.
+			view.advance(2.3, "windup", 0.0, 0.4, 0.0)
+			var early: float = sprite.scale.y
+			view.advance(2.4, "windup", 0.0, 0.05, 0.0)
+			assert(sprite.scale.y < early, "Windup crouch eases deeper")
+			view.advance(2.5, "attack", 0.0, 0.0, 0.14)
+			var fresh: float = sprite.scale.x
+			view.advance(2.6, "attack", 0.0, 0.0, 0.04)
+			assert(sprite.scale.x < fresh and sprite.scale.x > 1.0, "Strike stretch decays after contact")
+			view.advance(2.7, "recover", 0.0, 0.0, 0.0)
+			assert(sprite.scale.y < 1.0, "Recovery settles the weight")
+			view.advance(2.8, "hurt", 0.24, 0.0, 0.0)
+			var tint: float = sprite.modulate.g
+			view.advance(2.9, "hurt", 0.05, 0.0, 0.0)
+			assert(sprite.modulate.g < tint and sprite.modulate.g > 1.0, "Hurt tint fades out")
 			Grounding.anchor(sprite, texture, float(texture.get_meta("ground_y")))
 			view.advance(2.2, "defeated", 0.2, 0.0, 0.0)
 			assert(sprite.scale == Vector3.ONE and is_equal_approx(sprite.position.y, 0.012))
@@ -57,5 +72,5 @@ func _run() -> void:
 		assert(not bar.visible)
 		body.queue_free()
 	await process_frame
-	print("ENEMY_PRESENTATION_TEST_PASS four_species directions pause grounding anticipation defeat health")
+	print("ENEMY_PRESENTATION_TEST_PASS four_species directions pause grounding anticipation easing defeat health")
 	quit()

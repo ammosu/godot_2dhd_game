@@ -14,7 +14,10 @@ extends Node3D
 ##   camera: {from, to, look_from, look_to, track, look_actor}
 ##     track: position and look are offsets from the actor; look_actor: fixed lens pans with the actor
 ##   fov, actor_at, actor_face, actor_path, actor_speed, actor_delay,
-##   events: [{at, id}]
+##   events: [{at, id, face}]
+##     id: host.cutscene_event(id); face: the actor turns toward that world point (a reaction beat)
+##   A shot with actor_path but no actor_face faces the first route point at shot start, so the
+##   pre-walk idle already looks where the actor is about to go.
 
 signal finished(skipped: bool)
 
@@ -22,6 +25,8 @@ const Overlay = preload("res://scripts/ui/cutscene_overlay.gd")
 const SKIP_CONFIRM_SECONDS: float = 2.5
 const TEXT_FADE_SECONDS: float = 0.6
 const END_FADE_SECONDS: float = 0.8
+## look_actor lenses trail the actor with this exponential rate (1/s) and settle when it stops.
+const LOOK_ACTOR_FOLLOW_RATE: float = 6.0
 
 var host: Node
 var actor: Node3D
@@ -41,6 +46,8 @@ var _paused: bool = false
 var _skip_armed_left: float = 0.0
 var _fired_events: Dictionary = {}
 var _walk_started: bool = false
+var _look_actor_point: Vector3 = Vector3.ZERO
+var _look_actor_primed: bool = false
 
 
 func _ready() -> void:
@@ -91,6 +98,7 @@ func _start_shot(index: int) -> void:
 	shot_time = 0.0
 	_fired_events.clear()
 	_walk_started = false
+	_look_actor_primed = false
 	var shot := current_shot()
 	if shot.has("map"):
 		host.cutscene_load_map(str(shot.map), str(shot.get("spawn", "default")))
@@ -107,15 +115,25 @@ func _start_shot(index: int) -> void:
 		camera.fov = float(shot.fov)
 	overlay.set_letterbox(bool(shot.get("letterbox", true)))
 	_update_camera(0.0)
-	if shot.has("actor_face") and actor.has_method("face_world_position"):
-		actor.call("face_world_position", shot.actor_face)
-		# Field maps swap in a combat silhouette that reads its facing from this meta.
-		var heading: Vector3 = (shot.actor_face as Vector3) - actor.global_position
-		heading.y = 0.0
-		actor.set_meta("cutscene_facing", heading.normalized())
-	elif actor.has_meta("cutscene_facing"):
+	if shot.has("actor_face"):
+		_face_actor(shot.actor_face)
+	elif shot.has("actor_path") and not (shot.actor_path as Array).is_empty():
+		# Turn toward the route before the walk starts instead of popping on the first step.
+		_face_actor(host.cutscene_ground((shot.actor_path as Array)[0]))
+	elif is_instance_valid(actor) and actor.has_meta("cutscene_facing"):
 		actor.remove_meta("cutscene_facing")
 	_update_presentation()
+
+
+func _face_actor(target: Vector3) -> void:
+	if not is_instance_valid(actor) or not actor.has_method("face_world_position"):
+		return
+	actor.call("face_world_position", target)
+	# Field maps swap in a combat silhouette that reads its facing from this meta.
+	var heading: Vector3 = target - actor.global_position
+	heading.y = 0.0
+	if heading.length_squared() > 0.0001:
+		actor.set_meta("cutscene_facing", heading.normalized())
 
 
 func _process(delta: float) -> void:
@@ -133,13 +151,18 @@ func _process(delta: float) -> void:
 		for point: Vector3 in shot.actor_path:
 			route.append(host.cutscene_ground(point))
 		(actor as Wanderer).play_scripted_walk(route, float(shot.get("actor_speed", 2.4)))
-	for beat: Dictionary in shot.get("events", []):
-		var id := str(beat.id)
-		if not _fired_events.has(id) and shot_time >= float(beat.at):
-			_fired_events[id] = true
-			host.cutscene_event(id)
+	var beats: Array = shot.get("events", [])
+	for beat_index: int in range(beats.size()):
+		var beat: Dictionary = beats[beat_index]
+		if _fired_events.has(beat_index) or shot_time < float(beat.at):
+			continue
+		_fired_events[beat_index] = true
+		if beat.has("face") and not _actor_is_walking():
+			_face_actor(beat.face)
+		if beat.has("id"):
+			host.cutscene_event(str(beat.id))
 	var duration := float(shot.duration)
-	_update_camera(clampf(shot_time / duration, 0.0, 1.0))
+	_update_camera(clampf(shot_time / duration, 0.0, 1.0), delta)
 	_update_presentation()
 	if shot_time >= duration:
 		if shot_index + 1 < shots.size():
@@ -148,7 +171,12 @@ func _process(delta: float) -> void:
 			_conclude()
 
 
-func _update_camera(progress: float) -> void:
+func _actor_is_walking() -> bool:
+	return actor is Wanderer and (actor as Wanderer).is_scripted_walking()
+
+
+## delta > 0 lets look_actor lenses trail the actor; 0 snaps (shot start).
+func _update_camera(progress: float, delta: float = 0.0) -> void:
 	var shot := current_shot()
 	if not shot.has("camera"):
 		return
@@ -163,8 +191,15 @@ func _update_camera(progress: float) -> void:
 	var tracking := bool(rig.get("track", false)) and is_instance_valid(actor)
 	if tracking:
 		position += actor.global_position
-	if (tracking or bool(rig.get("look_actor", false))) and is_instance_valid(actor):
 		look += actor.global_position
+	elif bool(rig.get("look_actor", false)) and is_instance_valid(actor):
+		var target := actor.global_position
+		if _look_actor_primed and delta > 0.0:
+			_look_actor_point = _look_actor_point.lerp(target, 1.0 - exp(-LOOK_ACTOR_FOLLOW_RATE * delta))
+		else:
+			_look_actor_point = target
+			_look_actor_primed = true
+		look += _look_actor_point
 	# Close tracking shots orbit the actor, so keep scenery from slicing through the lens.
 	camera.global_position = _unobstructed(look, position) if tracking else position
 	if not position.is_equal_approx(look):

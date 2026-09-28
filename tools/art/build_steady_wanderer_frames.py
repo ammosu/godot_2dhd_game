@@ -2,11 +2,17 @@
 
 Requires Pillow. Keeps the existing diagonal frames and the legacy atlas used by
 equipment variants. Cardinal frames align on the head, not swinging arms/feet.
+Requires NumPy for the walk-cycle pass in repair_diagonal_stride.py.
 """
 from pathlib import Path
 import re
+import sys
 
+import numpy as np
 from PIL import Image
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from repair_diagonal_stride import register_walk_cycle  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 ART = ROOT / "assets/generated"
@@ -52,8 +58,16 @@ metadata/ground_y = {float(BASELINE)}
 '''
             text = re.sub(rf'\[sub_resource type="AtlasTexture" id="Frame_{column}_{row}"\]\n.*?(?=\[)',
                           replacement, text, flags=re.S)
+    # Second pass, on all eight facings: both contacts dip evenly below the
+    # neutral head (no limp) and the diagonal contact-B redraw is rescaled to
+    # the neutral head size and position (no pop). Still metadata only.
+    alphas = {atlas: np.asarray(Image.open(ART / name).convert("RGBA"))[:, :, 3]
+              for atlas, name in [("1_atlas", "wanderer_steady_walk.png"),
+                                  ("2_diagonal", "wanderer_diagonal_walk.png"),
+                                  ("3_contact", "diagonal_contact_b.png")]}
+    text = register_walk_cycle(text, alphas)
     (ART / "wanderer_steady_frames.tres").write_text(text)
-    print("Registered 16 steady-head traveler frames; original diagonal poses retained")
+    print("Registered 16 steady-head traveler frames and walk-cycle head bob; source poses retained")
 
 
 if __name__ == "__main__":

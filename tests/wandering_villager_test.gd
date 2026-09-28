@@ -97,6 +97,7 @@ func _run() -> void:
 	for index: int in range(returned.size()):
 		check(returned[index].get("resident_id") == EXPECTED_IDS[index], "Returning reshuffled the street identities")
 		check(returned[index].get_node("TalkArea").get("prompt_text") == "與" + EXPECTED_NAMES[index] + "交談", "Returning lost dialogue interaction")
+	await _check_blocked_reroute(state)
 	world.queue_free()
 	await process_frame
 	for singleton: String in ["GameAudio", "GameMusic", "GameAmbience"]:
@@ -104,3 +105,49 @@ func _run() -> void:
 	if failures == 0:
 		print("WANDERING_VILLAGER_TEST_PASS movement pause proximity patrol maps fixed_roster dialogue repeat")
 	quit(1 if failures else 0)
+
+
+## A wall across the route must make the walker give up and turn back instead
+## of pressing into it forever.
+func _check_blocked_reroute(state: Node) -> void:
+	state.set("mode", 0)
+	var origin := Vector3(300, 0, 300)
+	var scene := Node3D.new()
+	root.add_child(scene)
+	var floor_body := StaticBody3D.new()
+	var floor_shape := CollisionShape3D.new()
+	var floor_box := BoxShape3D.new()
+	floor_box.size = Vector3(20, 1, 20)
+	floor_shape.shape = floor_box
+	floor_shape.position = origin + Vector3(0, -0.5, 3)
+	floor_body.add_child(floor_shape)
+	scene.add_child(floor_body)
+	var wall := StaticBody3D.new()
+	var wall_shape := CollisionShape3D.new()
+	var wall_box := BoxShape3D.new()
+	wall_box.size = Vector3(4, 3, 0.4)
+	wall_shape.shape = wall_box
+	wall_shape.position = origin + Vector3(0, 1.5, 3)
+	wall.add_child(wall_shape)
+	scene.add_child(wall)
+	var walker := (load("res://scripts/gameplay/wandering_villager.gd") as GDScript).new() as CharacterBody3D
+	walker.set("route", PackedVector3Array([origin, origin + Vector3(0, 0, 6)]))
+	walker.set("wait_time", 0.0)
+	walker.set("speed", 0.6)
+	scene.add_child(walker)
+	walker.global_position = origin + Vector3(0, 0.05, 0)
+	var blocked_since: float = -1.0
+	var elapsed: float = 0.0
+	var rerouted_after: float = -1.0
+	for frame: int in range(600):
+		await physics_frame
+		elapsed += 1.0 / 60.0
+		if blocked_since < 0.0 and walker.global_position.z > origin.z + 2.4:
+			blocked_since = elapsed
+		if int(walker.get("_target")) != 1:
+			rerouted_after = elapsed
+			break
+	check(blocked_since >= 0.0, "Blocked walker never reached the wall")
+	check(rerouted_after > 0.0 and rerouted_after - blocked_since < 1.8, "Blocked walker must turn back within ~1.5 s (reached wall %.2f, turned %.2f)" % [blocked_since, rerouted_after])
+	scene.queue_free()
+	await process_frame

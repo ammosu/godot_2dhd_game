@@ -36,5 +36,36 @@
       "id": "archer_diagonal",
       "source": "/Users/cwchang/.codex/generated_images/01a0d27f-2549-7ba3-b8a6-0c09127e364f/exec-640c86de-82de-442d-a16e-8ad8fef4ef2a.png"
     }
-  ]
+  ],
+  "diagonal_walk": {
+    "date": "2026-09-28",
+    "tool": "codex exec (built-in image_gen); attachments: town/<id>.png as identity reference and town/archer_diagonal.png as layout reference",
+    "generation_prompt": "Use case: production transparent RGBA JRPG sprite atlas. Attached image 1 is the town exploration wardrobe atlas that defines the EXACT <MALE|FEMALE> character identity to use: same face, hair color and hairstyle, outfit, colors, boots, accessories, gender, chibi proportions and painterly crisp HD-2D game-art style. Attached image 2 is a DIFFERENT character (a green archer) and is ONLY a layout and pose reference: copy its grid layout, framing, scale, camera angles and walking poses, but NOT its identity, clothes or quiver. Create ONE 4-column by 3-row sprite sheet of twelve full-body sprites of the character from image 1, on a 1280x960 canvas with fully transparent alpha background, equal 320x320 cells and generous clear gutters so no two sprites touch. Columns in order: 1 front three-quarter view facing screen-left/down-left, 2 front three-quarter view facing screen-right/down-right, 3 BACK three-quarter view facing screen-left/up-left (back of the head and shoulders, no face), 4 BACK three-quarter view facing screen-right/up-right (back of head, no face). True 45-degree view in every cell, never a side profile and never straight front or back. Rows in order: 1 neutral relaxed standing/passing pose with feet together under the hips, 2 anatomical LEFT leg forward with heel planted and RIGHT leg trailing, 3 anatomical RIGHT leg forward and LEFT leg trailing (opposite leading legs and reversed knee overlap vs row 2). Modest natural walking stride, not running, kicking or combat stance. Subtle opposing arm swing. BOTH HANDS EMPTY in every sprite: no staff, sword, dagger, bow, weapon or magic effect held; peaceful town walking. Keep only what the character wears in image 1. Critical consistency: in each column the head must be the same size and at the exact same height in all three rows; torso stays stable; only legs and arms change. All twelve sprites share one body scale, body about 270 pixels tall with the feet baseline at y=300 inside each cell. Exactly twelve sprites, each complete and isolated. No floor, no shadows, no labels, no grid lines, no text, no background.",
+    "registration_note_on_regeneration": "IMPORTANT registration: row 2 and row 3 are mirror-phase walking contacts and must have IDENTICAL overall sprite height (top of hair to lowest boot) and identical head size; both contact rows are only very slightly shorter than the row 1 neutral pose (at most about 3 percent, a natural small hip dip), never taller. Do not make one contact row crouch lower than the other.",
+    "phase_fix_prompt": "Use case: precise-object-edit. The attached image is a 4-column by 3-row transparent JRPG walking sprite atlas. Rows 2 and 3 are currently the SAME walking phase, which is wrong. Edit ONLY the FOUR sprites in the BOTTOM ROW (row 3). Keep ALL eight sprites in rows 1 and 2 pixel-identical. In each bottom-row sprite keep the head, hair, face, torso, clothing, scale, position and facing direction exactly unchanged, and replace ONLY the legs and boots from the hips downward with the OPPOSITE walking phase of the sprite directly above it in row 2: the boot that is large, lower and leading in row 2 must become the smaller trailing boot in row 3, and the boot that trails in row 2 must become the large leading planted boot in row 3, so the leading boot is on the OPPOSITE side of the silhouette compared with row 2. In the two right-hand BACK-view columns, if row 2 shows a lifted sole on one side, row 3 must show the lifted sole on the OTHER side. Also swap the arm swing so the opposite arm is forward. Keep the same stride length and the same overall sprite height as row 2 (top of hair to lowest boot). Natural connected legs, exactly two legs and two boots per sprite, no crossed or fused legs. Hands stay empty, no weapons. Preserve true transparent alpha background, same canvas size and layout, no floor, shadow, grid or text.",
+    "phase_fix_note": "Every first generation repeated the same leading leg in rows 2 and 3, so each accepted sheet is an image_gen edit of its generated sheet that redraws row 3 with the opposite leg phase.",
+    "assets": [
+      {
+        "id": "thief_diagonal",
+        "generated": "/Users/cwchang/.codex/generated_images/01a0e71f-ce72-7511-abc4-84e395f604c1/exec-fc5ddbbf-3a2f-4aa2-a97f-b87b044ad370.png",
+        "source": "/Users/cwchang/.codex/generated_images/01a0e729-1ba5-7163-831e-042e03c5893b/exec-0474de16-ba04-4dc6-8f1a-aef6750b4f7f.png"
+      },
+      {
+        "id": "female_traveler_diagonal",
+        "generated": "/Users/cwchang/.codex/generated_images/01a0e71f-d024-7743-8c0a-89cc1a0c2098/exec-8f95462b-25b4-4218-a858-2537dda87043.png",
+        "source": "/Users/cwchang/.codex/generated_images/01a0e725-512a-76b0-8333-8fef5d7cbd20/exec-d42aa44d-c27c-474b-b60f-2a5c8d5094ab.png"
+      },
+      {
+        "id": "female_thief_diagonal",
+        "generated_with_registration_note": true,
+        "generated": "/Users/cwchang/.codex/generated_images/01a0e724-694a-7660-87c3-5a154fd4f1d5/exec-5608f5e0-d1cf-473f-860c-56245a34d064.png",
+        "source": "/Users/cwchang/.codex/generated_images/01a0e729-1d53-73f0-b2de-8005f9424077/exec-cc1fc550-7394-4cf4-801b-8fe12f7bc5fa.png"
+      }
+    ],
+    "rejected": {
+      "mage": "2 generations and 5 phase-fix edits; every candidate either repeated one leading leg in both contact rows or limped 7-14 px between contacts.",
+      "female_archer": "2 generations and 4 phase-fix edits; the best candidate still limped 10 px in the up_left column.",
+      "female_mage": "The best candidate alternated legs, but both contacts rose up to 7 px above the neutral pose (an inverted bob), so it was dropped."
+    }
+  }
 }

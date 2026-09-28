@@ -60,3 +60,7 @@
 - **實際檔案**：`assets/fonts/SourceHanSerifTW-SemiBold.otf`（上游原始檔，未修改）
 - **SHA-256**：`089660b2a0123885b3157bba02963e867eb9109fe2f5b1c30aa68db158a17702`
 - **授權文件**：[assets/fonts/SOURCE_HAN_SERIF_LICENSE.txt](assets/fonts/SOURCE_HAN_SERIF_LICENSE.txt)
+
+## 備註：非第三方的專案原創生成素材
+
+- `assets/generated/town/thief_diagonal.png`、`female_traveler_diagonal.png`、`female_thief_diagonal.png`（2026-09-28）：以 `codex exec` 內建 image_gen 生成的專案原創空手斜向行走圖，參考圖僅為本專案既有的 `town/<id>.png` 與 `town/archer_diagonal.png`。**不含第三方素材**，不需額外授權文件。提示詞與來源路徑見 `assets/generated/town/prompts.json` 及 `assets/generated/town/README.md`。

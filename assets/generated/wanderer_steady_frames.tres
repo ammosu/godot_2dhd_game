@@ -37,44 +37,62 @@ metadata/ground_y = 316.0
 [sub_resource type="AtlasTexture" id="Frame_0_1"]
 atlas = ExtResource("1_atlas")
 region = Rect2(81, 335, 165, 307)
-margin = Rect2(95.141, 11, 187, 45)
+margin = Rect2(95.376, 11, 187, 45)
 filter_clip = true
 metadata/ground_y = 316.0
+metadata/body_height = 295.379
+metadata/width_scale = 1.1485
+metadata/walk_registration = Vector2(0.9818, 0.9818)
 
 [sub_resource type="AtlasTexture" id="Frame_1_1"]
 atlas = ExtResource("1_atlas")
 region = Rect2(391, 335, 159, 307)
-margin = Rect2(94.94, 11, 193, 45)
+margin = Rect2(94.716, 11, 193, 45)
 filter_clip = true
 metadata/ground_y = 316.0
+metadata/body_height = 295.379
+metadata/width_scale = 1.1361
+metadata/walk_registration = Vector2(1.0, 0.9818)
 
 [sub_resource type="AtlasTexture" id="Frame_2_1"]
 atlas = ExtResource("1_atlas")
 region = Rect2(709, 335, 153, 306)
-margin = Rect2(99.888, 12, 199, 46)
+margin = Rect2(99.661, 12, 199, 46)
 filter_clip = true
 metadata/ground_y = 316.0
+metadata/body_height = 294.401
+metadata/width_scale = 1.1108
+metadata/walk_registration = Vector2(1.0093, 0.985)
 
 [sub_resource type="AtlasTexture" id="Frame_3_1"]
 atlas = ExtResource("1_atlas")
 region = Rect2(1013, 335, 161, 306)
-margin = Rect2(97.867, 12, 191, 46)
+margin = Rect2(97.616, 12, 191, 46)
 filter_clip = true
 metadata/ground_y = 316.0
+metadata/body_height = 293.412
+metadata/width_scale = 1.1048
+metadata/walk_registration = Vector2(0.9884, 0.9884)
 
 [sub_resource type="AtlasTexture" id="Frame_0_2"]
 atlas = ExtResource("1_atlas")
 region = Rect2(82, 647, 160, 302)
-margin = Rect2(96.325, 16, 192, 50)
+margin = Rect2(96.396, 16, 192, 50)
 filter_clip = true
 metadata/ground_y = 316.0
+metadata/body_height = 288.06
+metadata/width_scale = 1.1296
+metadata/walk_registration = Vector2(0.9902, 1.0067)
 
 [sub_resource type="AtlasTexture" id="Frame_1_2"]
 atlas = ExtResource("1_atlas")
 region = Rect2(393, 646, 158, 302)
-margin = Rect2(97.548, 16, 194, 50)
+margin = Rect2(97.42, 16, 194, 50)
 filter_clip = true
 metadata/ground_y = 316.0
+metadata/body_height = 288.06
+metadata/width_scale = 1.1154
+metadata/walk_registration = Vector2(1.0067, 1.0067)
 
 [sub_resource type="AtlasTexture" id="Frame_2_2"]
 atlas = ExtResource("1_atlas")
@@ -93,30 +111,42 @@ metadata/ground_y = 316.0
 [sub_resource type="AtlasTexture" id="Frame_0_3"]
 atlas = ExtResource("1_atlas")
 region = Rect2(81, 952, 164, 298)
-margin = Rect2(95.326, 20, 188, 54)
+margin = Rect2(95.644, 20, 188, 54)
 filter_clip = true
 metadata/ground_y = 316.0
+metadata/body_height = 286.577
+metadata/width_scale = 1.1485
+metadata/walk_registration = Vector2(1.0119, 1.0119)
 
 [sub_resource type="AtlasTexture" id="Frame_1_3"]
 atlas = ExtResource("1_atlas")
 region = Rect2(391, 952, 161, 298)
-margin = Rect2(95.469, 20, 191, 54)
+margin = Rect2(95.517, 20, 191, 54)
 filter_clip = true
 metadata/ground_y = 316.0
+metadata/body_height = 286.577
+metadata/width_scale = 1.1154
+metadata/walk_registration = Vector2(1.0119, 1.0119)
 
 [sub_resource type="AtlasTexture" id="Frame_2_3"]
 atlas = ExtResource("1_atlas")
 region = Rect2(708, 953, 156, 299)
-margin = Rect2(98.118, 19, 196, 53)
+margin = Rect2(97.855, 19, 196, 53)
 filter_clip = true
 metadata/ground_y = 316.0
+metadata/body_height = 287.555
+metadata/width_scale = 1.0652
+metadata/walk_registration = Vector2(0.9909, 1.0085)
 
 [sub_resource type="AtlasTexture" id="Frame_3_3"]
 atlas = ExtResource("1_atlas")
 region = Rect2(1014, 953, 159, 299)
-margin = Rect2(98.56, 19, 193, 53)
+margin = Rect2(98.401, 19, 193, 53)
 filter_clip = true
 metadata/ground_y = 316.0
+metadata/body_height = 286.588
+metadata/width_scale = 1.1048
+metadata/walk_registration = Vector2(1.0119, 1.0119)
 
 [sub_resource type="AtlasTexture" id="Diagonal_0_0"]
 atlas = ExtResource("2_diagonal")
@@ -129,10 +159,13 @@ metadata/ground_y = 316.0
 [sub_resource type="AtlasTexture" id="Diagonal_0_1"]
 atlas = ExtResource("2_diagonal")
 region = Rect2(75, 341, 172, 298)
-margin = Rect2(90.0, 20, 180, 54)
+margin = Rect2(91.837, 20, 180, 54)
 filter_clip = true
 metadata/diagonal_frame = 1
 metadata/ground_y = 316.0
+metadata/body_height = 288.414
+metadata/width_scale = 1.0885
+metadata/walk_registration = Vector2(0.9812, 0.9812)
 
 [sub_resource type="AtlasTexture" id="Diagonal_0_2"]
 atlas = ExtResource("2_diagonal")
@@ -145,11 +178,14 @@ metadata/ground_y = 316.0
 [sub_resource type="AtlasTexture" id="Diagonal_0_3"]
 atlas = ExtResource("3_contact")
 region = Rect2(76, 35, 175, 298)
-margin = Rect2(88.5, 20, 177, 54)
+margin = Rect2(94.722, 20, 177, 54)
 filter_clip = true
 metadata/diagonal_frame = 3
 metadata/ground_y = 316.0
 metadata/contact_variant = "base"
+metadata/body_height = 288.414
+metadata/width_scale = 1.0293
+metadata/walk_registration = Vector2(0.9279, 0.9812)
 
 [sub_resource type="AtlasTexture" id="Diagonal_1_0"]
 atlas = ExtResource("2_diagonal")
@@ -162,10 +198,13 @@ metadata/ground_y = 316.0
 [sub_resource type="AtlasTexture" id="Diagonal_1_1"]
 atlas = ExtResource("2_diagonal")
 region = Rect2(396, 341, 157, 298)
-margin = Rect2(97.5, 20, 195, 54)
+margin = Rect2(98.97, 20, 195, 54)
 filter_clip = true
 metadata/diagonal_frame = 1
 metadata/ground_y = 316.0
+metadata/body_height = 287.445
+metadata/width_scale = 1.1384
+metadata/walk_registration = Vector2(1.0198, 0.988)
 
 [sub_resource type="AtlasTexture" id="Diagonal_1_2"]
 atlas = ExtResource("2_diagonal")
@@ -178,11 +217,14 @@ metadata/ground_y = 316.0
 [sub_resource type="AtlasTexture" id="Diagonal_1_3"]
 atlas = ExtResource("3_contact")
 region = Rect2(386, 35, 174, 298)
-margin = Rect2(89.0, 20, 178, 54)
+margin = Rect2(87.398, 20, 178, 54)
 filter_clip = true
 metadata/diagonal_frame = 3
 metadata/ground_y = 316.0
 metadata/contact_variant = "base"
+metadata/body_height = 289.414
+metadata/width_scale = 1.1029
+metadata/walk_registration = Vector2(0.9813, 0.9813)
 
 [sub_resource type="AtlasTexture" id="Diagonal_2_0"]
 atlas = ExtResource("2_diagonal")
@@ -195,10 +237,13 @@ metadata/ground_y = 316.0
 [sub_resource type="AtlasTexture" id="Diagonal_2_1"]
 atlas = ExtResource("2_diagonal")
 region = Rect2(713, 343, 156, 297)
-margin = Rect2(98.0, 21, 196, 55)
+margin = Rect2(103.675, 21, 196, 55)
 filter_clip = true
 metadata/diagonal_frame = 1
 metadata/ground_y = 316.0
+metadata/body_height = 287.414
+metadata/width_scale = 1.1383
+metadata/walk_registration = Vector2(1.0, 0.9812)
 
 [sub_resource type="AtlasTexture" id="Diagonal_2_2"]
 atlas = ExtResource("2_diagonal")
@@ -211,11 +256,14 @@ metadata/ground_y = 316.0
 [sub_resource type="AtlasTexture" id="Diagonal_2_3"]
 atlas = ExtResource("3_contact")
 region = Rect2(691, 34, 184, 303)
-margin = Rect2(84.0, 15, 168, 49)
+margin = Rect2(89.254, 15, 168, 49)
 filter_clip = true
 metadata/diagonal_frame = 3
 metadata/ground_y = 316.0
 metadata/contact_variant = "base"
+metadata/body_height = 293.319
+metadata/width_scale = 1.1168
+metadata/walk_registration = Vector2(0.9614, 0.9614)
 
 [sub_resource type="AtlasTexture" id="Diagonal_3_0"]
 atlas = ExtResource("2_diagonal")
@@ -228,10 +276,13 @@ metadata/ground_y = 316.0
 [sub_resource type="AtlasTexture" id="Diagonal_3_1"]
 atlas = ExtResource("2_diagonal")
 region = Rect2(1017, 342, 157, 298)
-margin = Rect2(97.5, 20, 195, 54)
+margin = Rect2(100.176, 20, 195, 54)
 filter_clip = true
 metadata/diagonal_frame = 1
 metadata/ground_y = 316.0
+metadata/body_height = 290.452
+metadata/width_scale = 1.1855
+metadata/walk_registration = Vector2(1.0, 0.9812)
 
 [sub_resource type="AtlasTexture" id="Diagonal_3_2"]
 atlas = ExtResource("2_diagonal")
@@ -244,11 +295,14 @@ metadata/ground_y = 316.0
 [sub_resource type="AtlasTexture" id="Diagonal_3_3"]
 atlas = ExtResource("3_contact")
 region = Rect2(1008, 34, 170, 308)
-margin = Rect2(91.0, 10, 182, 44)
+margin = Rect2(90.023, 10, 182, 44)
 filter_clip = true
 metadata/diagonal_frame = 3
 metadata/ground_y = 316.0
 metadata/contact_variant = "base"
+metadata/body_height = 301.357
+metadata/width_scale = 1.1372
+metadata/walk_registration = Vector2(0.9245, 0.9457)
 
 [resource]
 animations = [{

@@ -41,6 +41,9 @@ func _run() -> void:
 	var road_start_x: float = INF
 	var road_end_x: float = INF
 	var captured: Dictionary = {}
+	var road_prewalk_facing := Vector3.ZERO
+	var whisper_glance: bool = false
+	var whisper_settled: bool = false
 	while is_instance_valid(film) and not bool(film.call("is_concluded")):
 		var index := int(film.get("shot_index"))
 		seen_maps[str(state.get("current_map"))] = true
@@ -48,6 +51,16 @@ func _run() -> void:
 			if road_start_x == INF:
 				road_start_x = player.global_position.x
 			road_end_x = player.global_position.x
+			if road_prewalk_facing == Vector3.ZERO and not bool(player.call("is_scripted_walking")):
+				road_prewalk_facing = player.get_meta("cutscene_facing", Vector3.ZERO)
+		if index == 3:
+			# The whisper beat: a glance toward the viewer side, then back to the road west.
+			var facing: Vector3 = player.get_meta("cutscene_facing", Vector3.ZERO)
+			var beat_time := float(film.get("shot_time"))
+			if beat_time > 2.6 and beat_time < 3.4 and facing.z > 0.5:
+				whisper_glance = true
+			if beat_time > 3.6 and whisper_glance and facing.x < -0.9:
+				whisper_settled = true
 		_check(state.call("is_input_locked"), "Input must stay locked during shot %d" % index)
 		var progress := float(film.get("shot_time")) / float(film.call("current_shot").duration)
 		for moment: float in [0.25, 0.55, 0.85]:
@@ -58,6 +71,8 @@ func _run() -> void:
 				root.get_viewport().get_texture().get_image().save_png("%s/opening_shot_%s.png" % [_capture_dir, key])
 		await process_frame
 	_check(seen_maps.has("east_road") and seen_maps.has("village"), "Film must visit the east road and village")
+	_check(road_prewalk_facing.x < -0.9, "Traveler must face the westward route before the walk starts (%s)" % road_prewalk_facing)
+	_check(whisper_glance and whisper_settled, "Traveler must glance at the whisper and turn back west")
 	_check(road_start_x - road_end_x > 8.0, "Traveler must walk west along the east road (%.2f -> %.2f)" % [road_start_x, road_end_x])
 	await _wait_for_film(film)
 	_check_final_state(world, state, player, rig_camera, "natural")
@@ -95,6 +110,9 @@ func _run() -> void:
 	Engine.time_scale = 1.0
 	world.queue_free()
 	await process_frame
+	# Graphical capture runs have a live audio device; release queued voices.
+	for singleton: String in ["GameAudio", "GameMusic", "GameAmbience"]:
+		root.get_node(singleton).call("stop_all")
 	if _failures == 0:
 		print("OPENING_CUTSCENE_TEST_PASS natural skip_confirm skip_mid_walk final_state no_save shots=%d" % shot_count)
 	quit(1 if _failures > 0 else 0)

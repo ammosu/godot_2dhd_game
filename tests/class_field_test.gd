@@ -35,11 +35,13 @@ func run() -> void:
 			await physics_frame
 		field.set_physics_process(false)
 		if id == "archer" and "--female" not in OS.get_cmdline_user_args():
+			# Combat-art checks apply while the weapon is drawn.
+			field.call("force_stance", &"drawn")
 			for screen: Vector2 in [Vector2(-1, 1), Vector2(1, 1), Vector2(-1, -1), Vector2(1, -1)]:
 				field.facing = player.call("_camera_relative_direction", screen)
 				player.velocity = field.movement_velocity(field.facing * 4.2)
 				for phase: int in range(4):
-					field.clock = float(phase) * 0.1
+					field.set("_hero_gait", float(phase))
 					field.call("_update_hero_art")
 					var walking: Sprite3D = field.get("_hero_sprite")
 					check(walking.visible and not player.get_node("Sprite3D").visible, "Field walking sprite not active")

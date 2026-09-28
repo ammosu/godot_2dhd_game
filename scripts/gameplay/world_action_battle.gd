@@ -8,8 +8,23 @@ const Presentation = preload("res://scripts/gameplay/enemy_presentation.gd")
 const HealthBar = preload("res://scripts/gameplay/world_health_bar.gd")
 const DeathEffect = preload("res://scripts/gameplay/enemy_death_effect.gd")
 const Effects = preload("res://scripts/gameplay/world_combat_effect.gd")
+const HitFeedback = preload("res://scripts/gameplay/hit_feedback.gd")
+const Battle = preload("res://scripts/systems/action_battle.gd")
 const COURT := Rect2(-8.0, -13.0, 16.0, 14.0)
 const CELL: float = 0.5
+## Ground covered per foot contact; the four-frame cycle (walk_a, idle, walk_b,
+## idle) advances two frames per step, so cadence follows real speed.
+const WALK_STEP_LENGTH: float = 0.75
+const WALK_STEP_LENGTHS: Dictionary = {"moss_wolf": 0.45, "guardian": 0.6}
+const MAX_WALK_FPS: float = 12.0
+## Standing this long restarts the next walk on a contact frame.
+const GAIT_RESET_TIME: float = 0.12
+## Allies keep their facing column until the heading clears the sector edge by this much.
+const FACING_HYSTERESIS: float = deg_to_rad(8.0)
+## Solid white until this long before the flash window closes, then fades.
+const FLASH_FADE: float = 0.03
+## Warm hurt tint once the white contact flash has passed.
+const HURT_TINT := Color(1.3, 1.12, 1.08)
 var session: RefCounted
 var player: CharacterBody3D
 var rig: Node3D
@@ -38,6 +53,9 @@ var _last_positions: Array[Vector2] = []
 var _effects: Array[Node3D] = []
 var _defeated: Dictionary = {}
 var _charges: Array[Sprite3D] = []
+var _gaits: Array[float] = []
+var _still_time: Array[float] = []
+var _facing_sectors: Array[int] = []
 
 func setup(model: RefCounted, traveler: CharacterBody3D, camera_rig: Node3D, original: Node3D) -> void:
 	session = model
@@ -90,6 +108,9 @@ func setup(model: RefCounted, traveler: CharacterBody3D, camera_rig: Node3D, ori
 		actor.position = Vector2(body.global_position.x, body.global_position.z)
 		actor.facing = Vector2(0, -1) if index < 3 else Vector2(0, 1)
 		_last_positions.append(actor.position)
+		_gaits.append(0.0)
+		_still_time.append(0.0)
+		_facing_sectors.append(-1)
 		var sprite := Sprite3D.new()
 		sprite.name = "CombatArt"
 		sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -270,8 +291,11 @@ func refresh(delta: float) -> void:
 			death.configure(bodies[index], sprites[index], player)
 			_effects.append(death)
 		var motion: Vector2 = Vector2(actor.position) - _last_positions[index]
-		var facing: Vector2 = Facing.screen_direction(Vector3(actor.facing.x, 0, actor.facing.y), camera)
-		var pose: String = Art.pose(actor, motion.length() > 0.002, _clock)
+		var facing: Vector2 = _steady_facing(index, Facing.screen_direction(Vector3(actor.facing.x, 0, actor.facing.y), camera))
+		var moving: bool = motion.length() > 0.002
+		_advance_gait(index, str(actor.art), motion.length() if moving else 0.0, delta)
+		# Art.pose reads int(clock * 10) % 4; pass the distance phase in that unit.
+		var pose: String = Art.pose(actor, moving, _gaits[index] / 10.0)
 		var art: AtlasTexture = Art.directional_texture(str(actor.art), pose, facing, sprites[index], GameState.get_visual_loadout(str(actor.art)) if index < 3 else {})
 		poses[index] = pose
 		sprites[index].texture = art
@@ -284,11 +308,12 @@ func refresh(delta: float) -> void:
 			sprites[index].offset.x *= -1.0
 		_last_positions[index] = actor.position
 		_update_charge(index, actor, facing)
-		sprites[index].modulate = Color("737a8c") if int(actor.hp) <= 0 else Color(2.2, 2.2, 2.2) if float(actor.hurt) > 0.10 else Color("b2efff") if float(actor.invulnerable) > 0 else Color.WHITE
+		sprites[index].modulate = Color("737a8c") if int(actor.hp) <= 0 else HURT_TINT if float(actor.hurt) > 0.10 else Color("b2efff") if float(actor.invulnerable) > 0 else Color.WHITE
 		if index == 0:
 			GameState.HeroStyle.apply_sprite(sprites[index], art, GameState.player_style)
 		if enemy_presentations[index] != null:
 			enemy_presentations[index].advance(_clock, pose, float(actor.hurt), float(actor.windup), float(actor.swing))
+		_apply_impact_feedback(index, actor, camera)
 		labels[index].text = ("▶ " if index == int(session.controlled) else "") + str(actor.name)
 		labels[index].modulate = Color("a5eaff") if index == int(session.controlled) else Color("f4e7cf") if index >= 3 else Color.WHITE
 		labels[index].visible = int(actor.hp) > 0
@@ -302,6 +327,42 @@ func refresh(delta: float) -> void:
 		warning_labels[index].position = warnings[index].position + Vector3.UP * 0.15
 	advance_effects(delta)
 	reward_position = bodies[3].global_position
+
+## Distance-driven walk phase in frames; capped so fast shoves never strobe.
+func _advance_gait(index: int, art: String, distance: float, delta: float) -> void:
+	if distance <= 0.0:
+		_still_time[index] += delta
+		if _still_time[index] >= GAIT_RESET_TIME:
+			_gaits[index] = 0.0
+		return
+	_still_time[index] = 0.0
+	var step: float = float(WALK_STEP_LENGTHS.get(art, WALK_STEP_LENGTH))
+	_gaits[index] += minf(distance * 2.0 / step, MAX_WALK_FPS * maxf(delta, 1.0 / 60.0))
+
+## Eight-way sector with a dead band for AI allies, so steering jitter along a
+## sector edge does not flip their art every tick. The controlled actor stays exact.
+func _steady_facing(index: int, screen: Vector2) -> Vector2:
+	if screen.is_zero_approx():
+		return screen
+	var angle: float = screen.angle()
+	var nearest: int = posmod(roundi(angle / (PI / 4.0)), 8)
+	var sector: int = _facing_sectors[index]
+	if index >= 3 or index == int(session.controlled) or sector < 0:
+		_facing_sectors[index] = nearest
+		return screen if index >= 3 or index == int(session.controlled) else Vector2.from_angle(nearest * PI / 4.0)
+	if absf(angle_difference(sector * PI / 4.0, angle)) > PI / 8.0 + FACING_HYSTERESIS:
+		sector = nearest
+	_facing_sectors[index] = sector
+	return Vector2.from_angle(sector * PI / 4.0)
+
+## White contact flash and a screen-space shiver while the victim is held.
+func _apply_impact_feedback(index: int, actor: Dictionary, camera: Camera3D) -> void:
+	var sprite: Sprite3D = sprites[index]
+	var hurt: float = float(actor.hurt) if int(actor.hp) > 0 else 0.0
+	HitFeedback.apply_flash(sprite, (hurt - (Battle.HURT_TIME - HitFeedback.FLASH_TIME)) / FLASH_FADE)
+	var shiver: Vector3 = HitFeedback.tremor(float(actor.get("hit_stop", 0.0)), camera) if hurt > 0.0 else Vector3.ZERO
+	sprite.position.x = shiver.x
+	sprite.position.z = shiver.z
 
 func advance_effects(delta: float) -> void:
 	rig.advance_combat_feedback(delta)

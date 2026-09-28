@@ -149,6 +149,8 @@ static func build(world: Node3D, map_id: String) -> void:
 	else:
 		world.props.add_supply_crate(Vector3(7, 0, 3), 0.1)
 		world._add_actor_interactable("road_traveler", "與驛路旅人交談", Vector3(5, 0, 2), "res://assets/generated/residents/rain.tres", 1.6 / 512.0, Color.WHITE, false, &"side")
+		# The traveler follows the hero with a lagging look as he passes by.
+		world.get("_map_root").get_node("Road Traveler/CharacterArt").set("watch_target", world.get_node("Player"))
 		preload("res://scripts/gameplay/roadside_props.gd").signpost(world.get("_map_root"), Vector3(-6, 0, 2))
 		add_interaction(world, "travel_caravan", "東行・風丘商道／星灣城", Vector3(14, 0, 5), true)
 		add_interaction(world, "travel_home", "西行・返回暮光村", Vector3(-14, 0, 5), true)

@@ -21,6 +21,69 @@ const SPAWNS: Array[Dictionary] = [
 	{"id": "road_mage_terrace", "at": Vector3(10, 1.85, 10.5), "caster": true},
 	{"id": "road_bat_south", "at": Vector3(-5, 0.05, 12.5), "caster": false, "art": "dusk_bat"},
 ]
+## Hero stance. RELAXED shows the player's own sheathed eight-way exploration
+## sprite; DRAWN shows the four-way combat atlas. The weapon is drawn only while
+## combat is engaged, and swaps hide behind a pose change.
+const STANCE_RELAXED: StringName = &"relaxed"
+const STANCE_DRAWN: StringName = &"drawn"
+const SHEATHE_CALM_TIME: float = 2.5
+const MIN_DRAWN_TIME: float = 1.5
+const HURT_ALERT_TIME: float = 3.0
+## Combat 'recover' pose held while drawing or sheathing from a standstill.
+const STANCE_SWAP_POSE_TIME: float = 0.12
+const STANCE_SWAP_MAX_SPEED: float = 0.5
+## While walking, sheathe only at the start of a step (fraction of a step).
+const SHEATHE_STEP_WINDOW: float = 0.25
+## Drawn walk: one contact frame per step, advanced by ground covered.
+const HERO_STEP_LENGTH: float = 0.5
+const HERO_WALK_FPS_MAX: float = 12.0
+const HERO_RECOVERY_TIME: float = 0.14
+const HERO_HURT_TIME: float = 0.22
+const HERO_SHIVER_TIME: float = 0.08
+## Footing while an attack is committed: rooted in windup, nearly rooted in the
+## swing, half speed while recovering. Dodge cancels all of these.
+const WINDUP_MOVE_SCALE: float = 0.0
+const SWING_MOVE_SCALE: float = 0.15
+const RECOVERY_MOVE_SCALE: float = 0.5
+## Momentum kept when an attack is committed from a run.
+const ATTACK_PLANT_CARRY: float = 0.25
+## Melee step-in during the last part of the windup, stopping short of the target.
+const STEP_IN_DISTANCE: float = 0.35
+const STEP_IN_TIME: float = 0.08
+const STEP_IN_CONTACT_GAP: float = 0.75
+## Dodge keeps its old distance but eases out from a fast push-off.
+const DODGE_TIME: float = 0.22
+const DODGE_DISTANCE: float = 2.2
+const DODGE_EASE: float = 1.2
+const DODGE_SWITCH: float = 0.4
+## Enemy strike timing: the contact frame appears when damage lands.
+const ENEMY_SWING_TIME: float = 0.14
+const ENEMY_RECOVERY_TIME: float = 0.18
+## Decaying knockback velocity (m/s) scaled by per-enemy weight.
+const KNOCKBACK_BASIC: float = 2.2
+const KNOCKBACK_SKILL: float = 3.5
+const KNOCKBACK_DAMPING: float = 18.0
+const KNOCKBACK_WEIGHT: Dictionary = {"dusk_bat": 1.3, "moss_wolf": 1.0, "eclipse_mage": 0.9}
+const KNOCKBACK_ELITE_WEIGHT: float = 0.7
+## Patrol wander around home, desynchronised per enemy.
+const PATROL_RADIUS_MIN: float = 1.5
+const PATROL_RADIUS_MAX: float = 3.0
+const PATROL_IDLE_MIN: float = 1.2
+const PATROL_IDLE_MAX: float = 3.5
+const PATROL_ARRIVE: float = 0.3
+const PATROL_SPEED: Dictionary = {"moss_wolf": 1.05, "eclipse_mage": 0.7, "dusk_bat": 1.4}
+const RETURN_SPEED: float = 1.1
+## Enemy locomotion smoothing (m/s^2), braking multiplier and turn rate (1/s).
+const ENEMY_ACCEL: Dictionary = {"dusk_bat": 20.0, "ash_warden": 6.0}
+const ENEMY_ACCEL_DEFAULT: float = 12.0
+const ENEMY_BRAKE_FACTOR: float = 2.0
+const ENEMY_TURN_RATE: float = 10.0
+## Distance covered per displayed walk frame (a quarter of the two-step cycle).
+const ENEMY_FRAME_DISTANCE: Dictionary = {"moss_wolf": 0.22, "guardian": 0.18, "eclipse_mage": 0.19, "ash_warden": 0.3}
+const ENEMY_FRAME_DISTANCE_DEFAULT: float = 0.2
+const ENEMY_WALK_FPS_MIN: float = 5.0
+const ENEMY_WALK_FPS_MAX: float = 12.0
+const ENEMY_WALK_MIN_SPEED: float = 0.15
 var spawn_list: Array[Dictionary] = SPAWNS.duplicate(true)
 var build_terrain: bool = true
 var area_title: String = "舊道南側狩獵地"
@@ -63,6 +126,19 @@ var _focus_paused: bool = false
 var _previous_camera_distance: float = 11.0
 var _rig: Hd2dCameraRig
 var _initial_physics_frames: int = 0
+var stance: StringName = STANCE_RELAXED
+## Hero follow-through after a swing, shown with the 'recover' frame.
+var recovery: float = 0.0
+var _calm_time: float = 0.0
+var _drawn_time: float = 0.0
+var _last_hurt_clock: float = -INF
+var _hero_hurt: float = 0.0
+var _hero_flash: float = 0.0
+var _stance_swap_left: float = 0.0
+var _sheathe_left: float = 0.0
+var _hero_gait: float = 0.0
+var _gait_from := Vector3.INF
+var _step_in_total: float = 0.0
 
 func _ready() -> void:
 	if build_terrain:
@@ -140,6 +216,9 @@ func _spawn_enemy(spawn: Dictionary) -> void:
 	# Fixed encounter tiers preserve the value of leveling and better equipment.
 	var elite: bool = bool(spawn.get("elite", false))
 	var hp: int = 100 if elite else 42 if bat else 54 if spawn.caster else 72
+	# Seeded by id: each enemy wanders on its own rhythm, reproducibly.
+	var wander := RandomNumberGenerator.new()
+	wander.seed = hash(str(spawn.id))
 	enemies.append({"id": spawn.id, "body": body, "sprite": sprite, "bar": bar, "label": label,
 		"presentation": presentation, "warning": warning, "caster": spawn.caster, "art": art,
 		"title": "苔原狼・精英" if elite else "暮翼蝙蝠・輕型" if bat else "月蝕術士・術法" if spawn.caster else "苔原狼・鬥士",
@@ -151,7 +230,11 @@ func _spawn_enemy(spawn: Dictionary) -> void:
 		"last_seen": spawn.at, "lost_sight": 0.0, "target_visible": false,
 		"home": spawn.at, "state": "patrol", "facing": Vector3.FORWARD, "hurt": 0.0,
 		"cooldown": 0.7, "windup": 0.0, "hit_stop": 0.0, "flash": 0.0, "swing": 0.0, "aim": Vector3.ZERO,
-		"path": PackedVector3Array(), "repath": 0.0, "patrol": 1.0})
+		"path": PackedVector3Array(), "repath": 0.0, "patrol": 1.0,
+		"recovery": 0.0, "gait": 0.0, "knock": Vector3.ZERO, "move_velocity": Vector3.ZERO,
+		"weight": KNOCKBACK_ELITE_WEIGHT if elite else float(KNOCKBACK_WEIGHT.get(art, 1.0)),
+		"patrol_speed": float(PATROL_SPEED.get(art, RETURN_SPEED)),
+		"wander_target": spawn.at, "wander_wait": wander.randf_range(0.3, PATROL_IDLE_MAX), "wander": wander})
 
 func movement_velocity(requested: Vector3, delta: float = 0.0, manual_facing: Vector3 = Vector3.ZERO) -> Vector3:
 	_locomotion_requested = false
@@ -166,8 +249,23 @@ func movement_velocity(requested: Vector3, delta: float = 0.0, manual_facing: Ve
 	if not requested.is_zero_approx():
 		facing = manual_facing.normalized() if not manual_facing.is_zero_approx() else requested.normalized()
 	if dodge_time > 0:
-		return dodge_direction * 10.0
-	return requested * (0.45 if windup > 0 else 1.0)
+		return dodge_direction * dodge_speed(dodge_time)
+	return requested * _committed_move_scale()
+
+## Ease-out dodge: a fast push-off that slows into the landing. The integral over
+## DODGE_TIME equals DODGE_DISTANCE.
+static func dodge_speed(time_left: float) -> float:
+	var peak: float = DODGE_DISTANCE * (DODGE_EASE + 1.0) / DODGE_TIME
+	return peak * pow(clampf(time_left / DODGE_TIME, 0.0, 1.0), DODGE_EASE)
+
+func _committed_move_scale() -> float:
+	if windup > 0:
+		return WINDUP_MOVE_SCALE
+	if swing > 0:
+		return SWING_MOVE_SCALE
+	if recovery > 0:
+		return RECOVERY_MOVE_SCALE
+	return 1.0
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_echo() or GameState.mode != GameState.Mode.EXPLORE:
@@ -208,8 +306,11 @@ func perform(action: String, automated: bool = false) -> bool:
 		dodge_direction = facing
 		# Dodging always cancels the attacker's hit stop.
 		hit_stop = 0.0
-		dodge_time = 0.22
+		recovery = 0.0
+		_step_in_total = 0.0
+		dodge_time = DODGE_TIME
 		invulnerable = 0.30
+		_draw_weapon(false)
 		dodge_cooldown = float(GameState.class_profile().dodge)
 		player.get("auto_walk").cancel()
 		return true
@@ -237,6 +338,10 @@ func perform(action: String, automated: bool = false) -> bool:
 		skill_cooldown = float(GameState.class_profile().cooldown)
 	attack_cooldown = 0.55 if skill_pending else float(GameState.class_profile().interval)
 	windup = 0.18 if skill_pending else 0.12
+	recovery = 0.0
+	# Plant the feet: most running momentum is spent entering the windup.
+	player.velocity.x *= ATTACK_PLANT_CARRY
+	player.velocity.z *= ATTACK_PLANT_CARRY
 	attack_direction = facing
 	var aim_reach: float = maxf(3.0, float(GameState.class_profile().reach))
 	var closest: float = aim_reach
@@ -249,6 +354,10 @@ func perform(action: String, automated: bool = false) -> bool:
 			attack_direction = attack_direction.normalized()
 	if not skill_target.is_empty():
 		attack_direction = ((skill_target.body.global_position - player.global_position) * Vector3(1, 0, 1)).normalized()
+		closest = player.global_position.distance_to(skill_target.body.global_position)
+	# Melee swings step into the blow, stopping short of the target's body.
+	_step_in_total = 0.0 if bool(GameState.class_profile().ranged) else clampf(closest - STEP_IN_CONTACT_GAP, 0.0, STEP_IN_DISTANCE)
+	_draw_weapon(false)
 	if GameState.player_class == "archer":
 		var projectile := Effect.new()
 		add_child(projectile)
@@ -273,6 +382,11 @@ func _physics_process(delta: float) -> void:
 	if GameState.mode == GameState.Mode.CUTSCENE:
 		_present_scripted_walk(delta)
 		return
+	if _is_relaxed_mode(GameState.mode):
+		# Dialogue and transitions show the calm exploration sprite rather than
+		# freezing the combat atlas mid-stride.
+		_relax_now()
+		_update_hero_art()
 	if not ready_for_combat or not active:
 		return
 	clock += delta
@@ -286,9 +400,18 @@ func _physics_process(delta: float) -> void:
 	dodge_cooldown = maxf(0, dodge_cooldown - delta)
 	dodge_time = maxf(0, dodge_time - delta)
 	invulnerable = maxf(0, invulnerable - delta)
+	_hero_hurt = maxf(0, _hero_hurt - delta)
+	_hero_flash = maxf(0, _hero_flash - delta)
+	var swinging: bool = swing > 0
 	swing = maxf(0, swing - unheld)
+	if swinging and swing == 0:
+		recovery = HERO_RECOVERY_TIME
+	else:
+		recovery = maxf(0, recovery - unheld)
 	if windup > 0:
+		var before: float = windup
 		windup = maxf(0, windup - delta)
+		_advance_step_in(before, windup)
 		if windup == 0:
 			_strike()
 	for enemy: Dictionary in enemies:
@@ -312,9 +435,12 @@ func _physics_process(delta: float) -> void:
 		if number.life <= 0:
 			number.node.queue_free()
 	_numbers = _numbers.filter(func(number: Dictionary) -> bool: return number.life > 0)
+	_advance_hero_gait(delta)
+	_update_stance(delta)
 	_update_hero_art()
 
-## Cutscenes move the traveler directly; keep the field silhouette stepping and facing its route.
+## Cutscenes move the traveler directly. They always use the sheathed eight-way
+## exploration walk; keep the combat heading in step for when play resumes.
 func _present_scripted_walk(delta: float) -> void:
 	clock += delta
 	var planar := Vector3(player.velocity.x, 0.0, player.velocity.z)
@@ -323,24 +449,165 @@ func _present_scripted_walk(delta: float) -> void:
 		facing = planar.normalized()
 	elif player.has_meta("cutscene_facing"):
 		facing = player.get_meta("cutscene_facing")
+	_relax_now()
 	_update_hero_art()
 
+func _is_relaxed_mode(mode: int) -> bool:
+	return mode in [GameState.Mode.DIALOGUE, GameState.Mode.TRANSITION, GameState.Mode.CLASS_SELECTION, GameState.Mode.CUTSCENE]
+
+## Test and scripting hook: set the stance immediately, without a swap pose.
+func force_stance(value: StringName) -> void:
+	if value == STANCE_DRAWN:
+		_draw_weapon(false)
+		_drawn_time = MIN_DRAWN_TIME
+	else:
+		_relax_now()
+	_update_hero_art()
+
+func _relax_now() -> void:
+	stance = STANCE_RELAXED
+	_calm_time = 0.0
+	_drawn_time = 0.0
+	_stance_swap_left = 0.0
+	_sheathe_left = 0.0
+
+func _draw_weapon(hold_recover: bool) -> void:
+	_calm_time = 0.0
+	_sheathe_left = 0.0
+	if stance == STANCE_DRAWN:
+		return
+	if hold_recover:
+		_sync_idle_facing()
+	stance = STANCE_DRAWN
+	_drawn_time = 0.0
+	# Actions draw on their own windup/dodge/hurt silhouette. An awareness draw
+	# from a standstill shows the combat 'recover' frame to cover the swap.
+	_stance_swap_left = STANCE_SWAP_POSE_TIME if hold_recover else 0.0
+
+func _hero_planar_speed() -> float:
+	return Vector2(player.velocity.x, player.velocity.z).length()
+
+## Combat is engaged: an action is in progress, the hero was hurt recently,
+## an enemy is chasing, or auto-battle has a target in sight.
+func _threatened() -> bool:
+	if windup > 0 or swing > 0 or recovery > 0 or dodge_time > 0 or hit_stop > 0 or attack_cooldown > 0 or _hero_hurt > 0:
+		return true
+	if clock - _last_hurt_clock < HURT_ALERT_TIME:
+		return true
+	for enemy: Dictionary in enemies:
+		if int(enemy.hp) <= 0:
+			continue
+		if enemy.state == "chase":
+			return true
+		if automation.enabled and player.global_position.distance_to(enemy.body.global_position) <= Awareness.SIGHT_RANGE:
+			return true
+	return false
+
+func _update_stance(delta: float) -> void:
+	_stance_swap_left = maxf(0.0, _stance_swap_left - delta)
+	if stance == STANCE_DRAWN:
+		_drawn_time += delta
+	if _threatened():
+		_draw_weapon(_hero_planar_speed() < STANCE_SWAP_MAX_SPEED)
+		return
+	if stance == STANCE_RELAXED:
+		_sync_idle_facing()
+		return
+	_calm_time += delta
+	if _sheathe_left > 0:
+		_sheathe_left = maxf(0.0, _sheathe_left - delta)
+		if _sheathe_left == 0.0:
+			stance = STANCE_RELAXED
+			_hand_heading_to_exploration()
+		return
+	if _calm_time < SHEATHE_CALM_TIME or _drawn_time < MIN_DRAWN_TIME:
+		return
+	if _hero_planar_speed() < STANCE_SWAP_MAX_SPEED:
+		_sheathe_left = STANCE_SWAP_POSE_TIME
+	elif fposmod(_hero_gait, 1.0) < SHEATHE_STEP_WINDOW:
+		# Mid-walk, swap at a foot contact so the exploration stride continues.
+		stance = STANCE_RELAXED
+		_hand_heading_to_exploration()
+
+## Standing turns (spawn, doors, dialogue partners) change only the exploration
+## heading. Adopt it while sheathed so a draw keeps the hero's heading.
+func _sync_idle_facing() -> void:
+	if _locomotion_requested or not player.has_method("idle_world_heading"):
+		return
+	var heading: Vector3 = player.call("idle_world_heading")
+	if not heading.is_zero_approx():
+		facing = heading
+
+## Sheathing from a standstill keeps the drawn heading on the exploration sprite.
+func _hand_heading_to_exploration() -> void:
+	if _locomotion_requested or _hero_planar_speed() > 0.05 or facing.is_zero_approx():
+		return
+	player.call("face_world_position", player.global_position + facing)
+
+## Drawn steps follow ground covered, so feet do not slide at any speed.
+func _advance_hero_gait(delta: float) -> void:
+	var at: Vector3 = player.global_position
+	var travelled: float = 0.0 if _gait_from == Vector3.INF else Vector2(at.x - _gait_from.x, at.z - _gait_from.z).length()
+	_gait_from = at
+	if not (_locomotion_requested and _hero_planar_speed() > 0.05) or travelled > 1.0:
+		# Every start begins on a contact frame.
+		_hero_gait = 0.0
+		return
+	_hero_gait += minf(travelled / HERO_STEP_LENGTH, HERO_WALK_FPS_MAX * delta)
+
+## Melee step-in over the last STEP_IN_TIME of the windup, easing out.
+func _advance_step_in(before: float, after: float) -> void:
+	if _step_in_total <= 0.0:
+		return
+	var remaining := func(time_left: float) -> float:
+		var t: float = clampf(time_left / STEP_IN_TIME, 0.0, 1.0)
+		return _step_in_total * t * t
+	var distance: float = remaining.call(before) - remaining.call(after)
+	if after <= 0.0:
+		_step_in_total = 0.0
+	if distance > 0.0001:
+		player.move_and_collide(attack_direction * Vector3(1, 0, 1) * distance)
+
 func _update_hero_art() -> void:
-	# Keep the same body proportions throughout locomotion and combat. The
+	var exploration: Node3D = player.get_node("Sprite3D")
+	if stance == STANCE_RELAXED:
+		# The player's own sheathed eight-way walk; player.gd keeps it animated.
+		_hero_sprite.hide()
+		exploration.show()
+		return
+	# While drawn, keep one body atlas throughout locomotion and combat. The
 	# exploration atlas has a different silhouette and cannot be swapped per hit.
 	_hero_sprite.show()
-	player.get_node("Sprite3D").hide()
+	exploration.hide()
 	# Braking can outlast a standing frame in the walk cycle. Once movement
 	# ends, stay idle instead of flashing another stride during deceleration.
-	var moving: bool = _locomotion_requested and Vector2(player.velocity.x, player.velocity.z).length() > 0.05
-	var pose: String = ["walk_a", "idle", "walk_b", "idle"][int(clock * 10.0) % 4] if moving else "idle"
+	var moving: bool = _locomotion_requested and _hero_planar_speed() > 0.05
+	# Two frames per cycle: the blade changes side once per step, not twice.
+	var pose: String = ("walk_a" if posmod(int(_hero_gait), 2) == 0 else "walk_b") if moving else "idle"
 	if dodge_time > 0:
-		pose = "dodge_a" if dodge_time > 0.11 else "dodge_b"
+		pose = "dodge_a" if dodge_time > DODGE_TIME * (1.0 - DODGE_SWITCH) else "dodge_b"
+	elif _hero_hurt > 0:
+		pose = "hurt"
 	elif windup > 0:
 		pose = "cast" if GameState.player_class == "mage" else "windup"
 	elif swing > 0:
 		pose = "release" if GameState.player_class == "mage" else "attack"
+	elif recovery > 0 or _stance_swap_left > 0 or _sheathe_left > 0:
+		pose = "recover"
 	_art(_hero_sprite, "wanderer", pose, facing)
+	var shiver: Vector3 = HitFeedback.tremor(_hero_hurt - (HERO_HURT_TIME - HERO_SHIVER_TIME), get_viewport().get_camera_3d())
+	_hero_sprite.position.x = shiver.x
+	_hero_sprite.position.z = shiver.z
+	HitFeedback.apply_flash(_hero_sprite, _hero_flash / 0.03)
+
+## A landed enemy hit: flinch, flash and draw the weapon.
+func _hurt_hero() -> void:
+	_hero_hurt = HERO_HURT_TIME
+	_hero_flash = HitFeedback.FLASH_TIME
+	_last_hurt_clock = clock
+	if stance == STANCE_RELAXED:
+		_sync_idle_facing()
+	_draw_weapon(false)
 
 func _strike() -> void:
 	swing = 0.20
@@ -397,6 +664,12 @@ func _damage_enemy(enemy: Dictionary, damage: int) -> void:
 	Awareness.engage(self, enemy)
 	enemy.hp = maxi(0, int(enemy.hp) - damage)
 	enemy.hurt = 0.25
+	# The blow interrupts the stride and pushes the body away from the hero;
+	# the push plays out after the hit stop.
+	enemy.move_velocity = Vector3.ZERO
+	var away: Vector3 = (enemy.body.global_position - player.global_position) * Vector3(1, 0, 1)
+	if not away.is_zero_approx():
+		enemy.knock = away.normalized() * (KNOCKBACK_SKILL if skill_pending else KNOCKBACK_BASIC) * float(enemy.get("weight", 1.0))
 	var lethal: bool = int(enemy.hp) == 0
 	var stop: float = HitFeedback.stop_time(damage, int(enemy.max_hp), skill_pending, lethal)
 	enemy.hit_stop = maxf(float(enemy.get("hit_stop", 0.0)), stop)
@@ -441,7 +714,12 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 	var at: Vector3 = body.global_position
 	enemy.stagger_cooldown = maxf(0.0, float(enemy.get("stagger_cooldown", 0.0)) - delta)
 	enemy.hurt = maxf(0, float(enemy.hurt) - delta)
+	var swinging: bool = float(enemy.swing) > 0
 	enemy.swing = maxf(0, float(enemy.swing) - delta)
+	if swinging and float(enemy.swing) == 0:
+		enemy.recovery = ENEMY_RECOVERY_TIME
+	else:
+		enemy.recovery = maxf(0, float(enemy.get("recovery", 0.0)) - delta)
 	enemy.cooldown = maxf(0, float(enemy.cooldown) - delta)
 	enemy.bar.set_health(enemy.hp, enemy.max_hp)
 	if int(enemy.hp) <= 0:
@@ -454,6 +732,8 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 		return
 	Awareness.update(self, enemy, delta)
 	var movement := Vector3.ZERO
+	# Strike and follow-through root the feet; a new attack may still start.
+	var committed: bool = float(enemy.swing) > 0 or float(enemy.recovery) > 0
 	if float(enemy.windup) > 0:
 		enemy.windup = maxf(0, float(enemy.windup) - delta)
 		if float(enemy.windup) == 0:
@@ -470,6 +750,7 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 					enemy.charged_attack = int(enemy.attack_cycle) == int(enemy.basic_attacks)
 					enemy.windup = float(enemy.attack_windup) if enemy.charged_attack else 0.22 if enemy.caster else 0.16
 					enemy.cooldown = float(enemy.attack_interval) * (1.2 if enemy.charged_attack else 0.85)
+					enemy.recovery = 0.0
 					enemy.warning.position = enemy.aim + Vector3.UP * 0.04
 					enemy.warning.visible = enemy.charged_attack
 				target = at
@@ -479,52 +760,134 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 				enemy.hp = enemy.max_hp
 				enemy.attack_cycle = 0
 				enemy.charged_attack = false
+				# Settle at home for a moment before wandering again.
+				enemy.wander_target = at
+				enemy.wander_wait = (enemy.wander as RandomNumberGenerator).randf_range(PATROL_IDLE_MIN, PATROL_IDLE_MAX)
 		else:
-			target += Vector3(0, 0, float(enemy.patrol) * 0.8)
-			if at.distance_to(target) < 0.45:
-				enemy.patrol = -float(enemy.patrol)
-		if at.distance_to(target) > 0.25:
+			target = _patrol_target(enemy, at, delta)
+		if not committed and at.distance_to(target) > 0.25:
 			enemy.repath -= delta
 			if float(enemy.repath) <= 0:
 				enemy.path = navigation.path(at, target)
 				enemy.repath = 0.35
+				# The nearest grid node can lie behind the body; do not turn back for it.
+				var fresh: PackedVector3Array = enemy.path
+				if fresh.size() > 1 and ((fresh[0] - at) * Vector3(1, 0, 1)).dot((fresh[1] - fresh[0]) * Vector3(1, 0, 1)) < 0.0:
+					fresh.remove_at(0)
+					enemy.path = fresh
 			var path: PackedVector3Array = enemy.path
 			while not path.is_empty() and Vector2(path[0].x - at.x, path[0].z - at.z).length() < 0.22:
 				path.remove_at(0)
 			enemy.path = path
 			if not path.is_empty():
 				movement = ((path[0] - at) * Vector3(1, 0, 1)).normalized()
-				enemy.facing = movement
 	var slow_factor: float = 0.5 if float(enemy.get("slow", 0.0)) > 0 else 1.0
-	body.velocity.x = movement.x * slow_factor * (float(enemy.speed) if enemy.state == "chase" else 1.1)
-	body.velocity.z = movement.z * slow_factor * (float(enemy.speed) if enemy.state == "chase" else 1.1)
+	var speed: float = float(enemy.speed) if enemy.state == "chase" else float(enemy.get("patrol_speed", RETURN_SPEED)) if enemy.state == "patrol" else RETURN_SPEED
+	var planar: Vector3 = _smooth_enemy_velocity(enemy, movement * slow_factor * speed, delta)
+	var push: Vector3 = _consume_knock(enemy, delta)
+	body.velocity.x = planar.x + push.x
+	body.velocity.z = planar.z + push.z
 	body.velocity.y = -0.5 if body.is_on_floor() else body.velocity.y - 18.0 * delta
 	body.move_and_slide()
-	var pose: String = "hurt" if float(enemy.hurt) > 0 else "cast" if enemy.caster and enemy.charged_attack and float(enemy.windup) > 0 else "windup" if enemy.charged_attack and float(enemy.windup) > 0 else "attack" if float(enemy.windup) > 0 or float(enemy.swing) > 0 else Art.Movement.walk_pose(clock + float(enemy.home.x) * 0.17 + float(enemy.home.z) * 0.11) if not movement.is_zero_approx() else "idle"
-	if enemy.art == "dusk_bat" and pose == "idle":
-		pose = ["walk_a", "idle", "walk_b", "idle"][int(clock * 10.0) % 4]
+	var travelled: float = Vector2(body.global_position.x - at.x, body.global_position.z - at.z).length()
+	if not movement.is_zero_approx():
+		enemy.facing = turn_toward(enemy.facing, movement, 1.0 - exp(-ENEMY_TURN_RATE * delta))
+	var walking: bool = push.is_zero_approx() and travelled > ENEMY_WALK_MIN_SPEED * delta
+	_advance_gait(enemy, travelled, delta, walking)
+	var pose: String = "hurt" if float(enemy.hurt) > 0 else ("cast" if enemy.caster else "windup") if float(enemy.windup) > 0 else "attack" if float(enemy.swing) > 0 else "recover" if float(enemy.recovery) > 0 else Art.Movement.walk_pose(float(enemy.gait) / 10.0) if walking else "idle"
+	if enemy.art == "dusk_bat" and pose in ["idle", "walk_a", "walk_b"]:
+		# Wings keep a steady flap whatever the ground speed.
+		pose = Art.Movement.walk_pose(clock + float(enemy.home.x) * 0.17 + float(enemy.home.z) * 0.11)
 	_art(enemy.sprite, enemy.art, pose, enemy.facing)
-	enemy.presentation.advance(clock, pose, float(enemy.hurt), float(enemy.windup) if enemy.charged_attack else 0.0, float(enemy.swing))
+	enemy.presentation.advance(clock, pose, float(enemy.hurt), float(enemy.windup), float(enemy.swing))
 	enemy.sprite.position.x = 0.0
 	enemy.sprite.position.z = 0.0
 	HitFeedback.apply_flash(enemy.sprite, float(enemy.flash) / 0.03)
 	enemy.label.text = str(enemy.title) + ("  !" if enemy.state == "chase" else "  ↩" if enemy.state == "return" else "")
 
+## Wander a few metres around home, pausing between walks.
+func _patrol_target(enemy: Dictionary, at: Vector3, delta: float) -> Vector3:
+	var goal: Vector3 = enemy.get("wander_target", enemy.home)
+	if Vector2(goal.x - at.x, goal.z - at.z).length() > PATROL_ARRIVE:
+		return goal
+	enemy.wander_wait = float(enemy.get("wander_wait", 0.0)) - delta
+	if float(enemy.wander_wait) > 0.0:
+		return at
+	var rng: RandomNumberGenerator = enemy.wander
+	enemy.wander_wait = rng.randf_range(PATROL_IDLE_MIN, PATROL_IDLE_MAX)
+	var home: Vector3 = enemy.home
+	for attempt: int in range(6):
+		var angle: float = rng.randf() * TAU
+		var radius: float = rng.randf_range(PATROL_RADIUS_MIN, PATROL_RADIUS_MAX)
+		var point: Vector3 = home + Vector3(cos(angle), 0, sin(angle)) * radius
+		if not navigation.contains(point):
+			continue
+		var route: PackedVector3Array = navigation.path(at, point)
+		if route.is_empty():
+			continue
+		var end: Vector3 = route[route.size() - 1]
+		var length: float = 0.0
+		for index: int in range(1, route.size()):
+			length += route[index - 1].distance_to(route[index])
+		# Reject points on another level or behind a wall (long detours).
+		if Vector2(end.x - point.x, end.z - point.z).length() > 0.5 or length > (radius + at.distance_to(home)) * 1.6 + 0.5:
+			continue
+		enemy.wander_target = end
+		return end
+	enemy.wander_target = home
+	return home
+
+func _smooth_enemy_velocity(enemy: Dictionary, desired: Vector3, delta: float) -> Vector3:
+	var current: Vector3 = enemy.get("move_velocity", Vector3.ZERO)
+	var accel: float = float(ENEMY_ACCEL.get(str(enemy.art), ENEMY_ACCEL_DEFAULT))
+	if desired.length() < current.length():
+		accel *= ENEMY_BRAKE_FACTOR
+	current = current.move_toward(desired, accel * delta)
+	enemy.move_velocity = current
+	return current
+
+## Exact displacement of a linearly damped push over this step, as a velocity.
+func _consume_knock(enemy: Dictionary, delta: float) -> Vector3:
+	var knock: Vector3 = enemy.get("knock", Vector3.ZERO)
+	var speed: float = knock.length()
+	if speed <= 0.001 or delta <= 0.0:
+		enemy.knock = Vector3.ZERO
+		return Vector3.ZERO
+	var left: float = maxf(0.0, speed - KNOCKBACK_DAMPING * delta)
+	var distance: float = (speed + left) * 0.5 * minf(delta, speed / KNOCKBACK_DAMPING)
+	enemy.knock = knock / speed * left
+	return knock / speed * (distance / delta)
+
+## Walk frames advance with ground covered; every start is a contact frame.
+func _advance_gait(enemy: Dictionary, travelled: float, delta: float, walking: bool) -> void:
+	if not walking:
+		enemy.gait = 0.0
+		return
+	var frames: float = travelled / float(ENEMY_FRAME_DISTANCE.get(str(enemy.art), ENEMY_FRAME_DISTANCE_DEFAULT))
+	enemy.gait = float(enemy.get("gait", 0.0)) + clampf(frames, ENEMY_WALK_FPS_MIN * delta, ENEMY_WALK_FPS_MAX * delta)
+
+## Planar heading turn that also handles exact reversals.
+static func turn_toward(current: Vector3, target: Vector3, weight: float) -> Vector3:
+	if Vector2(current.x, current.z).is_zero_approx():
+		return (target * Vector3(1, 0, 1)).normalized()
+	var angle: float = lerp_angle(atan2(current.x, current.z), atan2(target.x, target.z), clampf(weight, 0.0, 1.0))
+	return Vector3(sin(angle), 0.0, cos(angle))
+
 ## Frozen on contact: hold the hurt pose, flash white and shiver in place.
-func _hold_enemy(enemy: Dictionary) -> void:
+func _hold_enemy(enemy: Dictionary, tremor_scale: float = 1.0) -> void:
 	var body: CharacterBody3D = enemy.body
 	body.velocity = Vector3.ZERO
 	enemy.bar.set_health(enemy.hp, enemy.max_hp)
 	_art(enemy.sprite, enemy.art, "hurt", enemy.facing)
 	enemy.presentation.advance(clock, "hurt", float(enemy.hurt), 0.0, 0.0)
-	var shiver: Vector3 = HitFeedback.tremor(float(enemy.hit_stop), get_viewport().get_camera_3d())
+	var shiver: Vector3 = HitFeedback.tremor(float(enemy.hit_stop), get_viewport().get_camera_3d()) * tremor_scale
 	enemy.sprite.position.x = shiver.x
 	enemy.sprite.position.z = shiver.z
 	HitFeedback.apply_flash(enemy.sprite, 1.0)
 
 func _enemy_strike(enemy: Dictionary) -> void:
 	enemy.warning.hide()
-	enemy.swing = 0.22
+	enemy.swing = ENEMY_SWING_TIME
 	# Count released attacks even when dodged; interrupted basics do not count.
 	enemy.attack_cycle = (int(enemy.attack_cycle) + 1) % (int(enemy.basic_attacks) + 1)
 	_effect("bolt" if enemy.caster else "claw", enemy.aim)
@@ -535,6 +898,7 @@ func _enemy_strike(enemy: Dictionary) -> void:
 		var damage: int = maxi(1, power - GameState.player_defense)
 		GameState.damage_player(damage)
 		invulnerable = 0.45
+		_hurt_hero()
 		GameAudio.play_cue(&"impact", HitFeedback.impact_pitch() * 0.85)
 		_rig.add_combat_impact(0.08 if enemy.charged_attack else 0.05)
 		_number(player.global_position, "−%d" % damage, Color("ff9985"))
