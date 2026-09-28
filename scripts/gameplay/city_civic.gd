@@ -115,14 +115,14 @@ static func moon_court(world: Node3D) -> void:
 		var angle: float = index * TAU / 12.0
 		var tick := box(root, "HourMarker", Vector3(cos(angle), 1.31, sin(angle)), Vector3(0.035, 0.035, 0.15), stone)
 		tick.rotation.y = -angle + PI * 0.5
-	world._add_crystal(Vector3(MOON.x, 1.6, MOON.y), 0.38)
+	world.props.add_crystal(Vector3(MOON.x, 1.6, MOON.y), 0.38)
 	# Two planted crescents inside the promenade, with east/west access gaps.
 	for side: float in [-1, 1]:
 		for index: int in range(7):
 			var angle: float = 0.35 + index * (PI - 0.7) / 6.0
 			var at := Vector3(MOON.x + cos(angle) * 1.93, 0.025, MOON.y + side * sin(angle) * 1.93)
-			world._add_flower_clump(at, "ivory" if side > 0 else "blue")
-	world._add_lamp(Vector3(MOON.x + 4.1, 0, MOON.y + 2.5))
+			world.props.add_flower_clump(at, "ivory" if side > 0 else "blue")
+	world.props.add_lamp(Vector3(MOON.x + 4.1, 0, MOON.y + 2.5))
 
 static func tree_garden(world: Node3D) -> void:
 	var root := root_at(world, "CommunityTreeGarden", TREE)
@@ -143,7 +143,7 @@ static func tree_garden(world: Node3D) -> void:
 	bench(root, Vector3(0.3, 0, 3.5), PI)
 	for index: int in range(12):
 		var angle: float = index * TAU / 12.0
-		world._add_flower_clump(Vector3(TREE.x + cos(angle) * 1.25, 0.02, TREE.y + sin(angle) * 1.25), "mauve" if index % 2 == 0 else "ivory")
+		world.props.add_flower_clump(Vector3(TREE.x + cos(angle) * 1.25, 0.02, TREE.y + sin(angle) * 1.25), "mauve" if index % 2 == 0 else "ivory")
 
 static func bench(parent: Node3D, at: Vector3, yaw: float) -> void:
 	var root := Node3D.new()
@@ -200,8 +200,8 @@ static func pavilion(world: Node3D) -> void:
 	bench(root, Vector3(0, 0, -1.0), 0)
 	# Shore planting sits outside the existing pond's deep-water collision.
 	for at: Vector2 in [Vector2(9.5, 5.5), Vector2(11, 6.5), Vector2(14, 5.8), Vector2(15.2, 3.7), Vector2(13.5, 1.8)]:
-		world._add_grass_clump(Vector3(at.x, 0.02, at.y), "fan", 0.00125)
-		world._add_flower_clump(Vector3(at.x + 0.3, 0.02, at.y), "blue")
+		world.props.add_grass_clump(Vector3(at.x, 0.02, at.y), "fan", 0.00125)
+		world.props.add_flower_clump(Vector3(at.x + 0.3, 0.02, at.y), "blue")
 
 static func planting(world: Node3D, geography: GDScript) -> void:
 	var paths: Array[PackedVector2Array] = []
@@ -212,7 +212,7 @@ static func planting(world: Node3D, geography: GDScript) -> void:
 	paths.append(ring(MOON, 2.9))
 	paths.append(ring(TREE, 2.3))
 	for center: Vector2 in POCKETS:
-		world._add_tree(Vector3(center.x, 0, center.y))
+		world.props.add_tree(Vector3(center.x, 0, center.y))
 	for center: Vector2 in [MOON, TREE, Vector2(12, 4), POCKETS[0], POCKETS[1], POCKETS[2]]:
 		for index: int in range(24):
 			var angle: float = index * 2.399963
@@ -220,9 +220,9 @@ static func planting(world: Node3D, geography: GDScript) -> void:
 			var at := center + Vector2(cos(angle), sin(angle)) * radius
 			if not clear_for_plant(at, paths):
 				continue
-			world._add_grass_clump(Vector3(at.x, 0.025, at.y), "low", 0.00085)
+			world.props.add_grass_clump(Vector3(at.x, 0.025, at.y), "low", 0.00085)
 			if index % 3 == 0:
-				world._add_flower_clump(Vector3(at.x, 0.03, at.y), "ivory" if index % 2 == 0 else "mauve")
+				world.props.add_flower_clump(Vector3(at.x, 0.03, at.y), "ivory" if index % 2 == 0 else "mauve")
 
 static func clear_for_plant(at: Vector2, paths: Array[PackedVector2Array]) -> bool:
 	for index: int in range(paths.size()):

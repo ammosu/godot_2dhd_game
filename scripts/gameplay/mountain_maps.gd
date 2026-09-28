@@ -72,9 +72,9 @@ static func build(world: Node3D, map_id: String) -> void:
 			var at := a + sa * 1.85
 			Terrain._grass(parent, at, 0.95, i % 3 == 0)
 			if map_id == "moon_highland":
-				world._add_crystal(a - sa * 1.95, 0.30)
+				world.props.add_crystal(a - sa * 1.95, 0.30)
 		elif i % 24 == 12:
-			world._add_lamp(a - sa * 1.9)
+			world.props.add_lamp(a - sa * 1.9)
 	_collision_mesh(parent, "MountainWalkSurface", turf, preload("res://scripts/gameplay/mountain_landscape.gd").material(Terrain.GRASS, Color("9fa780") if map_id != "wind_gorge" else Color("87999a")))
 	_collision_mesh(parent, "MountainGravelTrail", trail, preload("res://scripts/gameplay/mountain_landscape.gd").material(Terrain.SOIL, Color("d2c2a2")))
 	# Collision follows the original safe edge, now enclosed by natural outcrops.
@@ -85,10 +85,10 @@ static func build(world: Node3D, map_id: String) -> void:
 		outskirts.add_interaction(world, LINKS[map_id][1], "繼續登山", points[-1], true)
 	else:
 		var end := points[-1]
-		world._add_tree(end + Vector3(1.6, 0, 0.5))
+		world.props.add_tree(end + Vector3(1.6, 0, 0.5))
 		# Close the summit end with a stone wall, keeping the overlook walkable.
-		world._add_box("SummitEnd", end + Vector3(0, 0.45, -0.5), Vector3(width * 2, 0.9, 0.6), Color("727d83"), true)
-		world._add_crystal(end + Vector3(-1.5, 0, 0), 0.7)
+		world.props.add_box("SummitEnd", end + Vector3(0, 0.45, -0.5), Vector3(width * 2, 0.9, 0.6), Color("727d83"), true)
+		world.props.add_crystal(end + Vector3(-1.5, 0, 0), 0.7)
 		outskirts.add_interaction(world, "highland_view", "眺望月冠群山", points[-9])
 
 static func _quad(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:

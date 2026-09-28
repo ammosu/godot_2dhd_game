@@ -63,7 +63,7 @@ static func build(world: Node3D, points: PackedVector3Array, map_id: String) -> 
 			if i % 6 == 1:
 				Terrain._grass(parent, at + Vector3.UP * 0.35, 1.25, true)
 				if map_id != "wind_gorge" and i % 12 == 1:
-					world._add_flower_clump(at + Vector3.UP * 0.25, "ivory")
+					world.props.add_flower_clump(at + Vector3.UP * 0.25, "ivory")
 	# Gather rocks first: no tree may share a rock's footprint, even one generated later.
 	var rock_footprints: Array[Vector3] = []
 	var saplings: Array[Vector3] = []

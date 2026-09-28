@@ -75,7 +75,7 @@ static func build_approaches(world: Node3D, geography: GDScript) -> void:
 		# Planted corners frame the door without blocking the threshold.
 		for side: float in [-1, 1]:
 			var at: Vector3 = Vector3(home.x, 0.035, home.y) + basis * Vector3(side * 2.85, 0, -1.65)
-			world._add_flower_clump(at, "ivory" if index % 3 == 0 else "blue")
+			world.props.add_flower_clump(at, "ivory" if index % 3 == 0 else "blue")
 			Terrain._grass(world.get("_map_root"), at, 1.8, true)
 		# Long, low planted beds tie each facade into its plot.
 		for side: float in [-1, 1]:
@@ -83,7 +83,7 @@ static func build_approaches(world: Node3D, geography: GDScript) -> void:
 				var at: Vector3 = Vector3(home.x, 0.035, home.y) + basis * Vector3(side * 2.85, 0, -0.9 + step * 0.75)
 				Terrain._grass(world.get("_map_root"), at, 2.0, true)
 				if step % 2 == 0:
-					world._add_flower_clump(at, "ivory" if index % 2 == 0 else "blue")
+					world.props.add_flower_clump(at, "ivory" if index % 2 == 0 else "blue")
 
 static func landscape(world: Node3D, geography: GDScript) -> void:
 	var parent: Node3D = world.get("_map_root")
@@ -122,7 +122,7 @@ static func landscape(world: Node3D, geography: GDScript) -> void:
 				terrain.crag(rock, moss, at - Vector3.UP * 1.4, Vector3(rng.randf_range(1.6, 3.0), rng.randf_range(2.6, 4.0), 2.3), rng)
 				# Gate throat stays visually open; trees dress the lower outer shelf.
 				if p.y < 31 or p.x < -24 or p.x > -8:
-					world._add_tree(at - Vector3.UP * 0.8)
+					world.props.add_tree(at - Vector3.UP * 0.8)
 					var tree: Node3D = parent.get_child(-1)
 					tree.scale *= 1.4
 					(tree.get_node("TreeArt") as Sprite3D).texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
@@ -143,11 +143,11 @@ static func landscape(world: Node3D, geography: GDScript) -> void:
 			var pos := Vector3(at.x + rng.randf_range(-0.5, 0.5), 0.04, at.y + rng.randf_range(-0.5, 0.5))
 			Terrain._grass(parent, pos, rng.randf_range(1.6, 2.2), true)
 			if clump == 0:
-				world._add_flower_clump(pos, "ivory" if index % 3 == 0 else "blue")
+				world.props.add_flower_clump(pos, "ivory" if index % 3 == 0 else "blue")
 		if index % 4 == 0 and spacious_plot(at, streets):
 			garden_bed(world, at, index)
 		if index % 13 == 0:
-			world._add_tree(Vector3(at.x, 0, at.y))
+			world.props.add_tree(Vector3(at.x, 0, at.y))
 
 static func garden_space(at: Vector2, streets: Array, geography: GDScript) -> bool:
 	for home: Vector3 in Houses.POSITIONS:
@@ -182,7 +182,7 @@ static func garden_bed(world: Node3D, at: Vector2, index: int) -> void:
 		var pos := center + Vector3(-0.75 + (i % 3) * 0.75, 0.10, -0.35 + floorf(float(i) / 3.0) * 0.7)
 		Terrain._grass(parent, pos, 1.8, true)
 		if i % 2 == 0:
-			world._add_flower_clump(pos, "ivory" if index % 2 == 0 else "mauve")
+			world.props.add_flower_clump(pos, "ivory" if index % 2 == 0 else "mauve")
 
 static func spacious_plot(at: Vector2, streets: Array) -> bool:
 	for home: Vector3 in Houses.POSITIONS:

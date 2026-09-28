@@ -63,7 +63,7 @@ static func surface(world: Node3D, label: String, polygon: PackedVector2Array, h
 	var visual := MeshInstance3D.new()
 	visual.name = label
 	visual.mesh = mesh.commit()
-	var material: ShaderMaterial = world._make_village_surface(paving)
+	var material: ShaderMaterial = world.props.make_village_surface(paving)
 	material.set_shader_parameter("polygon_surface", true)
 	material.set_shader_parameter("planted_island", false)
 	var dirt_road: bool = label == "WindingCaravanRoad"
@@ -101,14 +101,14 @@ static func boundary(world: Node3D, polygon: PackedVector2Array, city: bool) -> 
 		var a: Vector2 = polygon[index]
 		var b: Vector2 = polygon[index + 1]
 		var center := (a + b) * 0.5
-		world._add_box("CityWall" if city else "RoadBank", Vector3(center.x, 0.7 if city else 0.4, center.y), Vector3(0.65, 1.4 if city else 0.8, a.distance_to(b) + 0.12), Color("616577") if city else Color("495545"), true)
+		world.props.add_box("CityWall" if city else "RoadBank", Vector3(center.x, 0.7 if city else 0.4, center.y), Vector3(0.65, 1.4 if city else 0.8, a.distance_to(b) + 0.12), Color("616577") if city else Color("495545"), true)
 		var wall: Node3D = world.get("_map_root").get_child(-1)
 		wall.rotation.y = atan2(b.x - a.x, b.y - a.y)
 		if city:
-			(wall.get_child(0) as MeshInstance3D).material_override = world._make_coursed_stone()
+			(wall.get_child(0) as MeshInstance3D).material_override = world.props.make_coursed_stone()
 			for step: int in range(ceili(a.distance_to(b) / 1.6)):
 				var at: Vector2 = a.lerp(b, float(step) / ceili(a.distance_to(b) / 1.6))
-				world._add_box("WallMerlon", Vector3(at.x, 1.55, at.y), Vector3(0.9, 0.4, 0.9), Color("777882"), false)
+				world.props.add_box("WallMerlon", Vector3(at.x, 1.55, at.y), Vector3(0.9, 0.4, 0.9), Color("777882"), false)
 
 static func build(world: Node3D, map_id: String) -> void:
 	var city := map_id == "starbay"
@@ -147,10 +147,10 @@ static func build(world: Node3D, map_id: String) -> void:
 		entrance.prompt_text = "進入" + str(preload("res://scripts/gameplay/city_house_catalog.gd").home(id).name)
 		building.add_to_group("city_houses")
 	for at: Vector2 in [Vector2(-20, 33), Vector2(-12, 33), Vector2(-20, 18), Vector2(-24, 12), Vector2(-31, -4), Vector2(-9, -23), Vector2(-3, -27), Vector2(4, -16), Vector2(24, -8), Vector2(19, 10), Vector2(3, 10), Vector2(-1, 17)]:
-		world._add_lamp(Vector3(at.x, 0, at.y))
+		world.props.add_lamp(Vector3(at.x, 0, at.y))
 	for at: Vector2 in [Vector2(-31, 27), Vector2(-36, 17), Vector2(-35, -8), Vector2(-24, -28), Vector2(-11, -36), Vector2(5, -30.5), Vector2(32, -16), Vector2(30, 13), Vector2(20, 22), Vector2(-5, 28)]:
-		world._add_tree(Vector3(at.x, 0, at.y))
-		world._add_flower_clump(Vector3(at.x + 1.3, 0.02, at.y), "ivory")
+		world.props.add_tree(Vector3(at.x, 0, at.y))
+		world.props.add_flower_clump(Vector3(at.x + 1.3, 0.02, at.y), "ivory")
 	preload("res://scripts/gameplay/natural_water.gd").pond(world.get("_map_root"), Vector3(12, 0.035, 4), Vector2(6, 4))
 	build_market(world)
 	build_belfry(world)
@@ -163,8 +163,8 @@ static func build(world: Node3D, map_id: String) -> void:
 	exits.add_interaction(world, "city_sign", "查看星灣城路牌", Vector3(-12, 0, 30))
 	exits.add_interaction(world, "city_rest", "在月帆茶棚休息", Vector3(-3, 0, 15))
 	exits.add_interaction(world, "city_history", "閱讀鐘樓石誌", Vector3(-8, 0, -25))
-	world._add_box("CitySignPost", Vector3(-12, 0.7, 30), Vector3(0.18, 1.4, 0.18), Color("665347"), false)
-	world._add_box("CitySignBoard", Vector3(-12, 1.3, 30), Vector3(1.5, 0.6, 0.15), Color("a79162"), false)
+	world.props.add_box("CitySignPost", Vector3(-12, 0.7, 30), Vector3(0.18, 1.4, 0.18), Color("665347"), false)
+	world.props.add_box("CitySignBoard", Vector3(-12, 1.3, 30), Vector3(1.5, 0.6, 0.15), Color("a79162"), false)
 	for x: float in [-20, -12]:
 		world._add_column(Vector3(x, 0, 37))
 
@@ -177,13 +177,13 @@ static func build_road(world: Node3D) -> void:
 		var side := Vector2(-tangent.y, tangent.x)
 		for direction: float in [-1, 1]:
 			var at: Vector2 = p + side * (5.5 + sin(index) * 0.8) * direction
-			world._add_tree(Vector3(at.x, 0, at.y))
-			world._add_grass_clump(Vector3(at.x - 0.7, 0.02, at.y), "seed", 0.001)
+			world.props.add_tree(Vector3(at.x, 0, at.y))
+			world.props.add_grass_clump(Vector3(at.x - 0.7, 0.02, at.y), "seed", 0.001)
 		if index % 3 == 0:
 			var at: Vector2 = p + side * 2.9
-			world._add_lamp(Vector3(at.x, 0, at.y))
-	world._add_supply_crate(Vector3(-10, 0, 18), 0.2)
-	world._add_supply_crate(Vector3(-8.5, 0, 19), -0.3)
+			world.props.add_lamp(Vector3(at.x, 0, at.y))
+	world.props.add_supply_crate(Vector3(-10, 0, 18), 0.2)
+	world.props.add_supply_crate(Vector3(-8.5, 0, 19), -0.3)
 	var exits := preload("res://scripts/gameplay/outskirts.gd")
 	exits.add_interaction(world, "travel_caravan_back", "返回東行舊道", Vector3(-18, 0, 25), true)
 	exits.add_interaction(world, "travel_city", "前往星灣城", Vector3(12, 0, -26), true)
@@ -192,40 +192,40 @@ static func build_market(world: Node3D) -> void:
 	for index: int in range(5):
 		var at := Vector3(-12 + index * 3.5, 0, 6 if index < 3 else 16)
 		var color: Color = [Color("a35c66"), Color("54858a"), Color("bc995e")][index % 3]
-		world._add_box("MarketCounter", at + Vector3(0, 0.48, 0), Vector3(2.3, 0.96, 1.1), Color("795d48"), true)
+		world.props.add_box("MarketCounter", at + Vector3(0, 0.48, 0), Vector3(2.3, 0.96, 1.1), Color("795d48"), true)
 		world.get("_map_root").get_child(-1).set_meta("city_material_kind", "MarketCounter")
 		for side: float in [-1, 1]:
-			world._add_box("CanopyPost", at + Vector3(side * 1.2, 1.1, 0.3), Vector3(0.12, 2.2, 0.12), Color("5e5148"), false)
+			world.props.add_box("CanopyPost", at + Vector3(side * 1.2, 1.1, 0.3), Vector3(0.12, 2.2, 0.12), Color("5e5148"), false)
 			world.get("_map_root").get_child(-1).set_meta("city_material_kind", "CanopyPost")
 		for stripe: int in range(6):
 			add_canopy_strip(world, at + Vector3(-1.35 + stripe * 0.45, 0, 0), color if stripe % 2 == 0 else Color("d9c9a1"))
-		world._add_earthenware_jar(at + Vector3(0.9, 0, -1.6))
-		world._add_box("MarketTabletop", at + Vector3(0, 0.99, 0), Vector3(2.5, 0.12, 1.25), Color("ab9270"), false)
+		world.props.add_earthenware_jar(at + Vector3(0.9, 0, -1.6))
+		world.props.add_box("MarketTabletop", at + Vector3(0, 0.99, 0), Vector3(2.5, 0.12, 1.25), Color("ab9270"), false)
 		world.get("_map_root").get_child(-1).set_meta("city_material_kind", "MarketTabletop")
 		for item: int in range(3):
-			world._add_box("MarketGoods", at + Vector3(-0.7 + item * 0.65, 1.13, 0), Vector3(0.5, 0.18, 0.8), color.lightened(item * 0.12), false)
-	world._add_box("TeaBench", Vector3(-3, 0.45, 17), Vector3(2.2, 0.18, 0.65), Color("8a6c4f"), true)
+			world.props.add_box("MarketGoods", at + Vector3(-0.7 + item * 0.65, 1.13, 0), Vector3(0.5, 0.18, 0.8), color.lightened(item * 0.12), false)
+	world.props.add_box("TeaBench", Vector3(-3, 0.45, 17), Vector3(2.2, 0.18, 0.65), Color("8a6c4f"), true)
 	world.get("_map_root").get_child(-1).set_meta("city_material_kind", "TeaBench")
 
 static func build_belfry(world: Node3D) -> void:
-	world._add_box("BelfryBase", Vector3(-8, 0.2, -30.5), Vector3(3.8, 0.4, 3.8), Color("aaa29a"), true)
+	world.props.add_box("BelfryBase", Vector3(-8, 0.2, -30.5), Vector3(3.8, 0.4, 3.8), Color("aaa29a"), true)
 	world.get("_map_root").get_child(-1).set_meta("city_material_kind", "BelfryBase")
-	world._add_box("BelfryTower", Vector3(-8, 3.4, -30.5), Vector3(2.3, 6.4, 2.3), Color("a59c8e"), true)
+	world.props.add_box("BelfryTower", Vector3(-8, 3.4, -30.5), Vector3(2.3, 6.4, 2.3), Color("a59c8e"), true)
 	world.get("_map_root").get_child(-1).set_meta("city_material_kind", "BelfryTower")
 	for y: float in [1.0, 3.7, 6.3]:
-		world._add_box("BelfryCornice", Vector3(-8, y, -30.5), Vector3(2.7, 0.22, 2.7), Color("736f7b"), false)
+		world.props.add_box("BelfryCornice", Vector3(-8, y, -30.5), Vector3(2.7, 0.22, 2.7), Color("736f7b"), false)
 		world.get("_map_root").get_child(-1).set_meta("city_material_kind", "BelfryCornice")
 	for x: float in [-8.85, -7.15]:
-		world._add_box("BellSupport", Vector3(x, 7.1, -30.5), Vector3(0.2, 1.5, 1.8), Color("69584d"), false)
+		world.props.add_box("BellSupport", Vector3(x, 7.1, -30.5), Vector3(0.2, 1.5, 1.8), Color("69584d"), false)
 		world.get("_map_root").get_child(-1).set_meta("city_material_kind", "BellSupport")
-	world._add_box("BellRoof", Vector3(-8, 8, -30.5), Vector3(3.4, 0.32, 3.4), Color("4d6878"), false)
+	world.props.add_box("BellRoof", Vector3(-8, 8, -30.5), Vector3(3.4, 0.32, 3.4), Color("4d6878"), false)
 	var bell := MeshInstance3D.new()
 	var shape := CylinderMesh.new()
 	shape.top_radius = 0.25
 	shape.bottom_radius = 0.65
 	shape.height = 0.9
 	bell.mesh = shape
-	bell.material_override = world._make_material(Color("bc9a51"), 0.5, 0.55)
+	bell.material_override = world.props.make_material(Color("bc9a51"), 0.5, 0.55)
 	bell.position = Vector3(-8, 7.1, -30.5)
 	world.get("_map_root").add_child(bell)
 
@@ -277,10 +277,10 @@ static func add_canopy_strip(world: Node3D, at: Vector3, color: Color) -> void:
 
 
 static func dress_materials(world: Node3D) -> void:
-	var timber: StandardMaterial3D = world._make_material(Color("c2ad93"), 0.95)
+	var timber: StandardMaterial3D = world.props.make_material(Color("c2ad93"), 0.95)
 	timber.albedo_texture = preload("res://assets/generated/timber_albedo.png")
 	timber.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	var stone: ShaderMaterial = world._make_coursed_stone()
+	var stone: ShaderMaterial = world.props.make_coursed_stone()
 	for node: Node in world.get("_map_root").get_children():
 		var name: String = str(node.get_meta("city_material_kind", ""))
 		if name.begins_with("MarketCounter") or name.begins_with("MarketTabletop") or name.begins_with("CanopyPost") or name.begins_with("TeaBench") or name.begins_with("BellSupport"):

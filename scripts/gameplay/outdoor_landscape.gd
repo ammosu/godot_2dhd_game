@@ -185,7 +185,7 @@ func _dress(world: Node3D, bounds: Rect2) -> void:
 		elif distance < 5.5 and outside_distance(at) < 1.5:
 			Terrain._grass(self, pos, rng.randf_range(1.1, 1.8), true)
 			if i % 3 == 0:
-				world._add_flower_clump(pos, "ivory")
+				world.props.add_flower_clump(pos, "ivory")
 	# Small, collision-free verge detail follows the worn road edge, not the center.
 	for i: int in range(2200):
 		var at := Vector2(rng.randf_range(bounds.position.x, bounds.end.x), rng.randf_range(bounds.position.y, bounds.end.y))
@@ -199,7 +199,7 @@ func _dress(world: Node3D, bounds: Rect2) -> void:
 		var pos := Vector3(at.x, soil_height(at), at.y)
 		Terrain._grass(self, pos, rng.randf_range(0.25, 0.65), false)
 		if i % 4 == 0:
-			world._add_flower_clump(pos, "ivory")
+			world.props.add_flower_clump(pos, "ivory")
 		if i % 2 == 0:
 			Mountain.crag(rock, moss, pos - Vector3.UP * 0.035, Vector3(0.13, 0.12, 0.16), rng)
 	Terrain._finish(self, "RoadsideGranite", rock, Mountain.material(Mountain.ROCK))

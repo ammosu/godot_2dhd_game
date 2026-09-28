@@ -79,8 +79,8 @@ static func add_interaction(world: Node3D, id: String, prompt: String, at: Vecto
 	if exit:
 		# Route mouths use scenery, not floating destination labels.
 		var side := Vector3(0, 0, 2.15) if id in ["travel_east", "travel_home", "travel_caravan"] else Vector3(2.15, 0, 0)
-		world._add_lamp(at + side)
-		world._add_lamp(at - side)
+		world.props.add_lamp(at + side)
+		world.props.add_lamp(at - side)
 		return
 	var label := Label3D.new()
 	label.text = "!"
@@ -101,53 +101,53 @@ static func build(world: Node3D, map_id: String) -> void:
 		load("res://scripts/gameplay/starbay.gd").build(world, map_id)
 		return
 	var forest := map_id == "firefly_forest"
-	world._add_box("Ground", Vector3(0, -0.35, 0), Vector3(34, 0.7, 30), Color("304b48"), true)
+	world.props.add_box("Ground", Vector3(0, -0.35, 0), Vector3(34, 0.7, 30), Color("304b48"), true)
 	# Banks leave real road mouths; the walking thresholds sit safely inside them.
 	if forest:
-		world._add_box("WoodlandBank", Vector3(16.5, 0.4, 0), Vector3(1, 1.5, 30), Color("354840"), true)
+		world.props.add_box("WoodlandBank", Vector3(16.5, 0.4, 0), Vector3(1, 1.5, 30), Color("354840"), true)
 	else:
 		for segment: Vector2 in [Vector2(-5.9, 18.2), Vector2(10.9, 8.2)]:
-			world._add_box("WoodlandBank", Vector3(16.5, 0.4, segment.x), Vector3(1, 1.5, segment.y), Color("354840"), true)
+			world.props.add_box("WoodlandBank", Vector3(16.5, 0.4, segment.x), Vector3(1, 1.5, segment.y), Color("354840"), true)
 	if forest:
-		world._add_box("WoodlandBank", Vector3(-16.5, 0.4, 0), Vector3(1, 1.5, 30), Color("354840"), true)
+		world.props.add_box("WoodlandBank", Vector3(-16.5, 0.4, 0), Vector3(1, 1.5, 30), Color("354840"), true)
 	else:
 		for segment: Vector2 in [Vector2(-5.9, 18.2), Vector2(10.9, 8.2)]:
-			world._add_box("WoodlandBank", Vector3(-16.5, 0.4, segment.x), Vector3(1, 1.5, segment.y), Color("354840"), true)
+			world.props.add_box("WoodlandBank", Vector3(-16.5, 0.4, segment.x), Vector3(1, 1.5, segment.y), Color("354840"), true)
 	for z: float in [-14.5, 14.5]:
 		if forest or z < 0:
 			for side: float in [-1, 1]:
-				world._add_box("WoodlandBank", Vector3(side * 9.4, 0.4, z), Vector3(15.2, 1.5, 1), Color("354840"), true)
+				world.props.add_box("WoodlandBank", Vector3(side * 9.4, 0.4, z), Vector3(15.2, 1.5, 1), Color("354840"), true)
 		else:
-			world._add_box("WoodlandBank", Vector3(0, 0.4, z), Vector3(34, 1.5, 1), Color("354840"), true)
-	world._add_cobble_box("WoodlandTrail", Vector3(0, 0.025, 0), Vector3(3.6, 0.07, 30), false)
+			world.props.add_box("WoodlandBank", Vector3(0, 0.4, z), Vector3(34, 1.5, 1), Color("354840"), true)
+	world.props.add_cobble_box("WoodlandTrail", Vector3(0, 0.025, 0), Vector3(3.6, 0.07, 30), false)
 	if not forest:
-		world._add_cobble_box("CaravanRoad", Vector3(0, 0.026, 5), Vector3(34, 0.07, 3.6), false)
-		world._add_cobble_box("RestStop", Vector3(4, 0.025, 2), Vector3(7, 0.07, 7), false)
+		world.props.add_cobble_box("CaravanRoad", Vector3(0, 0.026, 5), Vector3(34, 0.07, 3.6), false)
+		world.props.add_cobble_box("RestStop", Vector3(4, 0.025, 2), Vector3(7, 0.07, 7), false)
 	else:
-		world._add_cobble_box("ForagerTrail", Vector3(0, 0.026, -3), Vector3(18, 0.07, 1.6), false)
-		world._add_cobble_box("HerbTrail", Vector3(7, 0.025, -5), Vector3(1.6, 0.07, 5), false)
-		world._add_cobble_box("MoonClearing", Vector3(0, 0.024, -10), Vector3(6, 0.07, 5), false)
+		world.props.add_cobble_box("ForagerTrail", Vector3(0, 0.026, -3), Vector3(18, 0.07, 1.6), false)
+		world.props.add_cobble_box("HerbTrail", Vector3(7, 0.025, -5), Vector3(1.6, 0.07, 5), false)
+		world.props.add_cobble_box("MoonClearing", Vector3(0, 0.024, -10), Vector3(6, 0.07, 5), false)
 	for x: float in [-14, -10, -5, 5, 10, 14]:
 		for z: float in [-12, -8, 0, 9, 12]:
 			if not forest and z >= 9 and x >= -5 and x <= 10:
 				continue
 			if not forest and absf(x) < 12 and z == 0:
 				continue
-			world._add_tree(Vector3(x, 0, z))
+			world.props.add_tree(Vector3(x, 0, z))
 			if forest:
-				world._add_grass_clump(Vector3(x + 0.7, 0.02, z + 0.8), "seed", 0.001)
+				world.props.add_grass_clump(Vector3(x + 0.7, 0.02, z + 0.8), "seed", 0.001)
 	for at: Vector3 in [Vector3(-2, 0, 7), Vector3(2, 0, -4), Vector3(-2, 0, -10)]:
-		world._add_lamp(at)
+		world.props.add_lamp(at)
 	if forest:
 		world.get("_map_root").add_child(preload("res://scripts/gameplay/forest_fireflies.gd").new())
-		world._add_supply_crate(Vector3(-7, 0, -3), 0.2)
-		world._add_flower_clump(Vector3(7, 0, -7), "ivory")
+		world.props.add_supply_crate(Vector3(-7, 0, -3), 0.2)
+		world.props.add_flower_clump(Vector3(7, 0, -7), "ivory")
 		add_interaction(world, "forest_to_mountain", "北行・苔階山徑", Vector3(0, 0, -13.5), true)
 		for at: Vector3 in [Vector3(-3, 0, -10), Vector3(3, 0, -10), Vector3(7.8, 0, -7.4)]:
-			world._add_crystal(at, 0.45)
+			world.props.add_crystal(at, 0.45)
 		add_interaction(world, "travel_road", "南行・返回東行舊道", Vector3(0, 0, 13), true)
 	else:
-		world._add_supply_crate(Vector3(7, 0, 3), 0.1)
+		world.props.add_supply_crate(Vector3(7, 0, 3), 0.1)
 		world._add_actor_interactable("road_traveler", "與驛路旅人交談", Vector3(5, 0, 2), "res://assets/generated/residents/rain.tres", 1.6 / 512.0, Color.WHITE, false, &"side")
 		preload("res://scripts/gameplay/roadside_props.gd").signpost(world.get("_map_root"), Vector3(-6, 0, 2))
 		add_interaction(world, "travel_caravan", "東行・風丘商道／星灣城", Vector3(14, 0, 5), true)
