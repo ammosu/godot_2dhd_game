@@ -33,17 +33,18 @@ func _run() -> void:
 		assert(is_zero_approx(hinge.rotation.y))
 	var wall_count: int = 0
 	for child: Node in (world.get("_map_root") as Node).get_children():
-		if child is StaticBody3D and child.get_child_count() == 2 and child.get_child(0) is MeshInstance3D and (child.get_child(0) as MeshInstance3D).material_override is ShaderMaterial:
-			var candidate := (child.get_child(0) as MeshInstance3D).material_override as ShaderMaterial
-			if not candidate.shader.resource_path.ends_with("coursed_stone.gdshader"):
-				continue
+		if child is StaticBody3D and child.get_meta("authored_name", "") == "BoundaryWall":
 			wall_count += 1
-			var visual := child.get_child(0) as MeshInstance3D
-			assert((visual.material_override as ShaderMaterial).shader.resource_path.ends_with("coursed_stone.gdshader"))
-			assert((visual.mesh as BoxMesh).size == ((child.get_child(1) as CollisionShape3D).shape as BoxShape3D).size)
-	# Fourteen clipped enclosure segments, minus the east road opening.
+			# Hills and forest show the limit; the wall itself is collision only.
+			assert(child.find_children("*", "MeshInstance3D", true, false).is_empty())
+			assert(((child.get_child(0) as CollisionShape3D).shape as BoxShape3D).size.y >= 5.0)
+	# Fourteen clipped limit segments, minus the east road opening.
 	assert(wall_count == 13)
-	# The locked gate and adjoining wall both block passage before the quest.
+	assert((world.get("_map_root") as Node).has_node("VillageSurroundings/HillTerrain"))
+	var east_gate := (world.get("_map_root") as Node).get_node("VillageEastGate") as Node3D
+	assert(east_gate.find_children("GateName*", "Label3D", true, false).size() == 2)
+	assert(portal.has_node("GateRoofRidge"))
+	# The locked gate and adjoining limit both block passage before the quest.
 	var traveler := world.get_node("Player") as CharacterBody3D
 	traveler.position = Vector3(0, 0.1, -18.05)
 	assert(traveler.move_and_collide(Vector3(0, 0, -2.0)) != null)

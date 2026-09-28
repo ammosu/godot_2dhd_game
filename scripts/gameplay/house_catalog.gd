@@ -11,10 +11,10 @@ const HOMES: Array[Dictionary] = [
 	{"id": "house_01", "name": "西街木屋", "position": Vector3(-12.7, 0, -8.5), "yaw": -PI * 0.5 + 0.13, "wall": Color("806967"), "roof": Color("59465f")},
 	{"id": "house_02", "name": "花園小屋", "position": Vector3(-11.5, 0, 0.6), "yaw": -PI * 0.5 - 0.16, "wall": Color("73736a"), "roof": Color("5a4965")},
 	{"id": "house_03", "name": "東街居所", "position": Vector3(12.6, 0, -3.4), "yaw": PI * 0.5 - 0.12, "wall": Color("667776"), "roof": Color("47566b")},
-	{"id": "house_04", "name": "陶匠小屋", "position": Vector3(12.2, 0, 5.9), "yaw": PI * 0.5 + 0.15, "wall": Color("826b61"), "roof": Color("654957")},
+	{"id": "house_04", "name": "陶匠小屋", "position": Vector3(12.6, 0, 9.2), "yaw": 0.08, "wall": Color("826b61"), "roof": Color("654957")},
 	{"id": "house_05", "name": "南街暖屋", "position": Vector3(-11.8, 0, 10.4), "yaw": -0.14, "wall": Color("765f70"), "roof": Color("50445f")},
 	{"id": "house_06", "name": "旅人居所", "position": Vector3(-5.0, 0, 12.0), "yaw": 0.18, "wall": Color("6c747d"), "roof": Color("46536a")},
-	{"id": "house_07", "name": "東南小屋", "position": Vector3(12.5, 0, 13.6), "yaw": -0.12, "wall": Color("706a80"), "roof": Color("514b6e")},
+	{"id": "house_07", "name": "東南小屋", "position": Vector3(6.3, 0, 13.4), "yaw": 0.1, "wall": Color("706a80"), "roof": Color("514b6e")},
 	{"id": "house_08", "name": "北街書屋", "position": Vector3(-6.4, 0, -11.6), "yaw": PI + 0.16, "wall": Color("7f725d"), "roof": Color("624b51")},
 ]
 

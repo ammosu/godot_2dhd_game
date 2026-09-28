@@ -6,7 +6,7 @@ Original art generated with the built-in imagegen tool on 2026-09-21, using
 Final asset: `village_tree_species.png`, transparent RGBA, 1254 × 1254.
 Four 627 × 627 AtlasTexture cells: birch, spruce, willow, rowan (row-major).
 Consumed by `scripts/gameplay/tree_variants.gd` alongside the existing oak.
-Stable position-based species, scale and mirroring; pond-side willows; measured
+Villages plant oak only (pond-side willows); hills and outskirts pass oak or spruce explicitly. Birch and rowan remain available by override. Stable position-based scale, mirroring and slight foliage tone; measured
 alpha baselines keep the roots grounded. Nearest-neighbor filtering retained.
 
 Generation prompt: Four distinct whole-tree game sprites: silver birch, blue-green

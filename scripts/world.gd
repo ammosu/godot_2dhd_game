@@ -513,6 +513,12 @@ func _get_spawn_position(map_id: String, spawn_id: String) -> Vector3:
 func _build_village() -> void:
 	var stamp: int = Time.get_ticks_usec()
 	VillageMap.roads(props)
+	# Beams and the name board fade while the traveler walks under the arch.
+	for part: Node in _map_root.get_node("VillageEastGate").get_children():
+		if part is MeshInstance3D and (part as MeshInstance3D).position.y > 1.9:
+			var cutaway := ForegroundCutaway.new()
+			part.add_child(cutaway)
+			cutaway.configure(part as Node3D, player, $CameraRig/Camera3D, &"gate_cutaways")
 	Outskirts.add_interaction(self, "travel_east", "東行・前往東行舊道", Vector3(26, 0, 4.6), true)
 	VillageMap.walks(props)
 	stamp = _profile_map_stamp("village_surfaces", stamp)
@@ -540,7 +546,9 @@ func _build_village() -> void:
 	_add_portal("portal_to_ruins", "前往北境遺跡", Vector3(0.0, 0.0, -19.3), Color("86d9ff"))
 	stamp = _profile_map_stamp("village_actors_portal", stamp)
 	MeadowDressing.build(_map_root)
-	_profile_map_stamp("village_meadow", stamp)
+	stamp = _profile_map_stamp("village_meadow", stamp)
+	VillageMap.surroundings(_map_root)
+	_profile_map_stamp("village_surroundings", stamp)
 
 
 func _add_wandering_villagers() -> void:

@@ -11,6 +11,17 @@ static func build(gate: Node3D, left: Node3D, right: Node3D, stone: Material, ir
 		_box(gate, Vector3(side * 2.65, 1.39, 0.0), Vector3(2.0, 0.12, 0.78), stone)
 		var jamb := _box(gate, Vector3(side * 1.48, 0.2, 0.0), Vector3(0.7, 0.4, 0.82), stone)
 		_solid(jamb, Vector3(0.52, 5.4, 0.62))
+	# A slate gable over the lintel turns the doorway into a gatehouse.
+	var slate := StandardMaterial3D.new()
+	slate.albedo_texture = preload("res://assets/generated/slate_roof_albedo.png")
+	slate.albedo_color = Color("5b6479")
+	slate.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	slate.roughness = 0.9
+	slate.uv1_scale = Vector3(3.0, 1.0, 1.0)
+	for side: float in [-1.0, 1.0]:
+		var roof := _box(gate, Vector3(0.0, 3.68, side * 0.47), Vector3(4.7, 0.11, 1.2), slate)
+		roof.rotation.x = side * 0.5
+	_box(gate, Vector3(0.0, 3.96, 0.0), Vector3(4.8, 0.17, 0.2), joints).name = "GateRoofRidge"
 	# A shared apron joins both roads through the same low, walkable sill.
 	_box(gate, Vector3(0.0, 0.025, 0.0), Vector3(2.35, 0.05, 3.8), stone)
 	for hinge: Node3D in [left, right]:

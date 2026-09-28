@@ -85,7 +85,9 @@ static func _variant_for(root: Node3D, species: int, preferred: int) -> int:
 static func decorate(root: Node3D, at: Vector3, species_override: int = -1) -> void:
 	_prepare()
 	var key: int = absi(roundi(at.x * 37.0) + roundi(at.z * 71.0))
-	var species: int = (key ^ (key >> 3) ^ (key >> 7)) % SPECIES.size()
+	# A settled village keeps one street tree; variety comes from its three
+	# silhouettes, stature and mirroring rather than a mixed arboretum.
+	var species: int = 0
 	if at.x > 13.0 and at.z < -9.0:
 		species = 3
 	if species_override >= 0 and species_override < SPECIES.size():
@@ -98,8 +100,10 @@ static func decorate(root: Node3D, at: Vector3, species_override: int = -1) -> v
 	sprite.name = "TreeArt"
 	sprite.texture = _textures[index]
 	var stature: float = [1.0, 0.90, 1.04][variant]
-	sprite.pixel_size = HEIGHTS[species] * stature * (0.88 + float(key % 7) * 0.025) / _visible_heights[index]
+	sprite.pixel_size = HEIGHTS[species] * stature * (0.84 + float(key % 11) * 0.03) / _visible_heights[index]
 	sprite.flip_h = key % 2 == 0
+	# Slight per-tree foliage tone keeps repeated silhouettes from reading as clones.
+	sprite.modulate = Color.WHITE.lerp(Color("d6e4c8") if key % 3 == 0 else Color("efe0c6"), float(key % 5) * 0.05)
 	sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD

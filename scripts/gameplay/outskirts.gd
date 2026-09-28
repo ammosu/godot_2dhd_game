@@ -33,6 +33,12 @@ const EVENTS := {
 	"forest_rest": ["firefly_forest", Vector3(0, 0, -11), "在螢光樹下休息"],
 }
 
+## Outward travel direction for road exits whose mouths open onto walkable terrain.
+const EXIT_OUTWARD := {
+	"travel_home": Vector3.LEFT, "travel_caravan": Vector3.RIGHT, "travel_forest": Vector3.FORWARD,
+	"forest_to_mountain": Vector3.FORWARD, "travel_road": Vector3.BACK,
+}
+
 static func spawn(map_id: String, spawn_id: String) -> Vector3:
 	if Mountains.NAMES.has(map_id):
 		return Mountains.spawn(map_id, spawn_id)
@@ -77,6 +83,7 @@ static func add_interaction(world: Node3D, id: String, prompt: String, at: Vecto
 	area.activated.connect(world._handle_interaction)
 	world.get("_map_root").add_child(area)
 	if exit:
+		_add_exit_backstop(world, area, collider.shape as BoxShape3D)
 		# Route mouths use scenery, not floating destination labels.
 		var side := Vector3(0, 0, 2.15) if id in ["travel_east", "travel_home", "travel_caravan"] else Vector3(2.15, 0, 0)
 		world.props.add_lamp(at + side)
@@ -91,6 +98,26 @@ static func add_interaction(world: Node3D, id: String, prompt: String, at: Vecto
 	label.modulate = Color("64e6ff")
 	area.add_child(label)
 	world.get("_quest_markers")[id] = label
+
+
+## An invisible block just past the threshold: the only way beyond is through it.
+## Wider than the mouth, so the walker cannot slip around a thin trigger either.
+static func _add_exit_backstop(world: Node3D, area: Area3D, threshold: BoxShape3D) -> void:
+	if not EXIT_OUTWARD.has(area.interaction_id):
+		return
+	var outward: Vector3 = EXIT_OUTWARD[area.interaction_id]
+	var depth: float = absf(threshold.size.dot(outward))
+	var across: float = absf(threshold.size.dot(Vector3(outward.z, 0, outward.x)))
+	var body := StaticBody3D.new()
+	body.name = "ExitBackstop"
+	var shape := BoxShape3D.new()
+	# Deep enough to fill the pocket between a set-back trigger and its bank.
+	shape.size = Vector3(4.0, 4.0, across + 8.0) if outward.x != 0.0 else Vector3(across + 8.0, 4.0, 4.0)
+	var collider := CollisionShape3D.new()
+	collider.shape = shape
+	body.add_child(collider)
+	body.position = area.position + outward * (depth * 0.5 + 0.2 + 2.0) + Vector3.UP * 1.5
+	world.get("_map_root").add_child(body)
 
 
 static func build(world: Node3D, map_id: String) -> void:
