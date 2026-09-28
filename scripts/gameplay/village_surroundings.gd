@@ -6,18 +6,22 @@ extends Node3D
 const Terrain = preload("res://scripts/gameplay/field_terrain.gd")
 const Mountain = preload("res://scripts/gameplay/mountain_landscape.gd")
 const Trees = preload("res://scripts/gameplay/tree_variants.gd")
+const Rim = preload("res://scripts/gameplay/rim_foliage.gd")
 const STEP: float = 1.0
 const REACH: float = 30.0
 ## Hills fade into the night sky here instead of ending at a hard edge.
 const FADE_START: float = 19.0
 const FADE_END: float = 28.0
 const SEED: int = 51903
+## Unshaded night tone: the deep-teal paint would otherwise sink into the grass.
+const FOLIAGE_TONE := Color("b4c2b6")
 ## Road corridors kept flat through the hills: north pass and east old road.
 const CORRIDORS: Array[Array] = [
 	[Vector2(0.0, -18.0), Vector2(0.0, -70.0), 1.2],
 	[Vector2(21.0, 4.6), Vector2(80.0, 4.6), 1.8],
 ]
 var _outline := PackedVector2Array()
+var _ranges: MeshInstance3D
 
 
 func configure(outline: PackedVector2Array) -> void:
@@ -148,19 +152,76 @@ func _forest() -> void:
 			art.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
 		if edge > 6.0:
 			art.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		elif edge < 3.0 and i % 2 == 0:
-			Terrain._grass(self, Vector3(at.x + 0.9, height_at(at + Vector2(0.9, 0)), at.y + 0.4), rng.randf_range(1.0, 1.6), true)
-	# Shrubs and low grass walk the whole outline, hiding where floor meets slope.
+		elif edge < 8.0 and i % 2 == 0:
+			# Understory: a shrub or fern beside near trees, sometimes a mossy stone.
+			var beside := at + Vector2(rng.randf_range(0.8, 1.3), rng.randf_range(-0.4, 0.6))
+			var pool: Array[int] = Rim.STONES if i % 5 == 0 else (Rim.SHRUBS if i % 3 == 0 else Rim.FERNS)
+			Rim.place(self, Vector3(beside.x, height_at(beside) - 0.03, beside.y), pool[rng.randi() % pool.size()], rng.randf_range(0.85, 1.3), rng.randf() < 0.5, FOLIAGE_TONE.lerp(Color("6f7f7e"), depth))
+	# Shrubs, ferns and stones walk the whole outline, hiding where floor meets slope.
 	for i: int in range(_outline.size()):
 		var start: Vector2 = _outline[i]
 		var finish: Vector2 = _outline[(i + 1) % _outline.size()]
 		var normal := (finish - start).orthogonal().normalized()
-		for step: int in range(int(start.distance_to(finish) / 0.55)):
-			var at: Vector2 = start.lerp(finish, (step + rng.randf()) * 0.55 / start.distance_to(finish))
-			at += normal * rng.randf_range(-1.2, 1.2)
+		for step: int in range(int(start.distance_to(finish) / 0.7)):
+			var at: Vector2 = start.lerp(finish, (step + rng.randf()) * 0.7 / start.distance_to(finish))
+			at += normal * rng.randf_range(-1.1, 1.3)
 			if road_distance(at) < 1.0:
 				continue
-			Terrain._grass(self, Vector3(at.x, maxf(height_at(at), 0.0), at.y), rng.randf_range(0.8, 1.7), step % 3 == 0)
+			var ground := Vector3(at.x, maxf(height_at(at), 0.0) - 0.02, at.y)
+			var roll: float = rng.randf()
+			var outside: bool = signed_distance(at) > 0.2
+			if roll < 0.12 and outside:
+				Rim.place(self, ground, Rim.STONES[rng.randi() % Rim.STONES.size()], rng.randf_range(0.8, 1.35), rng.randf() < 0.5)
+			elif roll < 0.5:
+				Rim.place(self, ground, Rim.SHRUBS[rng.randi() % Rim.SHRUBS.size()], rng.randf_range(0.8, 1.25), rng.randf() < 0.5, FOLIAGE_TONE)
+			elif roll < 0.8:
+				Rim.place(self, ground, Rim.FERNS[rng.randi() % Rim.FERNS.size()], rng.randf_range(0.8, 1.2), rng.randf() < 0.5, FOLIAGE_TONE)
+			else:
+				Terrain._grass(self, ground, rng.randf_range(0.8, 1.5), step % 2 == 0)
+	_mountains()
+
+
+## Distant ranges ride with the camera like a skybox: always inside its 80 m
+## far plane, and far enough that they should show no parallax anyway.
+func _process(_delta: float) -> void:
+	var camera := get_viewport().get_camera_3d()
+	if camera != null and is_instance_valid(_ranges):
+		_ranges.global_position = Vector3(camera.global_position.x, 0.0, camera.global_position.z)
+
+
+## A ring of painted ranges beyond the fading woods, for low and wide shots.
+func _mountains() -> void:
+	const RADIUS: float = 70.0
+	const HEIGHT: float = 18.0
+	const SEGMENTS: int = 64
+	const REPEATS: float = 7.0
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for index: int in range(SEGMENTS):
+		var quad: Array[Vector3] = []
+		var uvs: Array[Vector2] = []
+		for corner: Vector2i in [Vector2i(0, 1), Vector2i(1, 1), Vector2i(1, 0), Vector2i(0, 0)]:
+			var angle: float = TAU * float(index + corner.x) / SEGMENTS
+			quad.append(Vector3(sin(angle) * RADIUS, -4.0 + HEIGHT * (1 - corner.y), cos(angle) * RADIUS))
+			uvs.append(Vector2(REPEATS * float(index + corner.x) / SEGMENTS, corner.y))
+		for vertex: int in [0, 1, 2, 0, 2, 3]:
+			surface.set_uv(uvs[vertex])
+			surface.add_vertex(quad[vertex])
+	var material := StandardMaterial3D.new()
+	material.albedo_texture = preload("res://assets/generated/village_mountains.png")
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	material.alpha_scissor_threshold = 0.5
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
+	material.albedo_color = Color("aab8c4")
+	var ring := MeshInstance3D.new()
+	ring.name = "DistantRanges"
+	ring.mesh = surface.commit()
+	ring.material_override = material
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(ring)
+	_ranges = ring
 
 
 ## Seat authored village trees and props beyond the floor on the hill surface.

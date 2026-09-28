@@ -44,6 +44,15 @@ func _run() -> void:
 	var east_gate := (world.get("_map_root") as Node).get_node("VillageEastGate") as Node3D
 	assert(east_gate.find_children("GateName*", "Label3D", true, false).size() == 2)
 	assert(portal.has_node("GateRoofRidge"))
+	assert(east_gate.has_node("PlaqueRoad") and east_gate.has_node("PlaqueVillage"))
+	var hills := (world.get("_map_root") as Node).get_node("VillageSurroundings") as Node3D
+	assert(hills.has_node("DistantRanges"))
+	var rim_pieces: int = 0
+	for sprite: Node in hills.find_children("*", "Sprite3D", true, false):
+		var art := (sprite as Sprite3D).texture as AtlasTexture
+		if art != null and art.atlas.resource_path.ends_with("village_rim_foliage.png"):
+			rim_pieces += 1
+	assert(rim_pieces > 150)
 	# The locked gate and adjoining limit both block passage before the quest.
 	var traveler := world.get_node("Player") as CharacterBody3D
 	traveler.position = Vector3(0, 0.1, -18.05)

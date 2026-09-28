@@ -11,9 +11,11 @@ static func build(props: WorldProps, at: Vector3) -> void:
 	gate.name = "VillageEastGate"
 	gate.position = at
 	props.map_root.add_child(gate)
-	var timber := props.make_material(Color("8a6a4c"), 0.93)
-	timber.albedo_texture = props.art_texture("res://assets/generated/timber_albedo.png")
-	timber.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	var timber := props.make_material(Color("c9b39a"), 0.93)
+	timber.albedo_texture = props.art_texture("res://assets/generated/village_gate_timber.png")
+	timber.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
+	timber.uv1_triplanar = true
+	timber.uv1_scale = Vector3(0.9, 0.9, 0.9)
 	var dark := props.make_material(Color("3b2d24"), 0.95)
 	var slate := props.make_material(Color("5b6479"), 0.9)
 	slate.albedo_texture = props.art_texture("res://assets/generated/slate_roof_albedo.png")
@@ -35,19 +37,34 @@ static func build(props: WorldProps, at: Vector3) -> void:
 		var roof := _box(gate, Vector3(side * 0.43, 3.66, 0), Vector3(1.08, 0.1, HALF_SPAN * 2 + 1.9), slate)
 		roof.rotation.z = -side * 0.52
 	_box(gate, Vector3(0, 3.93, 0), Vector3(0.18, 0.16, HALF_SPAN * 2 + 2.0), dark)
-	# Name board framed between the beams, clear above the traveler's head.
-	_box(gate, Vector3(0, 2.76, 0), Vector3(0.08, 0.56, 1.46), dark)
-	_box(gate, Vector3(0, 2.76, 0), Vector3(0.1, 0.44, 1.34), timber)
+	# Painted plaque framed between the beams, readable from road and village.
+	_box(gate, Vector3(0, 2.76, 0), Vector3(0.06, 0.34, 1.3), dark)
+	var plaque := StandardMaterial3D.new()
+	plaque.albedo_texture = preload("res://assets/generated/village_gate_plaque.png")
+	plaque.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
+	plaque.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	plaque.roughness = 0.95
 	for side: float in [-1.0, 1.0]:
+		var face := MeshInstance3D.new()
+		face.name = "PlaqueRoad" if side > 0.0 else "PlaqueVillage"
+		var quad := QuadMesh.new()
+		quad.size = Vector2(1.62, 0.54)
+		face.mesh = quad
+		face.material_override = plaque
+		face.position = Vector3(side * 0.035, 2.8, 0)
+		face.rotation.y = side * PI * 0.5
+		gate.add_child(face)
 		var name_label := Label3D.new()
 		name_label.name = "GateNameRoad" if side > 0.0 else "GateNameVillage"
 		name_label.text = "暮光村"
 		name_label.font = preload("res://assets/fonts/SourceHanSansTW-Regular.otf")
-		name_label.font_size = 54
+		name_label.font_size = 50
 		name_label.pixel_size = 0.006
-		name_label.outline_size = 0
-		name_label.modulate = Color("f0dcae")
-		name_label.position = Vector3(side * 0.06, 2.76, 0)
+		# Carved lettering: warm gilt with a dark cut edge.
+		name_label.outline_size = 10
+		name_label.outline_modulate = Color("2a1b12")
+		name_label.modulate = Color("e9cf8f")
+		name_label.position = Vector3(side * 0.045, 2.77, 0)
 		name_label.rotation.y = side * PI * 0.5
 		gate.add_child(name_label)
 	for side: float in [-1.0, 1.0]:
