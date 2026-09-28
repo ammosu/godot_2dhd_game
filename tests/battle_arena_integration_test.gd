@@ -55,9 +55,17 @@ func _run() -> void:
 	_check((battle.get("_arena_viewport") as SubViewport).render_target_update_mode == SubViewport.UPDATE_DISABLED, "Closed battle still renders")
 	_check(state.battle_session == null and not battle.call("is_active"), "Battle lifecycle not released")
 	battle.free()
+	# Ruins seed 8 ends with an imported pillar, which is freed first on teardown;
+	# its nearest-filtered materials must outlive the render instance (no engine errors).
+	battle = load("res://scripts/ui/party_battle_ui.gd").new()
+	root.add_child(battle)
+	battle.call("show_arena_preview", Layout.generate("ruins", 8))
+	await process_frame
+	battle.free()
+	await process_frame
 	for singleton: String in ["GameAudio", "GameMusic", "GameAmbience"]:
 		root.get_node(singleton).call("stop_all")
 	await create_timer(0.2).timeout
 	if failures == 0:
-		print("BATTLE_ARENA_INTEGRATION_TEST_PASS isolation projection preview_state lifecycle five_themes")
+		print("BATTLE_ARENA_INTEGRATION_TEST_PASS isolation projection preview_state lifecycle five_themes imported_teardown")
 	quit(0 if failures == 0 else 1)

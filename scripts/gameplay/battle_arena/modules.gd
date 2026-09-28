@@ -1,6 +1,9 @@
 extends RefCounted
 ## Reusable geometric arena modules. All origins sit on the walkable floor.
 
+# Nearest-filtered copies of imported materials, shared by every arena rebuild.
+static var _nearest_materials: Dictionary[BaseMaterial3D, BaseMaterial3D] = {}
+
 static func material(tint: Color, texture_path: String = "", repeats: float = 1.0) -> StandardMaterial3D:
 	var result := StandardMaterial3D.new()
 	result.albedo_color = tint
@@ -49,9 +52,11 @@ static func imported(parent: Node3D, path: String, height: float, max_radius: fl
 		for index: int in range(visual.mesh.get_surface_count()):
 			var original := visual.mesh.surface_get_material(index) as BaseMaterial3D
 			if original != null:
-				var surface := original.duplicate() as BaseMaterial3D
-				surface.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
-				visual.set_surface_override_material(index, surface)
+				if not _nearest_materials.has(original):
+					var nearest := original.duplicate() as BaseMaterial3D
+					nearest.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
+					_nearest_materials[original] = nearest
+				visual.set_surface_override_material(index, _nearest_materials[original])
 	if not first and bounds.size.y > 0.001:
 		var factor: float = height / bounds.size.y
 		if max_radius > 0.0:
