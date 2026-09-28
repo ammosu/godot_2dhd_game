@@ -8,6 +8,10 @@ const WALK_FPS: float = 6.0
 # The first drawing is idle. Walking alternates contact and passing drawings.
 const WALK_SEQUENCE: Array[int] = [1, 2, 3, 2]
 
+# Keep each identity's frames resident: rebuilt maps then reuse the same frame
+# textures, so per-texture caches such as foot baselines stay bounded.
+static var _frames_by_identity: Dictionary[String, SpriteFrames] = {}
+
 var resident_id: String = "mira"
 var world_heading: Vector3 = Vector3.BACK
 var walking: bool = false
@@ -23,7 +27,9 @@ var _conversation_partner: Node3D
 func _ready() -> void:
 	process_priority = 10 # Resolve the view after camera motion.
 	assert(resident_id in IDENTITIES, "Unknown resident identity: " + resident_id)
-	sprite_frames = load("res://assets/generated/residents/" + resident_id + "_walk.tres") as SpriteFrames
+	if not _frames_by_identity.has(resident_id):
+		_frames_by_identity[resident_id] = load("res://assets/generated/residents/" + resident_id + "_walk.tres") as SpriteFrames
+	sprite_frames = _frames_by_identity[resident_id]
 	texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	alpha_scissor_threshold = 0.25

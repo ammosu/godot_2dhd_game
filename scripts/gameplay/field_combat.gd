@@ -62,6 +62,7 @@ var _buttons: Dictionary[String, Button] = {}
 var _focus_paused: bool = false
 var _previous_camera_distance: float = 11.0
 var _rig: Hd2dCameraRig
+var _initial_physics_frames: int = 0
 
 func _ready() -> void:
 	if build_terrain:
@@ -78,13 +79,23 @@ func _ready() -> void:
 		sign.modulate = Color("d8e9c0")
 	get_window().focus_exited.connect(_pause_focus)
 	get_window().focus_entered.connect(_resume_focus)
-	_initialize.call_deferred()
+	_wait_for_physics.call_deferred()
+
+# Wait two physics frames through a signal connection rather than `await`: the
+# connection drops with this node, so leaving the map early cannot resume a freed instance.
+func _wait_for_physics() -> void:
+	if is_inside_tree():
+		get_tree().physics_frame.connect(_on_initial_physics_frame)
+
+func _on_initial_physics_frame() -> void:
+	_initial_physics_frames += 1
+	if _initial_physics_frames < 2:
+		return
+	get_tree().physics_frame.disconnect(_on_initial_physics_frame)
+	if is_inside_tree():
+		_initialize()
 
 func _initialize() -> void:
-	await get_tree().physics_frame
-	await get_tree().physics_frame
-	if not is_inside_tree():
-		return
 	navigation.build(get_world_3d(), player)
 	for spawn: Dictionary in spawn_list:
 		if not GameState.field_defeated.has(spawn.id):
