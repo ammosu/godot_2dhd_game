@@ -15,6 +15,7 @@ const NPC_FACES: Dictionary = {
 	"rumi": ["res://assets/generated/village_npcs.png", Rect2(976, 116, 210, 210)],
 	"noah": ["res://assets/generated/village_npcs.png", Rect2(1684, 52, 184, 184)],
 	"guardian": ["res://assets/generated/guardian_poses.png", Rect2(262, 40, 176, 176)],
+	"sia": ["res://assets/generated/residents/sia_walk.png", Rect2(92, 16, 114, 114)],
 }
 ## Dialogue speaker names mapped to a face; "hero" follows the chosen class.
 const SPEAKERS: Dictionary = {
@@ -25,6 +26,8 @@ const SPEAKERS: Dictionary = {
 	"諾亞": "noah",
 	"遺跡守衛": "guardian",
 	"旅人": "hero",
+	"鐘守・希雅": "sia",
+	"希雅": "sia",
 }
 
 

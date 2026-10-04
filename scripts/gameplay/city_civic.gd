@@ -16,9 +16,9 @@ const LINKS := [
 	[Vector2(0, 3), Vector2(4, 2.8), Vector2(8, 2.3), Vector2(8, 0.5)],
 ]
 const TALKS := {
-	"city_moon_court": ["月儀庭", "銅環描著月亮與星辰的路徑。商隊從前在這裡對時，如今孩子們沿著花壇繞圈，等鐘樓報時。"],
-	"city_tree_garden": ["樹蔭庭園", "老樹比周圍的店舖更早來到這裡。人們留下兩條穿過花園的小徑，讓趕路的人與歇腳的人都能找到位置。"],
-	"city_pavilion": ["水岸涼亭", "六根木柱托起灰瓦亭頂，四周沒有牆。池邊的花隨風輕晃，從這裡能看見工坊街與月帆市集。"],
+	"city_moon_court": ["月儀庭", "銅環上的刻度被摸得發亮，底座放著半塊餅。孩子大概還會回來拿。"],
+	"city_tree_garden": ["樹蔭庭園", "老樹旁的牌子寫著：請留一個位子，給走累的人坐。"],
+	"city_pavilion": ["水岸涼亭", "風從水面吹進亭子，帶來一點涼意。遠處傳來工坊的敲打聲。"],
 }
 
 static func ring(center: Vector2, radius: float) -> PackedVector2Array:

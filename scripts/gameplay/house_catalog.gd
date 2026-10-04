@@ -21,34 +21,34 @@ const HOMES: Array[Dictionary] = [
 
 # Each resident has original profession-specific art; preserve its authored colors.
 const RESIDENTS: Dictionary = {
-	"house_01": {"name": "織工・米菈", "art": "residents/mira", "tint": Color.WHITE, "text": "進來歇歇腳吧。這幅布上的菱形，是祖母教我的舊路紋樣；她說，記住路的人就不怕夜長。"},
-	"house_02": {"name": "園丁・芙蘿", "art": "residents/flo", "tint": Color.WHITE, "text": "小心門邊的花。這些幼苗最近總朝著北方伸展，等月光回來，也許就能看見它們開花了。"},
-	"house_03": {"name": "觀月人・席恩", "art": "residents/sien", "tint": Color.WHITE, "text": "我每晚都在記錄月相。月亮並沒有消失，只是照進村子的光偏了方向。架上的舊紀錄也有相同的痕跡。"},
-	"house_04": {"name": "陶匠・洛克", "art": "residents/locke", "tint": Color.WHITE, "text": "陶器還沒乾，可別碰倒了。老一輩會在碗底印上缺口圓環，我只記得那是給遠行者的祝福。"},
-	"house_05": {"name": "裁縫・艾妲", "art": "residents/ada", "tint": Color.WHITE, "text": "外頭冷吧？我正把舊被子的破口補好。燈再暗，也得讓回家的人有個暖和的地方。"},
-	"house_06": {"name": "旅人・雷恩", "art": "residents/rain", "tint": Color.WHITE, "text": "我原本只想借宿一晚，沒想到北門封了這麼久。等道路重開，我想再看看山那頭的月色。"},
-	"house_07": {"name": "藥師・賽芙", "art": "residents/seph", "tint": Color.WHITE, "text": "這些草藥正在陰乾，聞起來有點苦。筆記裡有幾種藥草只長在舊道附近，如今已很難採到了。"},
-	"house_08": {"name": "藏書人・歐文", "art": "residents/owen", "tint": Color.WHITE, "text": "書可以翻，請輕一點。建村紀錄少了幾頁，撕痕卻很整齊……我一直想知道，被帶走的是誰的故事。"},
+	"house_01": {"name": "織工・米菈", "art": "residents/mira", "tint": Color.WHITE, "text": "進來歇歇腳吧。布上的菱形是祖母教我的老花樣，她說那是路口的形狀。"},
+	"house_02": {"name": "園丁・芙蘿", "art": "residents/flo", "tint": Color.WHITE, "text": "小心門邊的花。這些幼苗最近都垂著頭，等月光回來，它們就會抬起來了。"},
+	"house_03": {"name": "觀月人・席恩", "art": "residents/sien", "tint": Color.WHITE, "text": "月光其實偏了很多年，只是三天前突然整個不見——就是你來的那晚。"},
+	"house_04": {"name": "陶匠・洛克", "art": "residents/locke", "tint": Color.WHITE, "text": "陶器還沒乾，別碰倒了。老碗的底下都印著一個缺口的圓圈，現在沒人這樣做了。"},
+	"house_05": {"name": "裁縫・艾妲", "art": "residents/ada", "tint": Color.WHITE, "text": "你的外衣補好了，放在床邊。燈再暗，也得讓回家的人有個暖和的地方。"},
+	"house_06": {"name": "旅人・雷恩", "art": "residents/rain", "tint": Color.WHITE, "text": "我本來只想住一晚，北門卻一直沒開。等路通了，我想去看看山那邊。"},
+	"house_07": {"name": "藥師・賽芙", "art": "residents/seph", "tint": Color.WHITE, "text": "這些草藥正在陰乾，有點苦。筆記裡有幾種只長在舊路邊，現在採不到了。"},
+	"house_08": {"name": "藏書人・歐文", "art": "residents/owen", "tint": Color.WHITE, "text": "書可以翻，輕一點。村子的舊紀錄少了幾頁，撕得很整齊……是誰撕的呢？"},
 }
 
 
 # Fixed street identities share names/art with their homes, but have outdoor lines.
 const STREET_PATROLS: Array[Dictionary] = [
-	{"house_id": "house_02", "text": "我每天都會來廣場看看花。今天的風很輕，正適合帶幼苗出來曬一會兒。"},
-	{"house_id": "house_01", "text": "織布坐久了，就得出來走走。市集裡布料的顏色，常常能給我新的靈感。"},
-	{"house_id": "house_08", "text": "讀到難懂的段落，我就沿著北街散步。有時走到路口，答案便自己浮現了。"},
+	{"house_id": "house_02", "text": "我每天都來廣場看看花。今天風很輕，正好帶幼苗出來曬一下。"},
+	{"house_id": "house_01", "text": "織布坐久了，得出來走走。看看大家衣服的顏色，常常就有新點子。"},
+	{"house_id": "house_08", "text": "讀不懂的地方，我就沿著北街散步。走到路口，答案有時就自己冒出來了。"},
 ]
 
 
 const FURNITURE: Dictionary = {
-	"house_01": {"name": "織布架", "text": "半織好的布面反覆出現菱形紋樣。仔細看，那其實像是被簡化的道路交會圖。"},
-	"house_02": {"name": "育苗工作架", "text": "三盆幼苗沒有朝窗邊，而是齊齊向村外伸展。盆沿註記寫著：只在月光恢復時才會如此。"},
-	"house_03": {"name": "月相紀錄架", "text": "多年卷冊顯示月相如常，照進村裡的月光卻逐年偏移。這場異常並非三天前才開始。"},
-	"house_04": {"name": "晾陶架", "text": "舊陶器底部都壓著帶缺口的環形印記，較新的器皿卻不再使用它。沒有人留下原因。"},
-	"house_05": {"name": "布料櫃", "text": "布卷依顏色排好，下層疊著洗淨的亞麻布。暖紅與米白的布料讓屋內顯得格外溫暖。"},
-	"house_06": {"name": "旅人裝備架", "text": "架上留著許多不同尺寸的舊行裝。暮光村曾接待大量過路者；北門封閉後，這間屋才漸漸空下來。"},
-	"house_07": {"name": "草藥架", "text": "幾束乾草藥旁標著早已陌生的地名。採集筆記說，它們來自如今無人能抵達的古道路線。"},
-	"house_08": {"name": "藏書閱讀櫃", "text": "建村紀錄有兩種互相矛盾的版本；夾頁間留下整齊撕痕，所有提到『引路人』的段落都不見了。"},
+	"house_01": {"name": "織布架", "text": "半織好的布上，菱形一個接一個。仔細看，像是很多條路交會在一起。"},
+	"house_02": {"name": "育苗工作架", "text": "三盆幼苗沒有朝著窗戶，而是一起朝村外長。盆邊的舊字條寫著：『月光回來的時候，它們會這樣。』"},
+	"house_03": {"name": "月相紀錄架", "text": "一疊很多年的紀錄。月亮每晚都在，照進村子的光卻一年比一年偏。"},
+	"house_04": {"name": "晾陶架", "text": "舊陶器底下都壓著缺口的圓環印，新做的碗卻沒有。沒人記得為什麼不印了。"},
+	"house_05": {"name": "布料櫃", "text": "布料依顏色排好。最上面那件，是剛補好的旅人外衣，針腳很細。"},
+	"house_06": {"name": "旅人裝備架", "text": "架上留著很多不同大小的舊行囊。最裡面那個繫著褪色的木牌：『商隊・十二年前・北門』。"},
+	"house_07": {"name": "草藥架", "text": "乾草藥旁寫著陌生的地名。筆記說，那些地方要走北門外的路才到得了。"},
+	"house_08": {"name": "藏書閱讀櫃", "text": "村子的由來有兩種寫法，互相對不上。夾頁裡有整齊的撕痕，提到『守路的人』的那幾頁都不見了。"},
 }
 
 

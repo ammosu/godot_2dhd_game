@@ -66,6 +66,9 @@ func _run() -> void:
 	state = root.get_node("GameState")
 	state.reset_new_game(false)
 	state.flags.intro_seen = true
+	# Chapter 1 keeps the entrance under a bell seal until Sia rings it open.
+	state.quest_state = state.QuestState.COMPLETE
+	state.chapter_stage = state.Chapter.SEAL_OPEN
 	save_path = "user://ashen_crypt_test_%d.json" % OS.get_process_id()
 	world = load("res://scenes/main.tscn").instantiate()
 	root.add_child(world)

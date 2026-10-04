@@ -5,7 +5,7 @@ const Facing = preload("res://scripts/gameplay/eight_way_facing.gd")
 const Grounding = preload("res://scripts/gameplay/sprite_grounding.gd")
 const SteppedTurn = preload("res://scripts/gameplay/stepped_turn.gd")
 const BodyLife = preload("res://scripts/gameplay/body_life.gd")
-const IDENTITIES: Array[String] = ["mira", "flo", "sien", "locke", "ada", "rain", "seph", "owen"]
+const IDENTITIES: Array[String] = ["mira", "flo", "sien", "locke", "ada", "rain", "seph", "owen", "sia", "noah"]
 ## Fallback cadence when no walker reports a ground speed.
 const WALK_FPS: float = 6.0
 ## Distance-driven cadence stays legible inside this frame-rate range.
@@ -17,6 +17,7 @@ const MAX_WALK_FPS: float = 9.0
 const STRIDE_METRES: Dictionary[String, float] = {
 	"mira": 0.20, "flo": 0.14, "sien": 0.35, "locke": 0.20,
 	"ada": 0.28, "rain": 0.35, "seph": 0.25, "owen": 0.16,
+	"sia": 0.24, "noah": 0.32,
 }
 # The first drawing is idle. Walking alternates contact and passing drawings.
 const WALK_SEQUENCE: Array[int] = [1, 2, 3, 2]

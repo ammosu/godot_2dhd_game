@@ -2,14 +2,14 @@ extends RefCounted
 ## Shop identities and original mesh dressing; existing addresses remain save-compatible.
 const Build = preload("res://scripts/gameplay/japanese_house.gd")
 const SHOPS := {
-	"house_city_03": {"name": "鐵砧武器店", "kind": "weapon", "owner": "布倫・武器匠", "art": "blacksmith", "color": Color("a36045"), "upper": false,
-		"line": "歡迎來到鐵砧武器店。劍架上的長劍都經過配重，握把也纏了防滑皮革。出城前，可以打開裝備介面替隊伍挑選趁手的武器。", "display": "鍛造武器展示架", "detail": "長劍依重量排在木架上；鐵砧旁留下打磨的細屑。這裡展示武器，目前尚未開放買賣。"},
-	"house_city_25": {"name": "織盾裝備店", "kind": "armor", "owner": "茜・裝備裁縫", "art": "silk_merchant", "color": Color("527f95"), "upper": true,
-		"line": "織盾裝備店歡迎你。皮甲、披風和盾牌都要合身，走遠路才不會累。樓上是裁縫工作間，樓下可以看看護具，再到裝備介面調整隊伍的行裝。", "display": "盾甲與披風樣品", "detail": "木製人台披著藍色旅行斗篷，旁邊的盾牌包了金屬邊。展示品保留了皮革縫線與扣帶，目前尚未開放買賣。"},
-	"house_city_07": {"name": "月露藥水店", "kind": "potion", "owner": "白朮・藥水師", "art": "apothecary", "color": Color("537e66"), "upper": false,
-		"line": "這裡是月露藥水店。紅瓶是回復藥，藍瓶是調配中的月露，請別拿錯了。窗邊晾著草藥，架上的藥瓶避開爐火保存；目前先開放參觀。", "display": "藥瓶與調製筆記", "detail": "紅、藍、綠色藥瓶依用途分層收好，每瓶都繫著標籤。藥師正在整理供貨，藥水買賣尚未開放。"},
+	"house_city_03": {"name": "鐵砧武器店", "kind": "weapon", "owner": "赤松・武器匠", "art": "blacksmith", "color": Color("a36045"), "upper": false,
+		"line": "架上的劍都有人訂了，新鐵還卡在碼頭。這幾天只能讓你看看，賣不了。", "display": "待領的長劍", "detail": "每把劍的握柄都纏好皮革，掛著訂貨人的名字。鐵砧旁堆著打磨的碎屑。"},
+	"house_city_25": {"name": "織盾裝備店", "kind": "armor", "owner": "紗月・裝備裁縫", "art": "silk_merchant", "color": Color("527f95"), "upper": true,
+		"line": "新皮料還在路上，架上只有舊樣品。等料到了，才能替人做合身的護具。", "display": "護具與披風樣品", "detail": "人台上的藍披風縫了幾種針腳，旁邊靠著包鐵邊的盾。扣帶留著反覆試穿的摺痕。"},
+	"house_city_07": {"name": "月露藥水店", "kind": "potion", "owner": "若葉・藥水師", "art": "apothecary", "color": Color("537e66"), "upper": false,
+		"line": "新藥草還在船上，這批藥水也沒調好。先別買回去，我還得再試。", "display": "藥瓶與配藥筆記", "detail": "紅、藍、綠瓶分開擺著，瓶口都塞緊了。筆記上圈著幾個待改的份量。"},
 	"house_city_01": {"name": "月帆旅店", "kind": "inn", "owner": "小春・旅店掌櫃", "art": "tea_master", "color": Color("996552"), "upper": true,
-		"line": "歡迎住進月帆旅店。先喝杯熱茶，床鋪已經整理好了。到客房旁的休息處歇一會兒，就能恢復生命與魔力；這次住宿由商會招待。", "display": "旅店住宿簿", "detail": "住宿簿夾著商道地圖，櫃台後掛著房間鑰匙。低矮的樓上是客房外觀，現可活動的室內為一樓接待與雙床休息區。"},
+		"line": "霧夜進城的人，住宿錢由商會出。床鋪好了，你也去躺躺吧。", "display": "旅店住宿簿", "detail": "住宿簿旁放著房間鑰匙，幾頁留著沒擦乾的水痕。櫃台下備著乾毛巾。"},
 }
 
 static func exterior(house: Node3D, id: String) -> void:

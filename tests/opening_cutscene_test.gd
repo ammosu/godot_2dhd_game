@@ -47,13 +47,13 @@ func _run() -> void:
 	while is_instance_valid(film) and not bool(film.call("is_concluded")):
 		var index := int(film.get("shot_index"))
 		seen_maps[str(state.get("current_map"))] = true
-		if index == 2:
+		if index == 3:
 			if road_start_x == INF:
 				road_start_x = player.global_position.x
 			road_end_x = player.global_position.x
 			if road_prewalk_facing == Vector3.ZERO and not bool(player.call("is_scripted_walking")):
 				road_prewalk_facing = player.get_meta("cutscene_facing", Vector3.ZERO)
-		if index == 3:
+		if index == 4:
 			# The whisper beat: a glance toward the viewer side, then back to the road west.
 			var facing: Vector3 = player.get_meta("cutscene_facing", Vector3.ZERO)
 			var beat_time := float(film.get("shot_time"))
@@ -95,7 +95,7 @@ func _run() -> void:
 
 	# Skipping mid-walk must stop the scripted route cleanly.
 	film = world.call("_play_opening")
-	while int(film.get("shot_index")) < 2 or float(film.get("shot_time")) < 1.5:
+	while int(film.get("shot_index")) < 3 or float(film.get("shot_time")) < 1.5:
 		film.call("_process", 0.25)
 		await physics_frame
 	_check(bool(player.call("is_scripted_walking")), "Traveler must be walking in the road shot")

@@ -133,7 +133,8 @@ static func build_entrance(world: Node3D) -> void:
 	var stone := material(Vector2(1, 0), 0.5)
 	var detail := material(Vector2(0, 1), 1, true)
 	arch(root, Vector3(-8, 0, -1.8), 2.5, stone)
-	Maze.portal(world, Vector3(-8, 0, -1.8), "enter_crypt")
+	# Sealed by a bell crest until chapter 1 rings it open.
+	load("res://scripts/story/chapter_one.gd").build_crypt_entrance(world)
 	for side: float in [-1, 1]:
 		brazier(root, Vector3(-8 + side * 2.25, 0, -0.8), stone, detail)
 

@@ -361,16 +361,22 @@ func get_nearest_interactable() -> Interactable3D:
 		return null
 	var nearest: Interactable3D
 	var nearest_distance := INF
+	var fallback: Interactable3D
+	var fallback_distance := INF
 	for area in _interaction_area.get_overlapping_areas():
 		if area is Interactable3D:
 			if not area.facing_direction.is_zero_approx():
 				if not is_facing_direction(area.global_basis * area.facing_direction):
 					continue
 			var distance := global_position.distance_squared_to(area.global_position)
-			if distance < nearest_distance:
+			if area.low_priority:
+				if distance < fallback_distance:
+					fallback = area
+					fallback_distance = distance
+			elif distance < nearest_distance:
 				nearest = area
 				nearest_distance = distance
-	return nearest
+	return nearest if nearest != null else fallback
 
 
 func is_facing_direction(world_direction: Vector3) -> bool:

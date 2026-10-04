@@ -18,9 +18,9 @@ const STREETS := [
 const HOMES = preload("res://scripts/gameplay/city_house_catalog.gd").POSITIONS
 const PLACES := [[Vector2(-6, 11), "月帆市集"], [Vector2(-22, -19), "舊城巷"], [Vector2(22, -10), "工坊街"], [Vector2(-8, -29), "鐘樓庭"], [Vector2(-16, 35), "風丘商道 ↓"]]
 const TALKS := {
-	"city_sign": ["星灣城路牌", "歡迎來到星灣城。穿過南門是月帆市集；沿西側石巷可到舊城，東邊的工坊街繞著水岸延伸。返程請走南門，沿風丘商道回暮光村。"],
-	"city_rest": ["月帆茶棚", "熱茶和長凳隨時為遠行的人留著。先歇一會兒吧，再沿著城牆看看這座城。\n（生命與魔力已恢復。）"],
-	"city_history": ["鐘樓石誌", "星灣起初只有水邊的幾戶工匠。商隊沿山腳繞行，民居便沿著車轍生長；後來的人只把城牆接在山石之間，留下了今日彎彎曲曲的街巷。"],
+	"city_sign": ["星灣城路牌", "歡迎來到星灣城，往前是市集。夜裡起霧也不關城門，我們會敲鐘帶人回家。"],
+	"city_rest": ["月帆茶棚", "你喝完熱茶，在長凳上歇了一會兒。\n（生命與魔力已恢復。）"],
+	"city_history": ["鐘樓石誌", "石上刻著：霧會讓人迷路，忘記回家的路。城裡留一口鐘，叫他們回來。"],
 }
 
 static func spawn(map_id: String, spawn_id: String) -> Vector3:
@@ -236,8 +236,8 @@ static func add_residents(world: Node3D) -> void:
 		[Vector3(21, 0, -5), Vector3(23, 0, 2), Vector3(23, 0, 8)],
 		[Vector3(-18, 0, -27), Vector3(-12, 0, -27), Vector3(-11, 0, -23)],
 	]
-	var names := ["商販・莉亞", "石匠・梅森", "工匠・琳", "守鐘人・索恩"]
-	var lines := ["從暮光村來的？沿風丘商道的彎路走，就會到我們南門。市集東南角的茶棚可以休息。", "這些巷子比城牆還老。房子順著山腳蓋，路就跟著屋子轉彎。", "工坊的貨沿水岸運到市集。別急著離開，繞過池邊還有一整條街呢。", "每次商隊回城，鐘聲就會響起。想知道城的來歷，可以讀讀塔前的石誌。"]
+	var names := ["莉亞・商販", "梅森・石匠", "琳・工匠", "索恩・守鐘人"]
+	var lines := ["今天的魚賣完了，我正要收攤。起霧前得把空籃子搬回家。", "碼頭那級石階又鬆了，明早得去補。天天踩的地方，最容易沒人留意。", "茶棚的長凳是我修的。誰知剛修好，第一個坐上去的還是我。", "以前站在遠處的碼頭也聽得見鐘。這些年，鐘聲一年比一年傳得近了。"]
 	for index: int in range(routes.size()):
 		var resident := preload("res://scripts/gameplay/wandering_villager.gd").new()
 		resident.name = "CityResident%d" % index

@@ -23,6 +23,7 @@ func _run() -> void:
 	root.add_child(world)
 	world.set("_test_mode", true)
 	var seen: Dictionary = {}
+	var names: Dictionary = {}
 	for index: int in range(City.POSITIONS.size()):
 		var address := City.address(index)
 		var person := City.resident(address)
@@ -36,7 +37,7 @@ func _run() -> void:
 		check(is_equal_approx(art.pixel_size * Proportions.profile(texture, float(texture.get_meta("reference_height"))).x,
 			Proportions.HEIGHT * preload("res://scripts/gameplay/house_catalog.gd").INTERIOR_CHARACTER_SCALE), address + " height")
 		check(texture.region.size.x > 100 and texture.region.size.y > 250, address + " complete body")
-		var introduction: String = str(City.Shops.SHOPS[address].line) if City.Shops.SHOPS.has(address) else str(Residents.RESIDENTS[Residents.HOUSE_IDENTITIES[index]].line)
+		var introduction: String = str(City.Shops.SHOPS[address].line) if City.Shops.SHOPS.has(address) else str(Residents.HOUSEHOLDS[index].line)
 		check(str(person.text).contains(introduction), address + " introduction")
 		if "--capture" in OS.get_cmdline_user_args() and index == 5:
 			world.get_node("CameraRig").call("snap_to_target")
@@ -48,9 +49,11 @@ func _run() -> void:
 		while world.get_node("DialogueUI").call("is_open"):
 			world.get_node("DialogueUI").call("advance")
 		seen[person.art] = true
+		check(not names.has(person.name), address + " resident name is unique")
+		names[person.name] = true
 	check(seen.size() == 14, "all household and shop designs used")
 	world.queue_free()
 	await process_frame
 	if failures == 0:
-		print("CITY_RESIDENT_ART_TEST_PASS household and shop designs 26 homes dialogue scale")
+		print("CITY_RESIDENT_ART_TEST_PASS household and shop designs 26 homes unique_names dialogue scale")
 	quit(0 if failures == 0 else 1)

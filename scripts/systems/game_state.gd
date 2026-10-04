@@ -6,8 +6,12 @@ signal notification_requested(message: String)
 
 enum Mode { EXPLORE, DIALOGUE, BATTLE, EQUIPMENT, TRANSITION, MAP, CLASS_SELECTION, CUTSCENE }
 enum QuestState { NOT_STARTED, ACTIVE, READY_TO_TURN_IN, COMPLETE }
+## Chapter 1 "醒來的古道": one linear stage after the prologue. Companions are
+## derived from the stage (Noah from NOAH_JOINED, Sia from SIA_JOINED).
+enum Chapter { NONE, LIGHT_EAST, ELDER_CONFESSED, NOAH_JOINED, SEAL_FOUND, SIA_JOINED, SEAL_OPEN, EMBER_SHARD, CAMPFIRE, COMPLETE }
+const CHAPTER_ITEMS: Dictionary = {"rumi_letter": "露米的信", "bell_mallet": "古鐘槌", "starbay_reply": "星灣的回信", "ember_shard": "燼色碎片"}
 
-const SAVE_VERSION := 9
+const SAVE_VERSION := 10
 const HERO_BODIES: Array[String] = ["male", "female"]
 var player_body: String = "male"
 const HeroStyle = preload("res://scripts/gameplay/hero_style.gd")
@@ -35,6 +39,7 @@ var saved_position: Vector3 = Vector3.ZERO
 var has_saved_position: bool = false
 
 var quest_state: QuestState = QuestState.NOT_STARTED
+var chapter_stage: Chapter = Chapter.NONE
 var inventory: Dictionary = {"potion": 2}
 var owned_equipment: Array[String] = _starter_equipment()
 var equipped: Dictionary = {"weapon": "traveler_blade", "armor": "traveler_coat"}
@@ -185,6 +190,7 @@ func reset_new_game(announce: bool = true, class_id: String = "traveler", style_
 	saved_position = Vector3.ZERO
 	has_saved_position = false
 	quest_state = QuestState.NOT_STARTED
+	chapter_stage = Chapter.NONE
 	inventory = {"potion": 2}
 	player_level = 1
 	player_xp = 0
@@ -375,7 +381,39 @@ func complete_quest() -> void:
 	state_changed.emit()
 
 
+## Advance chapter 1 to `stage`; stages only move forward, one at a time.
+func advance_chapter(stage: Chapter) -> bool:
+	if quest_state != QuestState.COMPLETE or int(stage) != int(chapter_stage) + 1:
+		return false
+	chapter_stage = stage
+	state_changed.emit()
+	return true
+
+
+func has_companion(actor: String) -> bool:
+	match actor:
+		"noah":
+			return chapter_stage >= Chapter.NOAH_JOINED
+		"sia":
+			return chapter_stage >= Chapter.SIA_JOINED
+	return false
+
+
+func give_item(item: String, announce: bool = true) -> void:
+	inventory[item] = int(inventory.get(item, 0)) + 1
+	if announce:
+		notification_requested.emit("獲得：" + str(CHAPTER_ITEMS.get(item, item)))
+	state_changed.emit()
+
+
+func take_item(item: String) -> void:
+	inventory.erase(item)
+	state_changed.emit()
+
+
 func get_quest_text() -> String:
+	if quest_state == QuestState.COMPLETE and chapter_stage != Chapter.COMPLETE and not current_map.begins_with("house_"):
+		return load("res://scripts/story/chapter_one.gd").objective(int(chapter_stage), current_map)
 	if current_map == "ashen_crypt_1":
 		return "B1・探索左右環路與側室 → 北端下降 B2"
 	if current_map == "ashen_crypt_2":
@@ -404,7 +442,7 @@ func get_quest_text() -> String:
 				return "主線：帶著碎片穿過南門，返回暮光村"
 			return "主線：將月光碎片交給月燈旁的艾爾"
 		QuestState.COMPLETE:
-			return "序章完成：月燈復燃、古道甦醒，可自由探索"
+			return "第一章完成：可自由探索各地" if chapter_stage == Chapter.COMPLETE else "序章完成：月燈復燃、古道甦醒，可自由探索"
 	return ""
 
 
@@ -472,10 +510,16 @@ func load_game(path: String = SAVE_PATH, announce: bool = true) -> bool:
 		return false
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	file.close()
-	if not parsed is Dictionary or int(parsed.get("version", 0)) not in [1, 2, 3, 4, 5, 6, 7, 8, SAVE_VERSION]:
+	if not parsed is Dictionary or int(parsed.get("version", 0)) not in [1, 2, 3, 4, 5, 6, 7, 8, 9, SAVE_VERSION]:
 		if announce:
 			notification_requested.emit("存檔格式不相容")
 		return false
+	if int(parsed.version) >= 10:
+		# JSON numbers arrive as floats: require a whole number inside the enum.
+		var stage_value: Variant = parsed.get("chapter_stage")
+		if not (stage_value is int or stage_value is float) or not is_finite(float(stage_value)) \
+				or float(stage_value) != floorf(float(stage_value)) or int(stage_value) < Chapter.NONE or int(stage_value) > Chapter.COMPLETE:
+			return false
 	if int(parsed.version) >= 9 and (not parsed.get("player_body") is String or str(parsed.player_body) not in HERO_BODIES):
 		return false
 	if int(parsed.version) >= 8 and (not parsed.get("player_style") is String or not HeroStyle.DATA.has(parsed.player_style)):
@@ -525,6 +569,7 @@ func _serialize() -> Dictionary:
 		"saved_position": [saved_position.x, saved_position.y, saved_position.z],
 		"has_saved_position": has_saved_position,
 		"quest_state": int(quest_state),
+		"chapter_stage": int(chapter_stage),
 		"inventory": inventory.duplicate(true),
 		"owned_equipment": owned_equipment.duplicate(),
 		"equipped": equipped.duplicate(true),
@@ -552,6 +597,10 @@ func _apply_save(data: Dictionary) -> void:
 	field_defeated = Dictionary(data.get("field_defeated", {})).duplicate(true)
 	field_loot = Dictionary(data.get("field_loot", {})).duplicate(true)
 	quest_state = clampi(int(data.get("quest_state", 0)), QuestState.NOT_STARTED, QuestState.COMPLETE) as QuestState
+	# v1–v9 predate chapter 1: a finished prologue resumes at its first beat.
+	chapter_stage = Chapter.NONE
+	if int(data.get("version", 1)) >= 10 and quest_state == QuestState.COMPLETE:
+		chapter_stage = int(data.get("chapter_stage", 0)) as Chapter
 	inventory = Dictionary(data.get("inventory", {"potion": 2})).duplicate(true)
 	var saved_owned: Array = data.get("owned_equipment", ["traveler_blade", "moonsteel_saber", "traveler_coat", "moonward_cloak"])
 	owned_equipment.clear()
@@ -706,7 +755,7 @@ func resolve_crypt_event(id: String) -> String:
 	if id.begins_with("crypt_lore"):
 		flags[id] = true
 		state_changed.emit()
-		return "典獄長維爾莫曾守護墓窟。他將最後的月光封入胸前血晶，如今只記得阻止生者。" if id == "crypt_lore_1" else "銘文：斧刃升起時退開；赤焰鎖定後離開原地。血晶半碎之時，典獄長將失去最後的理智。"
+		return "牆上的刻字：典獄長維爾莫守在最深處。他把最後一點月光封進胸口的紅晶，只記得一件事——不准任何人把光帶走。" if id == "crypt_lore_1" else "牢房牆上，有人用指甲刮下：『他舉起斧頭時，退開。紅火盯上你時，別站著不動。等胸口的紅晶裂了，他會發狂。』"
 	if flags.get(id, false):
 		return "泉水已沉寂。" if id == "crypt_spring_1" else "補給箱已經空了。"
 	flags[id] = true

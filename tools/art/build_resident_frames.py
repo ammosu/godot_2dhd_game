@@ -11,7 +11,7 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
 ART = ROOT / "assets/generated/residents"
-IDENTITIES = ["mira", "flo", "sien", "locke", "ada", "rain", "seph", "owen"]
+IDENTITIES = ["mira", "flo", "sien", "locke", "ada", "rain", "seph", "owen", "sia", "noah"]
 ROWS = ["down", "down_left", "left", "up_left", "up", "up_right", "right", "down_right"]
 CANVAS = 320
 GROUND = 300

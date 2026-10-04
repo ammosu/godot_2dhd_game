@@ -39,7 +39,8 @@ func _run() -> void:
 		roster.append(identity)
 		check(villager.get_node("CharacterArt").get_script() == Art, "Patrol does not use shared resident presentation")
 	check(roster.size() == 3, "Keep three street patrols")
-	for index: int in range(Art.IDENTITIES.size()):
+	# The first eight identities own the village homes; travelling companions follow after them.
+	for index: int in range(8):
 		var identity: String = Art.IDENTITIES[index]
 		world.call("_load_map", "house_%02d" % (index + 1), "default")
 		var actor := (world.get("_map_root") as Node3D).get_node("HouseResident") as Node3D

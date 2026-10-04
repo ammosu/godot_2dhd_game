@@ -8,6 +8,7 @@ const DoorInteraction = preload("res://scripts/gameplay/door_interaction.gd")
 const Starbay = preload("res://scripts/gameplay/starbay.gd")
 const CryptLayout = preload("res://scripts/gameplay/crypt_layout.gd")
 const Dungeon = preload("res://scripts/gameplay/ashen_crypt.gd")
+const ChapterOne = preload("res://scripts/story/chapter_one.gd")
 const Outskirts = preload("res://scripts/gameplay/outskirts.gd")
 
 const HouseDetails = preload("res://scripts/gameplay/house_details.gd")
@@ -265,6 +266,12 @@ func cutscene_event(event_id: String) -> void:
 			var pulse := create_tween()
 			pulse.tween_property(_village_gate_light, "light_energy", 3.2, 0.9).set_trans(Tween.TRANS_SINE)
 			pulse.tween_property(_village_gate_light, "light_energy", 0.15, 1.6).set_trans(Tween.TRANS_SINE)
+		"waking_fog":
+			# Start in a thick murk and let it thin back to the map's own density.
+			var settled := _environment.fog_density
+			_environment.fog_density = 0.09
+			# Bound to the map root so a skip or map change stops it before the next map's fog.
+			_map_root.create_tween().tween_property(_environment, "fog_density", settled, 6.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 		"road_whisper":
 			var glow := OmniLight3D.new()
 			glow.name = "WhisperGlow"
@@ -286,8 +293,8 @@ func cutscene_conclude() -> void:
 
 func _show_intro() -> void:
 	dialogue_ui.show_dialogue([
-		{"speaker": "旁白", "text": "月光已連續三晚沒有照進暮光村，但遠方雲層仍泛著銀白。月亮沒有消失，只是不再回應這裡。"},
-		{"speaker": "旁白", "text": "中央月燈只剩最後一點冰冷微光，夜霧正在村界外聚集。先四處看看，再與廣場左側的長老交談。"},
+		{"speaker": "旁白", "text": "月光已經三個晚上沒有照進暮光村了。月亮還在，只是光不再落到這裡。"},
+		{"speaker": "旁白", "text": "月燈只剩最後一點光，霧在村外越聚越多。先四處看看，再去廣場左邊找長老。"},
 		{"speaker": "系統", "text": "使用左側搖桿移動；靠近頭上有記號的人或物件後，點右側「互動」。" if MobileControls.is_mobile_device() else "使用 WASD 或方向鍵移動；靠近頭上有記號的人或物件後，按 Space 互動。M 靜音，- / = 調整音量。"},
 	])
 
@@ -438,6 +445,7 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 	if spawn_id in ["from_base", "from_peak", "from_mountain", "from_east_road", "from_village", "from_forest", "from_road", "from_ruins", "from_caravan", "from_city"]:
 		var destination: String = str(Outskirts.NAMES.get(GameState.current_map, "北境遺跡" if GameState.current_map == "ruins" else "暮光村"))
 		_show_notice("抵達・" + destination)
+	ChapterOne.on_map_loaded(self, GameState.current_map)
 	_refresh_map_destinations()
 	_profile_map_stamp("total_" + map_id, profile_started)
 	map_presented.emit()
@@ -541,7 +549,8 @@ func _build_village() -> void:
 	stamp = _profile_map_stamp("village_moon_lamp", stamp)
 	_add_actor_interactable("elder", "與長老交談", Vector3(-3.0, 0.0, 1.2), "res://assets/generated/elder.tres", 1.6 / 724.0, Color.WHITE, false, MAIN_QUEST_MARKER)
 	_add_actor_interactable("rumi", "與露米交談", Vector3(6.4, 0.0, 4.2), "res://assets/generated/rumi.tres", 1.6 / 724.0, Color.WHITE, false, SIDE_CONTENT_MARKER)
-	_add_actor_interactable("noah", "與守門人交談", Vector3(2.2, 0.0, -17.0), "res://assets/generated/noah.tres", 1.6 / 724.0, Color.WHITE)
+	if not ChapterOne.noah_left_gate():
+		_add_actor_interactable("noah", "與守門人交談", Vector3(2.2, 0.0, -17.0), "res://assets/generated/noah.tres", 1.6 / 724.0, Color.WHITE)
 	_add_wandering_villagers()
 	_add_portal("portal_to_ruins", "前往北境遺跡", Vector3(0.0, 0.0, -19.3), Color("86d9ff"))
 	stamp = _profile_map_stamp("village_actors_portal", stamp)
@@ -858,6 +867,11 @@ func _close_arrival_door(home_id: String) -> void:
 func _handle_interaction(interaction_id: String) -> void:
 	if GameState.is_input_locked() or _portal_transition_pending:
 		return
+	if ChapterOne.handle(self, interaction_id):
+		var speaker := _map_root.get_node_or_null(NodePath(interaction_id.capitalize()))
+		if speaker != null and dialogue_ui.is_open() and interaction_id in ["elder", "rumi", "sia", "ch1_noah"]:
+			_begin_actor_conversation(speaker as Node3D)
+		return
 	if interaction_id in ["crypt_spring_1", "crypt_cache_2", "crypt_lore_1", "crypt_lore_2"]:
 		var lore: String = GameState.resolve_crypt_event(interaction_id)
 		if not lore.is_empty():
@@ -868,7 +882,7 @@ func _handle_interaction(interaction_id: String) -> void:
 		return
 	if interaction_id == "shop_inn_rest" and GameState.current_map == "house_city_01":
 		GameState.restore_player()
-		dialogue_ui.show_dialogue([{ "speaker": "小春・旅店掌櫃", "text": "睡得好嗎？熱茶已經泡好了。\n（生命與魔力已恢復。）" }])
+		dialogue_ui.show_dialogue([{ "speaker": "小春・旅店掌櫃", "text": "醒啦，熱茶就在床邊。\n（生命與魔力已恢復。）" }])
 		var keeper := _map_root.get_node_or_null("HouseResident") as Node3D
 		if keeper != null:
 			_begin_actor_conversation(keeper, false)
@@ -907,7 +921,10 @@ func _handle_interaction(interaction_id: String) -> void:
 	if Outskirts.EVENTS.has(interaction_id):
 		var event: Array = Outskirts.EVENTS[interaction_id]
 		if GameState.current_map == event[0]:
-			dialogue_ui.show_dialogue([{ "speaker": event[2], "text": GameState.resolve_outskirts_event(interaction_id) }])
+			var event_lines: Array[Dictionary] = [{ "speaker": "驛路旅人" if interaction_id == "road_traveler" else event[2], "text": GameState.resolve_outskirts_event(interaction_id) }]
+			if interaction_id == "road_traveler" and not ChapterOne.road_traveler_line().is_empty():
+				event_lines.append({ "speaker": "驛路旅人", "text": ChapterOne.road_traveler_line() })
+			dialogue_ui.show_dialogue(event_lines)
 			var traveler := _map_root.get_node_or_null(NodePath(interaction_id.capitalize())) as Node3D
 			if interaction_id == "road_traveler" and traveler != null:
 				_begin_actor_conversation(traveler)
@@ -923,8 +940,12 @@ func _handle_interaction(interaction_id: String) -> void:
 		var furniture: Dictionary = HouseCatalog.furniture(GameState.current_map)
 		var text: String = str(furniture.text)
 		if GameState.current_map == "house_02" and GameState.quest_state != GameState.QuestState.COMPLETE:
-			text = "三盆幼苗在微光中垂著葉。盆沿的舊註記寫著：月光恢復時，新葉會朝村外的道路伸展。"
-		dialogue_ui.show_dialogue([{"speaker": furniture.name, "text": text}])
+			text = "三盆幼苗在微光裡垂著葉子。盆邊的舊字條寫著：『月光回來的時候，新葉會朝村外長。』"
+		var shelf_lines: Array[Dictionary] = [{"speaker": furniture.name, "text": text}]
+		# City libraries keep the old street map: optional lore beyond the main path.
+		if GameState.current_map.begins_with("house_city_") and str(HouseCatalog.City.home(GameState.current_map).kind) == "library":
+			shelf_lines.append_array(ChapterOne.city_map_lines())
+		dialogue_ui.show_dialogue(shelf_lines)
 		return
 	match interaction_id:
 		"elder":
@@ -955,28 +976,28 @@ func _talk_to_elder() -> void:
 	match GameState.quest_state:
 		GameState.QuestState.NOT_STARTED:
 			dialogue_ui.show_dialogue([
-				{"speaker": "長老・艾爾", "text": "旅人，你也看見夜霧了吧。月燈若在今晚熄滅，霧就會越過村界。"},
-				{"speaker": "長老・艾爾", "text": "北境遺跡保存著一枚月光碎片，是古人留下的備用燈心。只有它能讓月燈重新燃起。"},
-				{"speaker": "旅人", "text": "月燈要我把借走的光送回原本的道路。那句話是什麼意思？"},
-				{"speaker": "長老・艾爾", "text": "夜霧已逼近，我們得先讓村民活過今晚。其餘的事，等月燈復燃再談。"},
-				{"speaker": "長老・艾爾", "text": "我會用月印開啟北方門扉。遺跡守衛或許會試探你；諾亞完成封印操作後會追上你，我也會隨後進入遺跡。"},
-				{"speaker": "旅人", "text": "我會在月燈熄滅以前，把碎片帶回來。"},
+				{"speaker": "長老・艾爾", "text": "旅人，霧已經到村口了。月燈今晚要是熄了，霧就會進村。"},
+				{"speaker": "長老・艾爾", "text": "北邊的遺跡裡有一塊月光碎片。把它放進月燈，燈就能再亮起來。"},
+				{"speaker": "旅人", "text": "我在月燈旁聽見一句話：「把借走的光還回去。」那是什麼意思？"},
+				{"speaker": "長老・艾爾", "text": "……先讓大家撐過今晚。其他的事，等燈亮了再說。"},
+				{"speaker": "長老・艾爾", "text": "我去打開北門。諾亞關好門就會追上你，我隨後也到。"},
+				{"speaker": "旅人", "text": "艾妲替我補過外衣，露米每晚都送湯來。我會把碎片帶回來。"},
 			], GameState.start_quest)
 		GameState.QuestState.ACTIVE:
 			dialogue_ui.show_dialogue([
-				{"speaker": "長老・艾爾", "text": "北方門扉已經開啟。沿著遺跡中的月紋石路前進，就能找到守衛。"},
-				{"speaker": "長老・艾爾", "text": "若受了傷，找找遺跡裡仍在發光的月泉。"},
+				{"speaker": "長老・艾爾", "text": "沿著遺跡裡發光的石路走，就會找到守衛。"},
+				{"speaker": "長老・艾爾", "text": "受了傷，就去找那口還在發光的泉水。"},
 			])
 		GameState.QuestState.READY_TO_TURN_IN:
 			dialogue_ui.show_dialogue([
-				{"speaker": "旅人", "text": "我帶回月光碎片了。"},
-				{"speaker": "長老・艾爾", "text": "太好了。把它放進月燈的燈心，讓我們看看月光是否還願意回應。"},
+				{"speaker": "旅人", "text": "碎片拿回來了。"},
+				{"speaker": "長老・艾爾", "text": "好……把它放進燈心吧。看看月光還願不願意回來。"},
 			], _complete_main_quest)
 		GameState.QuestState.COMPLETE:
 			dialogue_ui.show_dialogue([
-				{"speaker": "長老・艾爾", "text": "月燈再次閃耀，夜霧也退回了森林。謝謝你，暮光村的朋友。"},
-				{"speaker": "長老・艾爾", "text": "我只知道碎片可能喚醒古道，卻不知道道路另一端還有什麼。為了讓大家活過今晚，我沒有把一切告訴你。"},
-				{"speaker": "長老・艾爾", "text": "那道灼痕與月印同源。這場黑夜恐怕還沒有真正結束。"},
+				{"speaker": "長老・艾爾", "text": "燈亮了，霧也退回森林了。謝謝你，旅人。"},
+				{"speaker": "長老・艾爾", "text": "我知道碎片會叫醒某樣東西，卻不知道會是什麼。我沒有全部告訴你……對不起。"},
+				{"speaker": "長老・艾爾", "text": "手上這個記號，我在父親的舊書裡見過。再給我一點時間。"},
 			])
 
 
@@ -987,59 +1008,62 @@ func _talk_to_rumi() -> void:
 	match GameState.quest_state:
 		GameState.QuestState.NOT_STARTED:
 			dialogue_ui.show_dialogue([
-				{"speaker": "村童・露米", "text": "以前月燈亮起來時，整個廣場都像白天一樣。現在連小豬都不敢靠近村口了。"},
-				{"speaker": "村童・露米", "text": "奇怪的是，月燈周圍的影子沒有躲開光，反而全都朝北境遺跡伸過去。"},
-				{"speaker": "村童・露米", "text": "艾爾爺爺好像知道發生了什麼。你可以替我們問問他嗎？"},
+				{"speaker": "村童・露米", "text": "以前月燈一亮，廣場就跟白天一樣。現在連小豬都不敢靠近村口。"},
+				{"speaker": "村童・露米", "text": "還有，好奇怪喔。燈旁邊的影子沒有躲開光，全都朝北邊伸過去。"},
+				{"speaker": "村童・露米", "text": "媽媽說你的外衣補好了。艾爾爺爺好像知道發生什麼事，你幫我們問問他好不好？"},
 			])
 		GameState.QuestState.ACTIVE:
-			dialogue_ui.show_dialogue([{"speaker": "村童・露米", "text": "請小心回來。我會在這裡守著月燈最後的光。"}])
+			dialogue_ui.show_dialogue([{"speaker": "村童・露米", "text": "湯我會幫你熱著。一定要回來喔。"}])
 		GameState.QuestState.READY_TO_TURN_IN:
-			dialogue_ui.show_dialogue([{"speaker": "村童・露米", "text": "你的行囊在發光！快把碎片交給艾爾爺爺！"}])
+			dialogue_ui.show_dialogue([{"speaker": "村童・露米", "text": "你的包包在發光！快拿去給艾爾爺爺！"}])
 		GameState.QuestState.COMPLETE:
-			dialogue_ui.show_dialogue([{"speaker": "村童・露米", "text": "你看，連小豬都跑回來了！謝謝你把月光帶回家。"}])
+			dialogue_ui.show_dialogue([{"speaker": "村童・露米", "text": "小豬都跑回來了！媽媽說今晚的湯要多加一塊肉。"}])
 
 
 func _talk_to_noah() -> void:
 	match GameState.quest_state:
 		GameState.QuestState.NOT_STARTED:
 			dialogue_ui.show_dialogue([
-				{"speaker": "守門人・諾亞", "text": "北方門扉已沉睡多年。沒有長老的月印，我不能讓任何人冒險進去。"},
-				{"speaker": "守門人・諾亞", "text": "但你抵達村莊的那一晚，門上的月紋曾自行亮起。我不知道那是否只是巧合。"},
+				{"speaker": "守門人・諾亞", "text": "北門已經關了十二年。沒有長老的月印，誰都不能出去。"},
+				{"speaker": "守門人・諾亞", "text": "不過……你來的那天晚上，門上的月紋自己亮了一下。"},
 			])
 		GameState.QuestState.ACTIVE:
 			dialogue_ui.show_dialogue([
-				{"speaker": "守門人・諾亞", "text": "月印已經生效。門後就是北境遺跡。"},
-				{"speaker": "守門人・諾亞", "text": "戰鬥時用方向鍵移動，J 攻擊、K 技能、空白鍵閃避。Tab 可切換隊員，我能用技能守護全隊。"},
+				{"speaker": "守門人・諾亞", "text": "門開了。我把門關好，馬上去追你。"},
+				{"speaker": "系統", "text": "戰鬥：方向鍵移動，J 攻擊、K 技能、空白鍵閃避，Tab 切換隊員。"},
 			])
 		GameState.QuestState.READY_TO_TURN_IN:
-			dialogue_ui.show_dialogue([{"speaker": "守門人・諾亞", "text": "我看見門扉重新亮起，就知道你成功了。長老正在月燈旁等你。"}])
+			dialogue_ui.show_dialogue([{"speaker": "守門人・諾亞", "text": "門又亮起來了，我就知道你成功了。長老在月燈旁等你。"}])
 		GameState.QuestState.COMPLETE:
-			dialogue_ui.show_dialogue([{"speaker": "守門人・諾亞", "text": "夜霧退去了，但遺跡的門仍在低鳴。我開始懷疑：這扇門究竟是在阻擋危險，還是在阻擋被我們遺忘的人？"}])
+			dialogue_ui.show_dialogue([
+				{"speaker": "守門人・諾亞", "text": "霧退了。可是我一直在想，門關著的時候，被擋在外面的是誰。"},
+				{"speaker": "守門人・諾亞", "text": "十二年前，也有人在霧裡敲這扇門，敲了一整晚。長老叫我別回頭……天亮前，敲門聲就停了。"},
+			])
 
 
 func _inspect_moon_lamp() -> void:
 	match GameState.quest_state:
 		GameState.QuestState.NOT_STARTED:
 			dialogue_ui.show_dialogue([
-				{"speaker": "月燈", "text": "燈心裡只剩一點冰冷的銀光，彷彿隨時會被風吹熄。"},
-				{"speaker": "不明低語", "text": "把借走的光，送回它原本要照亮的道路。"},
-				{"speaker": "旅人", "text": "……是聲音，還是某段不屬於我的記憶？"},
+				{"speaker": "月燈", "text": "燈裡只剩一點冷冷的光，好像隨時會熄。"},
+				{"speaker": "不明低語", "text": "……把借走的光，還給原本的路。"},
+				{"speaker": "旅人", "text": "是誰在說話？"},
 			])
 		GameState.QuestState.ACTIVE:
-			dialogue_ui.show_dialogue([{"speaker": "月燈", "text": "微光比剛才更弱了。必須盡快從北境遺跡帶回月光碎片。"}])
+			dialogue_ui.show_dialogue([{"speaker": "月燈", "text": "光又弱了一點。得快點把碎片帶回來。"}])
 		GameState.QuestState.READY_TO_TURN_IN:
-			dialogue_ui.show_dialogue([{"speaker": "月燈", "text": "行囊中的月光碎片正與燈心共鳴。先讓長老確認它的力量。"}])
+			dialogue_ui.show_dialogue([{"speaker": "月燈", "text": "包裡的碎片和燈心一起微微發亮。先拿給長老吧。"}])
 		GameState.QuestState.COMPLETE:
-			dialogue_ui.show_dialogue([{"speaker": "月燈", "text": "溫暖的月光灑滿廣場，石縫中的環形光路卻仍朝村外延伸。這盞燈正在重新指向某條道路。"}])
+			dialogue_ui.show_dialogue([{"speaker": "月燈", "text": "月光灑滿廣場。可是石縫裡有一道光，一直往村外延伸。"}])
 
 
 func _read_ruin_tablet() -> void:
 	GameState.flags["ruin_tablet_read"] = true
 	GameState.state_changed.emit()
 	dialogue_ui.show_dialogue([
-		{"speaker": "風化石碑", "text": "『月光並非驅散黑暗，而是指引迷途之人穿過黑暗。』"},
-		{"speaker": "風化石碑", "text": "『持燈者不得將光據為己有……不得因一地的安寧，使道路上的人永遠迷失。』"},
-		{"speaker": "旅人", "text": "下方刻著一枚帶缺口的環形紋章，名稱卻被人刻意磨去了。"},
+		{"speaker": "風化石碑", "text": "『月光不是用來趕走黑暗，是用來帶人穿過黑暗。』"},
+		{"speaker": "風化石碑", "text": "『守燈的人，不可以把光留給自己……不可以為了一個地方的平安，讓路上的人永遠迷路。』"},
+		{"speaker": "旅人", "text": "下面刻著一個缺了口的圓環。旁邊的名字，被人故意磨掉了。"},
 	])
 
 
@@ -1047,17 +1071,17 @@ func _rest_at_moon_spring() -> void:
 	var memory: Texture2D = props.art_texture("res://assets/generated/moon_spring_memory.png")
 	var needs_rest := GameState.player_hp < GameState.player_max_hp or GameState.player_mp < GameState.player_max_mp
 	var lines: Array[Dictionary] = [
-		{"speaker": "月泉", "text": "泉面映出一段不屬於此刻的景象：許多人曾沿月光穿過夜霧，直到一道新建的村牆截斷道路。", "illustration": memory, "cinematic": "moon_memory"},
+		{"speaker": "月泉", "text": "水面浮出一段畫面：很多人提著燈走在霧裡，直到一道牆擋住了路。有人在牆外敲門。", "illustration": memory, "cinematic": "moon_memory"},
 	]
 	if needs_rest:
 		GameState.restore_player()
-		lines.append({"speaker": "月泉", "text": "景象散去，清澈的光流過全身。HP 與 MP 已完全恢復。"})
+		lines.append({"speaker": "月泉", "text": "畫面散去，清涼的光流過全身。HP 與 MP 已完全恢復。"})
 	else:
-		lines.append({"speaker": "旅人", "text": "HP 與 MP 都很充足。但這段被截斷歸途的記憶，為什麼要讓我看見？"})
+		lines.append({"speaker": "旅人", "text": "我沒受傷……可是那個敲門的人，為什麼要讓我看見？"})
 	if GameState.quest_state == GameState.QuestState.ACTIVE:
-		lines.append({"speaker": "系統", "text": "試煉就在遺跡原地進行。WASD 移動，J 攻擊、K 技能、空白鍵閃避；確認紅色預警後離開危險區。Tab 換人、Q/E 轉鏡頭，石柱能擋住攻擊。"})
-		lines.append({"speaker": "系統", "text": "諾亞的守護、艾爾的療癒要選存活同伴；療癒不能復活。霜星爆選中央敵人可波及三人，普通攻擊不耗 MP。"})
-		lines.append({"speaker": "系統", "text": "挑戰前可開啟裝備調整三人的武器與防具，並在探索時存檔。全隊倒下會回村恢復，任務仍可重試。"})
+		lines.append({"speaker": "系統", "text": "WASD 移動，J 攻擊、K 技能、空白鍵閃避。看到紅色預警，確認範圍後離開。Tab 換人、Q/E 轉鏡頭，石柱可以擋攻擊。"})
+		lines.append({"speaker": "系統", "text": "諾亞能保護隊友，艾爾能治療隊友（不能復活）。霜星爆打中間的敵人可以波及三個。普通攻擊不花 MP。"})
+		lines.append({"speaker": "系統", "text": "挑戰前可以調整三人的裝備並存檔。全隊倒下會回到村子，可以再試一次。"})
 	dialogue_ui.show_dialogue(lines)
 
 
@@ -1066,14 +1090,14 @@ func _talk_to_guardian() -> void:
 		return
 	var lines: Array[Dictionary] = []
 	if bool(GameState.flags.get("ruin_tablet_read", false)):
-		lines.append({"speaker": "遺跡守衛", "text": "你讀過引路人的誓言，也看見了那枚被抹去名字的缺口環紋。"})
+		lines.append({"speaker": "遺跡守衛", "text": "你讀了石碑上的誓言，也看到了那個被磨掉名字的圓環。"})
 	else:
-		lines.append({"speaker": "遺跡守衛", "text": "碎片能救你的村莊，也會喚醒一條被封閉的古道。力量與道路的責任不可分離。"})
-	lines.append({"speaker": "遺跡守衛", "text": "每當引路之光被鎖在一地，霧中的道路便更加黯淡。證明你帶回村莊的是希望，而不是另一道只保護少數人的牆。"})
-	lines.append({"speaker": "遺跡守衛", "text": "苔背狼是只求存活的恐懼，月蝕術士是占有月光的執念。這兩段失敗的記憶，將與我一同試問你們的決心。"})
-	lines.append({"speaker": "旅人", "text": "我要讓村民活過今晚，也不會忘記仍在霧中尋路的人。那就開始吧。"})
-	lines.append({"speaker": "諾亞", "text": "我和長老會自動助戰，你可以用 Tab 換人。確認站位、閃開紅色預警，再趁敵人收招攻擊。"})
-	lines.append({"speaker": "長老", "text": "霜星爆能波及附近的敵人。注意範圍圈和命中標記，不必只盯著守衛。"})
+		lines.append({"speaker": "遺跡守衛", "text": "碎片能救你的村子，也會叫醒一條被關起來的路。"})
+	lines.append({"speaker": "遺跡守衛", "text": "光被關在一個地方，霧裡的路就更暗。你要帶回去的，是希望，還是另一道牆？"})
+	lines.append({"speaker": "遺跡守衛", "text": "狼是只想活下去的害怕，術士是想把光據為己有的貪心。我們三個，一起來問你。"})
+	lines.append({"speaker": "旅人", "text": "我還不知道答案。但村裡有人在等我回去。"})
+	lines.append({"speaker": "諾亞", "text": "我跟著你。這一次，我不會再假裝沒聽見。"})
+	lines.append({"speaker": "系統", "text": "諾亞和艾爾會自動幫忙，Tab 可以換人。閃開紅色預警，趁敵人收招時反擊；霜星爆能打到附近的敵人。"})
 	dialogue_ui.show_dialogue(lines, _start_guardian_battle)
 
 
@@ -1084,17 +1108,17 @@ func _complete_main_quest() -> void:
 	if not _test_mode:
 		GameState.save_game(GameState.SAVE_PATH, false)
 	var ending_lines: Array[Dictionary] = [
-		{"speaker": "旁白", "text": "碎片融入燈心。銀白光芒沿著廣場的石縫擴散，村外的夜霧開始退去。"},
-		{"speaker": "村童・露米", "text": "月光回來了！小豬也敢靠近廣場了！"},
-		{"speaker": "旁白", "text": "歡呼聲中，石縫浮現一條通往村外的環形光路。艾爾手中的月印同時烙下一枚缺口環紋。"},
-		{"speaker": "長老・艾爾", "text": "……古道真的醒了。我知道碎片可能帶來這個結果，但若不點燈，村莊今晚便會被夜霧吞沒。"},
+		{"speaker": "旁白", "text": "碎片融進燈心。白色的光沿著石縫散開，村外的霧慢慢退去。"},
+		{"speaker": "村童・露米", "text": "月光回來了！小豬也跑回廣場了！"},
+		{"speaker": "旁白", "text": "歡呼聲中，石縫亮起一條往村外延伸的光路。艾爾手上的月印，燒出了一個缺口的圓環。"},
+		{"speaker": "長老・艾爾", "text": "……路醒了。我知道會這樣。可是不點燈，大家今晚就撐不過去。"},
 	]
 	if bool(GameState.flags.get("ruin_tablet_read", false)):
-		ending_lines.append({"speaker": "旅人", "text": "我在遺跡的石碑上看過相同的紋章。有人刻意抹去了它的名字。"})
+		ending_lines.append({"speaker": "旅人", "text": "遺跡的石碑上也有這個圓環。它的名字，被人刻意抹去了。"})
 	var awakening := load("res://assets/generated/fog_awakening.png") as Texture2D
-	ending_lines.append({"speaker": "旁白", "text": "遠方的夜霧中，某個沉睡已久的存在因古道復甦而睜開了眼睛。", "illustration": awakening, "motion": "awakening"})
-	ending_lines.append({"speaker": "霧中之聲", "text": "最後一盞路燈，終於又亮了。", "illustration": awakening, "motion": "awakening"})
-	ending_lines.append({"speaker": "系統", "text": "序章〈熄滅的月燈〉完成。可繼續與村民交談、調查月燈，或探索八棟住宅；古道另一端的旅程尚未開放。"})
+	ending_lines.append({"speaker": "旁白", "text": "遠方的霧裡，有什麼東西睜開了眼睛。", "illustration": awakening, "motion": "awakening"})
+	ending_lines.append({"speaker": "霧中之聲", "text": "最後一盞燈……終於又亮了。", "illustration": awakening, "motion": "awakening"})
+	ending_lines.append({"speaker": "系統", "text": "序章〈熄滅的月燈〉完成。可以繼續和村民聊天、逛村裡的房子，或往東邊的路走走看。"})
 	var seal: Node3D = preload("res://scripts/gameplay/keeper_seal_motion.gd").new()
 	seal.last_reveal_page = 4 if bool(GameState.flags.get("ruin_tablet_read", false)) else 3
 	seal.bind_actor(_map_root.get_node("Elder/CharacterArt") as Sprite3D)
@@ -1139,8 +1163,8 @@ func _on_battle_finished(victory: bool) -> void:
 		shard.fly_to(player.position + Vector3.UP * 2.3)
 		var shard_reference: WeakRef = weakref(shard)
 		dialogue_ui.show_dialogue([
-			{"speaker": "遺跡守衛", "text": "試煉證明的不是你能奪走它，而是你身邊仍有人願意守護、療癒與同行。燈亮起時，路也會醒來。"},
-			{"speaker": "旁白", "text": "守衛解除形體，碎片主動飛向旅人；它的斷裂外環與石碑紋章吻合。終有一天，旅人必須決定月光該照向一座村莊，還是所有迷途之人。"},
+			{"speaker": "遺跡守衛", "text": "你們證明的，不是能把它搶走，而是身邊還有人願意保護你、治療你、陪你走。燈亮的時候，路也會醒來。"},
+			{"speaker": "旁白", "text": "守衛化成光點散去。碎片自己飛向旅人，邊上缺了一角，像一個沒閉合的圓環。"},
 		], func() -> void:
 			var presentation := shard_reference.get_ref() as Node3D
 			if presentation != null:
@@ -1149,8 +1173,8 @@ func _on_battle_finished(victory: bool) -> void:
 	else:
 		GameState.restore_after_defeat()
 		dialogue_ui.show_dialogue([
-			{"speaker": "旁白", "text": "村民在遺跡入口發現了你，並將你送回暮光村。"},
-			{"speaker": "系統", "text": "HP 與 MP 已恢復，北門仍然開啟。調整裝備後可再次挑戰；已使用的藥水不會補回，普通攻擊與閃避可免費使用。"},
+			{"speaker": "旁白", "text": "村民在遺跡入口找到你，把你帶回了村子。"},
+			{"speaker": "系統", "text": "HP 與 MP 已恢復，北門還開著。調整裝備後可以再挑戰；用掉的藥水不會補回。"},
 		], func() -> void: GameState.request_map("village", "default"))
 
 
@@ -1173,7 +1197,7 @@ func _add_actor_interactable(interaction_id: String, prompt: String, world_posit
 	actor.add_child(shape_node)
 
 	# Keep the interaction area generous while blocking movement at the feet.
-	if interaction_id in ["elder", "rumi", "noah", "guardian", "road_traveler"]:
+	if interaction_id in ["elder", "rumi", "noah", "guardian", "road_traveler", "sia", "ch1_noah"]:
 		var body := StaticBody3D.new()
 		body.name = "ActorBody"
 		body.collision_layer = 1
@@ -1189,10 +1213,10 @@ func _add_actor_interactable(interaction_id: String, prompt: String, world_posit
 
 	var sprite := Sprite3D.new()
 	sprite.name = "CharacterArt"
-	if interaction_id in ["noah", "elder", "rumi"]:
+	if interaction_id in ["noah", "elder", "rumi", "ch1_noah"]:
 		sprite.set_script(preload("res://scripts/gameplay/equipment_actor.gd"))
-		sprite.set("actor_id", interaction_id)
-	if interaction_id in ["house_resident", "road_traveler"]:
+		sprite.set("actor_id", "noah" if interaction_id == "ch1_noah" else interaction_id)
+	if interaction_id in ["house_resident", "road_traveler", "sia"]:
 		if texture_path.contains("/city_residents/"):
 			sprite.set_script(preload("res://scripts/gameplay/city_resident_art.gd"))
 		else:
@@ -1253,21 +1277,27 @@ func _update_quest_markers() -> void:
 	if is_instance_valid(_village_gate_marker):
 		_village_gate_marker.visible = not filming
 	for interaction_id: String in _quest_markers:
-		var marker := _quest_markers[interaction_id] as Label3D
-		if not is_instance_valid(marker):
+		# Actors who leave mid-map (companions joining) free their markers.
+		if not is_instance_valid(_quest_markers[interaction_id]):
 			continue
+		var marker := _quest_markers[interaction_id] as Label3D
 		if filming:
 			marker.visible = false
 			continue
 		match interaction_id:
 			"elder":
-				marker.visible = GameState.quest_state in [GameState.QuestState.NOT_STARTED, GameState.QuestState.READY_TO_TURN_IN]
+				marker.visible = GameState.quest_state in [GameState.QuestState.NOT_STARTED, GameState.QuestState.READY_TO_TURN_IN] \
+					or (GameState.quest_state == GameState.QuestState.COMPLETE and GameState.chapter_stage == GameState.Chapter.LIGHT_EAST)
 			"rumi":
 				marker.visible = not bool(GameState.flags.get("rumi_tip_seen", false))
 			"guardian":
 				marker.visible = GameState.quest_state == GameState.QuestState.ACTIVE and not bool(GameState.flags.get("guardian_defeated", false))
 			_:
-				marker.visible = not bool(GameState.flags.get(interaction_id, false)) if Outskirts.EVENTS.has(interaction_id) else true
+				var chapter_marker: Variant = ChapterOne.marker_visible(interaction_id)
+				if chapter_marker != null:
+					marker.visible = bool(chapter_marker)
+				else:
+					marker.visible = not bool(GameState.flags.get(interaction_id, false)) if Outskirts.EVENTS.has(interaction_id) else true
 
 
 func _add_moon_lamp(world_position: Vector3) -> void:

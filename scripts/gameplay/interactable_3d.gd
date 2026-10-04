@@ -8,6 +8,8 @@ signal activated(interaction_id: String)
 ## Required approach direction in local space; zero allows any facing.
 @export var facing_direction: Vector3 = Vector3.ZERO
 @export var automatic_distance: float = 0.0
+## Yields to every other target in reach (e.g. companions who are always nearby).
+@export var low_priority: bool = false
 
 
 func _ready() -> void:

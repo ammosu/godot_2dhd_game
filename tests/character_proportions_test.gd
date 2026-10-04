@@ -58,7 +58,11 @@ func _run() -> void:
 		var frames := load("res://assets/generated/residents/" + actor + "_walk.tres") as SpriteFrames
 		var texture := frames.get_frame_texture(&"down", 0)
 		_entry(actor, texture, float(texture.get_meta("reference_height")))
-	for actor: String in preload("res://scripts/gameplay/city_resident_catalog.gd").RESIDENTS:
+	var city_arts: Array[String] = []
+	for household: Dictionary in preload("res://scripts/gameplay/city_resident_catalog.gd").HOUSEHOLDS:
+		if not city_arts.has(str(household.art)):
+			city_arts.append(str(household.art))
+	for actor: String in city_arts:
 		var texture := load("res://assets/generated/city_residents/" + actor + ".tres") as Texture2D
 		_entry(actor, texture, float(texture.get_meta("reference_height")))
 	# Equipment previews keep the same standing reference across attack poses,

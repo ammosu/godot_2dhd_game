@@ -39,8 +39,13 @@
 ## 開場影片
 
 `godot --headless --path . --fixed-fps 60 --script tests/opening_cutscene_test.gd`
-驗證選角後的開場影片：完整播放會經過東行舊道與暮光村、主角沿舊道向西走、播放期間鎖定輸入並隱藏 HUD；單次按鍵只顯示跳過提示，逾時不跳過，兩次確認才跳過；走位中跳過會停止腳本路徑；三種結束方式都回到暮光村出生點、恢復探索鏡頭與 HUD，接上原本的旁白，且不寫正式存檔。成功標記 `OPENING_CUTSCENE_TEST_PASS natural skip_confirm skip_mid_walk final_state no_save shots=8`。
+驗證選角後的開場影片：完整播放會先在東行舊道的霧中醒來（主觀低角度鏡頭），再經過東行舊道與暮光村、主角沿舊道向西走、播放期間鎖定輸入並隱藏 HUD；單次按鍵只顯示跳過提示，逾時不跳過，兩次確認才跳過；走位中跳過會停止腳本路徑；三種結束方式都回到暮光村出生點、恢復探索鏡頭與 HUD，接上原本的旁白，且不寫正式存檔。成功標記 `OPENING_CUTSCENE_TEST_PASS natural skip_confirm skip_mid_walk final_state no_save shots=9`。
 移除 `--headless` 並加 `-- --capture-dir=/absolute/existing/directory` 可在每個鏡頭 25%／55%／85% 各存一張截圖；分別以 `--rendering-method forward_plus` 與 `gl_compatibility` 檢查。
+
+## 第一章〈醒來的古道〉
+
+`godot --headless --path . --script tests/chapter_one_test.gd`
+依序走完第一章九個節點：序章前封門不觸發、月燈光路、艾爾坦白、東口諾亞同行、跟隨與追上、封門提示優先於同伴、鐘紋封門、希雅同行與道具交換、書屋隱藏街巷圖、住宅內不跟隨、敲開封門換成傳送門、維爾莫未敗前祭壇不前進、燼色碎片、營火恢復、提燈人插圖結尾、回信交給露米、存檔 v10 往返、v9 遷移與拒絕格式錯誤的 `chapter_stage`。使用獨立 `user://chapter_one_test.json` 並於結束刪除。成功標記 `CHAPTER_ONE_TEST_PASS beats companions seal items ending save_v10 migration`。
 
 # Playthrough smoke test
 

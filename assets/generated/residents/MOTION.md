@@ -12,6 +12,8 @@ Original art generated with **built-in ImageGen**, 2026-09-21. All eight `*_walk
 | rain | 旅人・雷恩 | [atlas](rain_walk.png), [prompt](rain_walk_prompt.md) |
 | seph | 藥師・賽芙 | [atlas](seph_walk.png), [prompt](seph_walk_prompt.md) |
 | owen | 藏書人・歐文 | [atlas](owen_walk.png), [prompt](owen_walk_prompt.md) |
+| sia | 鐘守・希雅（第一章） | [atlas](sia_walk.png)，提示詞見 [CHAPTER_ONE_ART.md](../CHAPTER_ONE_ART.md)（2026-10-04，Codex CLI imagegen） |
+| noah | 守門人・諾亞（同行） | [atlas](noah_walk.png)，提示詞見 [CHAPTER_ONE_ART.md](../CHAPTER_ONE_ART.md)（2026-10-04，Codex CLI imagegen） |
 
 Rows: down, down-left, left, up-left, up, up-right, right, down-right. Columns: idle, contact A, passing, contact B. Animation plays drawings 1 → 2 → 3 → 2 at six drawings per second and returns to drawing 0 when stopped or input is locked. Actual silhouettes and strides vary naturally by outfit; long dresses have smaller visible steps.
 
