@@ -34,10 +34,14 @@ func _run() -> void:
 	var first_frame := sprite.sprite_frames.get_frame_texture(&"down", 0) as AtlasTexture
 	var atlas_image := first_frame.atlas.get_image()
 	_check(atlas_image != null and atlas_image.detect_alpha() != Image.ALPHA_NONE, "Player atlas requires a transparent background")
-	for row: int in range(4):
+	# Hand-painted atlases hold four poses; rigged ones a standing pose plus an
+	# eight-frame cycle whose stride frames keep the rig's body bob.
+	var rigged := str(first_frame.get_meta("pose", "")) == "stand"
+	var pose_count: int = 9 if rigged else 4
+	for row: int in range(pose_count):
 		for column: int in range(DIRECTIONS.size()):
 			var animation: StringName = DIRECTIONS[column]
-			_check(sprite.sprite_frames.get_frame_count(animation) == 4, "Each direction needs four poses")
+			_check(sprite.sprite_frames.get_frame_count(animation) == pose_count, "Each direction needs %d poses" % pose_count)
 			var frame := sprite.sprite_frames.get_frame_texture(animation, row) as AtlasTexture
 			_check(frame.get_size() == Vector2(352, 352), "All poses need the same presentation canvas")
 			atlas_image = frame.atlas.get_image()
@@ -52,13 +56,21 @@ func _run() -> void:
 						bottom = maxi(bottom, y - region.position.y + 1)
 						_check(x > region.position.x and x < region.end.x - 1 and y > region.position.y and y < region.end.y - 1, "Visible silhouette clipped by frame")
 			_check(visible_pixels > 1000, "Empty or incomplete player pose")
-			_check(is_equal_approx(float(bottom) + frame.margin.position.y, 316.0), "Player feet must share a baseline")
+			var sole := float(bottom) + frame.margin.position.y
+			if rigged and row > 0:
+				_check(sole >= 304.0 and sole <= 318.0, "Stride sole %.0f strays from the baseline" % sole)
+			else:
+				_check(is_equal_approx(sole, 316.0), "Player feet must share a baseline")
 	var directions: Array[Vector2] = INPUTS
+	# Presentation steps advance one four-frame unit each: frames 0-3, or every
+	# other frame of a rigged eight-frame cycle after its standing pose.
+	var first: int = 1 if rigged else 0
+	var per_unit: int = (pose_count - first) / 4
 	for column: int in range(DIRECTIONS.size()):
 		player.set("_walk_time", 0.0)
 		for row: int in range(4):
 			player.call("_update_sprite", directions[column], Vector3.FORWARD, 0.0 if row == 0 else 0.125)
-			_check(sprite.animation == DIRECTIONS[column] and sprite.frame == row, "Wrong player animation selection")
+			_check(sprite.animation == DIRECTIONS[column] and sprite.frame == first + row * per_unit, "Wrong player animation selection")
 			_check(is_equal_approx(sprite.offset.y, 140.0) and is_equal_approx(sprite.position.y, 0.012), "Walking frame changed grounded pivot")
 			_check(is_zero_approx(sprite.rotation.z), "Walking frame introduced artificial lean")
 		player.call("_update_sprite", Vector2.ZERO, Vector3.ZERO, 0.1)
@@ -77,9 +89,12 @@ func _run() -> void:
 		player.call("_update_sprite", Vector2(-1, -1), Vector3.FORWARD, 0.0)
 		state.set("equipped", gear)
 		state.emit_signal("state_changed")
-		_check(sprite.animation == &"up_left" and sprite.frame == 1, "Equipment switch lost diagonal stride")
+		# Phase 1.0 is the first contact: frame 1 of four, frame 3 after a rigged standing pose.
+		var contact: int = int(player.call("_cycle_first_frame")) + int(player.call("_cycle_length")) / 4
+		_check(sprite.animation == &"up_left" and sprite.frame == contact, "Equipment switch lost diagonal stride")
 		var art := sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame)
-		var ground: float = preload("res://scripts/gameplay/sprite_grounding.gd").foot_baseline(art)
+		# Rigged stride frames keep their bob, so they anchor at the atlas ground line.
+		var ground: float = float(art.get_meta("ground_y")) if rigged else preload("res://scripts/gameplay/sprite_grounding.gd").foot_baseline(art)
 		_check(is_equal_approx(ground - art.get_height() * 0.5, sprite.offset.y), "Equipment switch moved feet")
 	# A correct atlas alone does not prove camera-relative presentation: project
 	# actual computed movement onto the screen at all eight orbit orientations.
@@ -141,7 +156,8 @@ func _check_live_walk(player: CharacterBody3D, sprite: AnimatedSprite3D, camera:
 			for action: StringName in actions[direction]:
 				Input.action_release(action)
 			_check(is_equal_approx(Vector2(player.velocity.x, player.velocity.z).length(), player.get("move_speed")), "Diagonal input changed movement speed")
-			_check(observed.size() == 4, "Live walk did not cycle through all four poses")
+			var cycle: int = sprite.sprite_frames.get_frame_count(sprite.animation) - int(player.call("_cycle_first_frame"))
+			_check(observed.size() >= cycle, "Live walk did not cycle through every pose")
 			var screen_travel := camera.unproject_position(player.position) - camera.unproject_position(start)
 			var input := INPUTS[direction].normalized()
 			_check(screen_travel.normalized().dot(input) > (0.99 if direction < 4 else 0.94), "Live movement and facing disagree after orbit")

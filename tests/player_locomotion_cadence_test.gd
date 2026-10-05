@@ -81,8 +81,13 @@ func _reset(player: CharacterBody3D, at: Vector3 = Vector3(0, 0.03, 0)) -> void:
 
 
 func _check_cadence(player: CharacterBody3D, sprite: AnimatedSprite3D, camera: Camera3D) -> void:
-	# The atlas's own stride (STEP_LENGTH unless a rigged atlas measured one).
-	var step_length: float = player.call("_step_length")
+	# The paced stride (the atlas's own, no shorter than MIN_CADENCE_STRIDE),
+	# its cycle (two steps) and contact frames at a quarter and three quarters.
+	var step_length: float = player.call("_cadence_stride")
+	var first: int = player.call("_cycle_first_frame")
+	var length: int = player.call("_cycle_length")
+	var contact_frames: Array[int] = [first + length / 4, first + length * 3 / 4]
+	var max_steps: float = player.get("MAX_STEPS_PER_SECOND")
 	var rates: Array[float] = []
 	for speed: float in [1.6, 2.8, 4.2]:
 		await _reset(player, Vector3(-60, 0.03, 0))
@@ -96,19 +101,25 @@ func _check_cadence(player: CharacterBody3D, sprite: AnimatedSprite3D, camera: C
 		var last_frame := sprite.frame
 		for frame: int in range(90):
 			await _physics(1)
-			if sprite.frame != last_frame and sprite.frame in [1, 3]:
+			if sprite.frame != last_frame and sprite.frame in contact_frames:
 				contacts += 1
 			last_frame = sprite.frame
 		Input.action_release(&"move_right")
 		var distance := _planar(player.position, start)
 		var frames_per_metre := (float(player.get("_walk_time")) - start_phase) / distance
-		rates.append(frames_per_metre)
+		# Feet stay planted up to the step-rate ceiling, then glide.
+		var steps_per_second: float = minf(speed / step_length, max_steps)
+		# The phase counts four units per two-step cycle.
+		var expected: float = steps_per_second * 2.0 / speed
+		if speed / step_length <= max_steps:
+			rates.append(frames_per_metre)
 		_check(absf(distance - speed * 1.5) < 0.1, "Steady walk did not reach %.1f m/s" % speed)
-		_check(absf(frames_per_metre - 2.0 / step_length) < 0.1 * (2.0 / step_length), "Cadence at %.1f m/s is %.2f frames/m, expected %.2f" % [speed, frames_per_metre, 2.0 / step_length])
+		_check(absf(frames_per_metre - expected) < 0.1 * expected, "Cadence at %.1f m/s is %.2f frames/m, expected %.2f" % [speed, frames_per_metre, expected])
 		_check(contacts >= 2 and _heard - heard_before == contacts, "Footsteps (%d) must match contact frames (%d) at %.1f m/s" % [_heard - heard_before, contacts, speed])
 		await _physics(30)
+	_check(rates.size() >= 2, "Most walking speeds must keep planted feet")
 	for rate: float in rates:
-		_check(absf(rate - rates[0]) <= 0.1 * rates[0], "Frames per metre must not depend on speed: %s" % [rates])
+		_check(absf(rate - rates[0]) <= 0.1 * rates[0], "Frames per metre must not depend on speed below the step ceiling: %s" % [rates])
 	player.set("move_speed", 4.2)
 
 
@@ -125,6 +136,14 @@ func _check_analog(player: CharacterBody3D) -> void:
 
 
 func _check_stop(player: CharacterBody3D, sprite: AnimatedSprite3D) -> void:
+	# Standing follows a passing pose; on four-frame atlases frame 0 is itself
+	# the passing pose, so the stride's last frame may also lead into it.
+	var first: int = player.call("_cycle_first_frame")
+	var length: int = player.call("_cycle_length")
+	var settled_from: Array[int] = [first + length / 2, first if first > 0 else length - 1]
+	if first > 0:
+		# Rigged atlases also stand straight from either up pose.
+		settled_from.append_array([first + length / 8, first + length / 2 + length / 8])
 	for hold: int in range(24, 40, 3):
 		await _reset(player, Vector3(-60, 0.03, 12))
 		Input.action_press(&"move_right")
@@ -135,7 +154,7 @@ func _check_stop(player: CharacterBody3D, sprite: AnimatedSprite3D) -> void:
 			await _physics(1)
 			# A standing pose may only follow a passing pose or the end of a stride.
 			if sprite.frame == 0 and last != 0:
-				_check(last in [2, 3], "Stop snapped from contact %d to standing" % last)
+				_check(last in settled_from, "Stop snapped from mid-stride frame %d to standing" % last)
 			last = sprite.frame
 		_check(sprite.frame == 0, "Stop did not settle to the standing pose")
 

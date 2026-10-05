@@ -354,7 +354,7 @@ godot --headless --path . --script tests/audio_preferences_test.gd
 godot --headless --path . --script tests/grounding_test.gd
 ```
 
-成功標記：`GROUNDING_TEST_PASS feet_pivots all_walk_frames npc guardian plaza_collision`。檢查透明圖集實際腳底等於 billboard 旋轉支點、主角全部行走幀不額外升降、村民／守衛具有接觸陰影，以及物理模擬後主角腳底高度與可見廣場一致。另以雙 renderer 旋轉視角實機檢查。
+成功標記：`GROUNDING_TEST_PASS feet_pivots all_walk_frames npc guardian plaza_collision`。檢查透明圖集實際腳底等於 billboard 旋轉支點（九幀骨架圖集的站姿幀如此，跨步幀為保留身體起伏，腳底可高於支點至多 12 px、低於至多 2 px）、主角全部行走幀不額外升降、村民／守衛具有接觸陰影，以及物理模擬後主角腳底高度與可見廣場一致。另以雙 renderer 旋轉視角實機檢查。
 
 音效資源與實際對話／戰鬥觸發測試（不寫入存檔）：
 
@@ -443,7 +443,7 @@ godot --headless --path . --script tests/guardian_art_test.gd
 godot --headless --path . --script tests/player_art_test.gd
 ```
 
-成功標記為 `PLAYER_ART_TEST_PASS atlas alpha directions walk idle`。檢查八方向各四幀、正向 320 × 320／斜向 352 × 352 對齊畫布、可見輪廓未被裁切、共同腳底基準與實際玩家程式的幀選擇。它不取代行走動畫的實機視覺檢查；戰鬥圖集由獨立測試驗證。
+成功標記為 `PLAYER_ART_TEST_PASS atlas alpha directions walk idle`。檢查八方向各四幀（預設旅人的骨架重繪圖集為站姿 + 八幀循環共九幀）、正向 320 × 320／斜向 352 × 352 對齊畫布、可見輪廓未被裁切、共同腳底基準（九幀圖集僅站姿幀，跨步幀限 y=304–318）與實際玩家程式的幀選擇，以及切換裝備時依共用相位保留步伐。它不取代行走動畫的實機視覺檢查；戰鬥圖集由獨立測試驗證。
 
 戰鬥測試等待可接受指令與勝敗完成狀態，每次等待上限 10 秒；不依賴固定動畫秒數。若動畫卡住或狀態未轉移，會明確回報逾時失敗。
 
@@ -860,7 +860,7 @@ Repeat with `gl_compatibility`. Checks wood/gravel presence and the tilted/repai
 
 `godot --headless --path . --script tests/camera_settle_test.gd` 驗證 30／60／120 FPS 行走、旋轉後鏡頭確實停止；成功標記 `CAMERA_SETTLE_TEST_PASS`。花朵的連續移動畫面仍需分別以 Forward+ 與 Compatibility 目視確認。
 
-主角步伐節奏：`godot --headless --path . --fixed-fps 60 --script tests/player_locomotion_cadence_test.gd` 驗證行走影格依實際移動距離推進（圖集的 `step_length` 中繼資料，未提供時用 `player.gd` 的 `STEP_LENGTH`；1.6／2.8／4.2 m/s 每公尺影格數相差不超過 10%；加 `-- --blender-hero` 可驗證 Blender 圖集）、腳步聲只落在著地影格（1、3）且數量與著地次數相同、搖桿半推按比例減速、放開後依實際速度煞車並把著地姿勢走完至過渡姿勢再站定、劇情與門口步行緩起緩停、鎖定朝向後退時倒放步伐、站立時鏡頭環繞仍面向原本的世界方向、八方向扇區遲滯，以及站立呼吸以腳底為軸。成功標記 `PLAYER_LOCOMOTION_CADENCE_TEST_PASS`。直接呼叫 `_update_sprite(方向, 移動, delta)`（不傳 `traveled`）的測試與擷取工具仍使用固定 8 fps 的時間節奏，結果可重現。步幅需以 `godot --path . --script tests/opening_cutscene_test.gd -- --capture-dir <目錄>` 目視微調。
+主角步伐節奏：`godot --headless --path . --fixed-fps 60 --script tests/player_locomotion_cadence_test.gd` 驗證行走影格依實際移動距離推進（圖集的 `step_length` 中繼資料，未提供時用 `player.gd` 的 `STEP_LENGTH`，且不短於 `MIN_CADENCE_STRIDE` 0.54 m，避免慢速劇情步行步頻過快；步數未達每秒 `MAX_STEPS_PER_SECOND` 上限的速度每公尺相位相差不超過 10%，超過上限則固定每秒步數；相位每循環 4 單位，四幀與九幀圖集共用；加 `-- --legacy-hero` 可驗證舊四幀圖集）、腳步聲只落在著地影格（四幀圖集 1、3；九幀圖集 3、7）且數量與著地次數相同、搖桿半推按比例減速、放開後依實際速度煞車並把著地姿勢走完至過渡姿勢再站定（九幀圖集在經過或上升姿勢可直接回到站姿）、劇情與門口步行緩起緩停、鎖定朝向後退時倒放步伐、站立時鏡頭環繞仍面向原本的世界方向、八方向扇區遲滯，以及站立呼吸以腳底為軸。成功標記 `PLAYER_LOCOMOTION_CADENCE_TEST_PASS`。直接呼叫 `_update_sprite(方向, 移動, delta)`（不傳 `traveled`）的測試與擷取工具仍使用固定 8 fps 的時間節奏，結果可重現。步幅需以 `godot --path . --script tests/opening_cutscene_test.gd -- --capture-dir <目錄>` 目視微調。
 
 村莊道路交界：`godot --headless --path . --script tests/village_road_overlap_test.gd` 檢查廣場、十字路、環村步道與出村道路的所有同高重疊區，每處必須恰有一張路面顯示。村莊建立時由實際 BoxMesh 範圍產生 shader 排除區，先建立的路面擁有交界，保留原本路高與碰撞。成功標記 `VILLAGE_ROAD_OVERLAP_TEST_PASS`；移除 `--headless` 並分別使用 `--rendering-method forward_plus`／`gl_compatibility`，會擷取 `/tmp/village-road-overlap-<renderer>.png`，供東側交界目視檢查。
 

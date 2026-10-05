@@ -336,13 +336,31 @@ def mirrored(pose):
 
 
 # legs: (thigh forward deg, knee bend deg, foot pitch deg); arms: (swing, elbow)
-# Frame 0 doubles as the standing pose, so its passing leg only lifts a little.
-PASS = {"legs": {"L": (-3.0, 8.0, 0.0), "R": (12.0, 30.0, -8.0)},
-        "arms": {"L": (8.0, 12.0), "R": (-6.0, 8.0)}, "twist": 2.0, "lean": 2.0}
+# Frame 0 is a dedicated standing pose; frames 1-8 are one eight-frame walk
+# cycle of two steps. Each step runs passing -> up -> contact -> down, the
+# classic key poses: the supporting leg straightens and rises onto its toes
+# (up), the swing leg strikes the heel (contact), then the new support knee
+# takes the weight (down). Hips are re-grounded per pose, so these leg angles
+# alone produce the body's rise and fall: measured hip height relative to
+# contact is: down -5 px, passing +2 px, up +4 px (9 px, about 3 % of stature),
+# with a 0.40 m contact stride: the trailing foot pushes off on its toes so
+# the wide stride does not drop the hips.
+STAND = {"legs": {"L": (0.0, 2.0, 0.0), "R": (0.0, 2.0, 0.0)},
+         "arms": {"L": (2.0, 10.0), "R": (2.0, 10.0)}}
+# The first step swings the left leg forward; arms counter-swing the legs.
+PASSING = {"legs": {"R": (0.0, 2.0, 0.0), "L": (14.0, 56.0, -16.0)},
+           "arms": {"R": (3.0, 12.0), "L": (-2.0, 10.0)}, "twist": 1.0, "lean": 3.0}
+UP = {"legs": {"R": (-19.0, 3.0, -21.0), "L": (25.0, 30.0, 4.0)},
+      "arms": {"R": (16.0, 18.0), "L": (-14.0, 8.0)}, "twist": 4.0, "lean": 3.0}
 # Heel strike in front, toe-off behind: the widest stride short legs carry.
-CONTACT = {"legs": {"R": (34.0, 6.0, 14.0), "L": (-30.0, 22.0, -30.0)},
-           "arms": {"L": (26.0, 24.0), "R": (-24.0, 8.0)}, "twist": 7.0, "lean": 4.0}
-WALK = [PASS, CONTACT, mirrored(PASS), mirrored(CONTACT)]
+CONTACT = {"legs": {"L": (34.0, 6.0, 14.0), "R": (-30.0, 10.0, -36.0)},
+           "arms": {"R": (26.0, 24.0), "L": (-24.0, 8.0)}, "twist": 7.0, "lean": 4.0}
+DOWN = {"legs": {"L": (18.0, 48.0, 0.0), "R": (-18.0, 64.0, -50.0)},
+        "arms": {"R": (18.0, 20.0), "L": (-16.0, 8.0)}, "twist": 5.0, "lean": 5.0}
+STEP = [PASSING, UP, CONTACT, DOWN]
+WALK = [STAND] + STEP + [mirrored(pose) for pose in STEP]
+# Index into WALK whose ankle spread is the contact stride.
+CONTACT_FRAME = 3
 
 
 # --------------------------------------------------------------------- render
@@ -388,7 +406,7 @@ def render(character, out_dir: Path, blend_path: str = ""):
         rig.rotation_euler.z = math.radians(yaw)
         for index, pose in enumerate(WALK):
             apply_pose(rig, pose)
-            if index % 2:
+            if index == CONTACT_FRAME:
                 step = stride(rig)
             scene.render.filepath = str(out_dir / f"{facing}_{index}.png")
             bpy.ops.render.render(write_still=True)

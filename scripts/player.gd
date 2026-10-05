@@ -20,20 +20,34 @@ const CONVERSATION_DISTANCE: float = 1.35
 const MovementFacing = preload("res://scripts/gameplay/movement_facing.gd")
 ## Developer preview of Blender-rigged walking art (tools/art/build_blender_character.py):
 ## `-- --blender-hero` shows the raw render of the current class, `-- --blender-hero=painted`
-## the repaint over it. Classes without such an atlas keep their usual art.
-const RENDERED_WALK_FLAGS: Dictionary[String, String] = {"--blender-hero": "walk", "--blender-hero=painted": "painted"}
+## the repaint over it, `-- --legacy-hero` the hand-painted four-frame atlas.
+## Classes without such an atlas keep their usual art. The unequipped traveler
+## walks with the painted rig (stand + eight-frame cycle) by default.
+const RENDERED_WALK_FLAGS: Dictionary[String, String] = {"--blender-hero": "walk", "--blender-hero=painted": "painted", "--legacy-hero": ""}
+const DEFAULT_TRAVELER_WALK := "res://assets/generated/blender/wanderer/painted_frames.tres"
 const RENDERED_WALK_PATH := "res://assets/generated/blender/%s/%s_frames.tres"
 
-# Locomotion tuning. The four-frame walk cycle [pass, contact, pass, contact]
-# holds two steps, so the phase advances one frame per half step of ground.
+# Locomotion tuning. A walk cycle of N frames holds two steps starting at a
+# passing pose, contacts at N/4 and 3N/4: the legacy four-frame atlases are
+# [pass, contact, pass, contact]; rigged atlases put a standing pose in frame 0
+# (metadata/pose "stand") ahead of an eight-frame passing/up/contact/down
+# cycle. The phase (_walk_time) always counts four units per cycle, so gear
+# changes between atlases keep the stride; _cycle_frame() maps it to frames.
 ## Distance between successive foot contacts (m). Measured once from the
 ## traveler's side profile (wanderer_steady_frames "left"/"right"): contact
 ## frames span about 0.68 m heel to toe at the 1.45 m stature, minus roughly
 ## 0.15 m of shoe. Tune by eye with tests/opening_cutscene_test.gd --capture-dir.
 const STEP_LENGTH: float = 0.54
-## Cadence clamp (frames per second) for crawls and dodges; 1.6-4.2 m/s is unclamped.
+## Cadence floor (phase units per second) for crawls; scales with the stride.
 const MIN_WALK_FPS: float = 4.0
-const MAX_WALK_FPS: float = 16.0
+## Cadence ceiling in steps per second, independent of the stride. A chibi's
+## short rigged stride would need ten steps a second at full speed; above this
+## the feet glide a little rather than scurry.
+const MAX_STEPS_PER_SECOND: float = 7.0
+## Shortest stride the cadence follows. The rigged chibi plants 0.40 m steps,
+## which at a 1.9 m/s cutscene stroll meant almost five hurried steps a second;
+## pacing by the hand-painted stride instead lets the feet glide a little.
+const MIN_CADENCE_STRIDE: float = 0.54
 ## Time-based rate kept for direct presentation calls (tests and capture tools).
 const PRESENTATION_WALK_FPS: float = 8.0
 ## Planar speed below which the body is considered standing.
@@ -42,7 +56,6 @@ const WALK_ANIMATION_MIN_SPEED: float = 0.25
 const WALK_START_PHASE: float = 0.5
 ## After stopping, a mid-stride contact pose finishes to the next passing pose.
 const WALK_SETTLE_FPS: float = 9.0
-const CONTACT_FRAMES: Array[int] = [1, 3]
 ## Backing away with locked facing plays the cycle in reverse, a little slower.
 const BACKSTEP_CADENCE_SCALE: float = 0.6
 ## Smallest analog tilt still produces this fraction of move_speed (no crawl-glide).
@@ -139,9 +152,13 @@ func presentation_height() -> float:
 static func _rendered_walk_path(loadout: Dictionary) -> String:
 	for flag: String in OS.get_cmdline_user_args():
 		if RENDERED_WALK_FLAGS.has(flag):
+			if str(RENDERED_WALK_FLAGS[flag]).is_empty():
+				return ""
 			var vocation := ClassArt.vocation(loadout)
 			var path := RENDERED_WALK_PATH % ["wanderer" if vocation.is_empty() else vocation, RENDERED_WALK_FLAGS[flag]]
 			return path if ResourceLoader.exists(path) else ""
+	if ClassArt.vocation(loadout).is_empty() and EquipmentAppearance.variant(loadout).is_empty():
+		return DEFAULT_TRAVELER_WALK
 	return ""
 
 
@@ -156,6 +173,7 @@ func _refresh_equipment() -> void:
 	_appearance_key = key
 	var direction := sprite.animation
 	var frame := sprite.frame
+	var striding: bool = _walk_animating or not is_zero_approx(_walk_time)
 	if not rendered.is_empty():
 		sprite.sprite_frames = load(rendered) as SpriteFrames
 	elif town:
@@ -163,7 +181,11 @@ func _refresh_equipment() -> void:
 	else:
 		sprite.sprite_frames = DoorActionArt.frames(loadout) if _door_pose >= 0 else EquipmentAppearance.walking_frames(loadout)
 	sprite.animation = direction
-	sprite.frame = mini(frame, sprite.sprite_frames.get_frame_count(direction) - 1)
+	# Atlases differ in cycle length; the shared phase picks the matching pose.
+	if _door_pose >= 0:
+		sprite.frame = mini(frame, sprite.sprite_frames.get_frame_count(direction) - 1)
+	else:
+		sprite.frame = _cycle_first_frame() + posmod(_cycle_frame(), _cycle_length()) if striding else 0
 	_refresh_style()
 
 
@@ -461,10 +483,14 @@ func _update_sprite(input_vector: Vector2, move_direction: Vector3, delta: float
 		_walk_animating = false
 		_idle_time = 0.0
 	sprite.animation = FACING_ANIMATIONS[_facing_column]
-	sprite.frame = posmod(int(floor(_walk_time)), 4)
+	var first: int = _cycle_first_frame()
+	var length: int = _cycle_length()
+	var standing_still: bool = first > 0 and not walking and not _walk_animating
+	sprite.frame = 0 if standing_still else first + posmod(_cycle_frame(), length)
 	if live:
 		var audible := _footsteps.advance(traveled, is_on_floor(), walking, false)
-		if audible and sprite.frame != previous_frame and CONTACT_FRAMES.has(sprite.frame):
+		var contact: int = sprite.frame - first
+		if audible and sprite.frame != previous_frame and not standing_still and (contact == length / 4 or contact == length * 3 / 4):
 			GameAudio.play_cue(_footsteps.next_cue(Footsteps.surface_at(get_tree(), global_position)))
 		if not walking and not _walk_animating and _idle_time > IDLE_BREATH_DELAY:
 			# Scales about the sprite origin, which SpriteGrounding puts at the feet.
@@ -489,7 +515,7 @@ func _update_sprite(input_vector: Vector2, move_direction: Vector3, delta: float
 func _advance_walk_phase(move_direction: Vector3, delta: float, traveled: float) -> void:
 	if not _walk_animating:
 		# Resume a stride still settling; otherwise lift the first foot at once.
-		if posmod(int(floor(_walk_time)), 2) == 0:
+		if posmod(_cycle_frame(), _cycle_length() / 2) == 0:
 			_walk_time = WALK_START_PHASE
 		_walk_animating = true
 	# Backing away while facing a locked target plays the stride in reverse.
@@ -498,12 +524,11 @@ func _advance_walk_phase(move_direction: Vector3, delta: float, traveled: float)
 		_walk_direction_sign = -1.0
 	if traveled < 0.0005 or delta <= 0.0:
 		return
-	# One frame per half step of ground covered keeps the planted foot planted.
-	# Atlases measured from a rig carry their own stride; the cadence clamp
-	# scales with it so the same walking speeds stay unclamped.
-	var step: float = _step_length()
+	# One phase unit per half step of ground covered. Atlases measured from a
+	# rig carry their own stride, paced no shorter than MIN_CADENCE_STRIDE.
+	var step: float = _cadence_stride()
 	var fps_scale: float = STEP_LENGTH / step
-	var frames: float = clampf(traveled / (step * 0.5), MIN_WALK_FPS * fps_scale * delta, MAX_WALK_FPS * fps_scale * delta)
+	var frames: float = clampf(traveled / (step * 0.5), MIN_WALK_FPS * fps_scale * delta, MAX_STEPS_PER_SECOND * 2.0 * delta)
 	if _walk_direction_sign < 0.0:
 		frames *= BACKSTEP_CADENCE_SCALE
 	_walk_time += frames * _walk_direction_sign
@@ -514,17 +539,48 @@ func _step_length() -> float:
 	return float(texture.get_meta("step_length", STEP_LENGTH)) if texture != null else STEP_LENGTH
 
 
+func _cadence_stride() -> float:
+	return maxf(_step_length(), MIN_CADENCE_STRIDE)
+
+
 func _settle_walk_phase(delta: float) -> void:
-	# Finish a contact pose to the following passing pose, then stand.
-	if _walk_animating and posmod(int(floor(_walk_time)), 2) == 1 and delta > 0.0:
-		var boundary: float = floor(_walk_time) + (1.0 if _walk_direction_sign > 0.0 else -0.0001)
-		# Show the passing pose for one tick before the standing pose.
-		_walk_time = move_toward(_walk_time, boundary, WALK_SETTLE_FPS * delta)
-		return
-	if _walk_animating and posmod(int(floor(_walk_time)), 2) == 1:
+	# Finish the stride to the following passing pose, then stand. A dedicated
+	# standing pose follows the up pose directly too (the feet are already
+	# close); only the wide contact and down poses walk on to passing.
+	var half: int = _cycle_length() / 2
+	var frame: int = _cycle_frame()
+	var into_step: int = posmod(frame, half)
+	var near_standing: bool = _cycle_first_frame() > 0 and into_step * 4 <= half
+	if _walk_animating and into_step != 0 and not near_standing:
+		if delta > 0.0:
+			var boundary: float = float(frame + half - into_step) / _cycle_scale() if _walk_direction_sign > 0.0 else float(frame - into_step + 1) / _cycle_scale() - 0.0001
+			# Show the passing pose for one tick before the standing pose.
+			_walk_time = move_toward(_walk_time, boundary, WALK_SETTLE_FPS * delta)
 		return
 	_walk_time = 0.0
 	_walk_animating = false
+
+
+## Rigged atlases put a dedicated standing pose ahead of the walk cycle.
+func _cycle_first_frame() -> int:
+	var texture := sprite.sprite_frames.get_frame_texture(sprite.animation, 0) if sprite.sprite_frames != null else null
+	return 1 if texture != null and str(texture.get_meta("pose", "")) == "stand" else 0
+
+
+func _cycle_length() -> int:
+	if sprite.sprite_frames == null or not sprite.sprite_frames.has_animation(sprite.animation):
+		return 4
+	return maxi(4, sprite.sprite_frames.get_frame_count(sprite.animation) - _cycle_first_frame())
+
+
+## Cycle frames per four-unit phase step.
+func _cycle_scale() -> float:
+	return float(_cycle_length()) / 4.0
+
+
+## Unwrapped cycle frame of the current phase.
+func _cycle_frame() -> int:
+	return int(floor(_walk_time * _cycle_scale() + 0.00001))
 
 
 func reach_for_door() -> void:

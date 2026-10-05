@@ -14,9 +14,19 @@ func _check(condition: bool, message: String) -> void:
 		push_error(message)
 
 
-func _check_pivot(sprite: SpriteBase3D, texture: Texture2D) -> void:
-	var feet_y := (float(texture.get_height()) * 0.5 - Grounding.foot_baseline(texture, sprite.alpha_scissor_threshold) + sprite.offset.y) * sprite.pixel_size
-	_check(absf(feet_y) < 0.001, "Visible feet must coincide with billboard pivot")
+## Rigged walk frames keep the rig's body bob: the standing sole is the
+## pivot, and a stride frame's lowest sole may sit a little above it (a far
+## planted foot, the body rising) or at most two pixels below.
+const STRIDE_SINK_PX: float = 2.0
+const STRIDE_FLOAT_PX: float = 12.0
+
+
+func _check_pivot(sprite: SpriteBase3D, texture: Texture2D, stride: bool = false) -> void:
+	var feet_px := float(texture.get_height()) * 0.5 - Grounding.foot_baseline(texture, sprite.alpha_scissor_threshold) + sprite.offset.y
+	if stride:
+		_check(feet_px >= -STRIDE_SINK_PX - 0.2 and feet_px <= STRIDE_FLOAT_PX, "Stride sole %.1f px off the billboard pivot" % feet_px)
+	else:
+		_check(absf(feet_px * sprite.pixel_size) < 0.001, "Visible feet must coincide with billboard pivot")
 	_check(sprite.position.y >= 0.0 and sprite.position.y < 0.1, "Character pivot must sit on surface, not at body center")
 	_check(sprite.get_parent().get_node_or_null("ContactShadow") != null, "Character lacks ground contact shadow")
 	_check(sprite.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "Billboard card shadow would detach from feet")
@@ -37,8 +47,9 @@ func _run() -> void:
 	player.set_physics_process(false)
 	var sprite := player.get_node("Sprite3D") as AnimatedSprite3D
 	for animation: StringName in sprite.sprite_frames.get_animation_names():
+		var rigged := str(sprite.sprite_frames.get_frame_texture(animation, 0).get_meta("pose", "")) == "stand"
 		for frame: int in range(sprite.sprite_frames.get_frame_count(animation)):
-			_check_pivot(sprite, sprite.sprite_frames.get_frame_texture(animation, frame))
+			_check_pivot(sprite, sprite.sprite_frames.get_frame_texture(animation, frame), rigged and frame > 0)
 	for step: int in range(16):
 		player.call("_update_sprite", Vector2.RIGHT, Vector3.RIGHT, 0.1)
 		_check(is_equal_approx(sprite.position.y, 0.012), "Walking must not lift foot pivot")

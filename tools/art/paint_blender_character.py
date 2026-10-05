@@ -3,16 +3,19 @@
 Requires Pillow and the Codex CLI. Run after build_blender_character.py:
     python3 tools/art/paint_blender_character.py wanderer [--repaint down,up] [--jobs 4]
 
-For each facing, the four rendered walk frames (assets/generated/blender/
-<name>/walk.png) go to Codex as a 2 x 2 pose guide, together with the painted
+For each facing, the nine rendered frames (standing pose plus the eight-frame
+walk cycle, assets/generated/blender/<name>/walk.png) go to Codex as a 3 x 3
+pose guide, together with the painted
 standing sprite of that facing from the character's style sheets
 (tools/art/blender/characters/<name>.json). One call per facing keeps a
-facing's four frames consistent with each other. Unmodified outputs are kept
+facing's nine frames consistent with each other. Unmodified outputs are kept
 in source/<facing>.png and reused unless listed in --repaint.
 
 Painted sprites drift in size and position, so each cell is fitted to its
-rendered frame, which carries the rig's exact stature, bob and footing: same
-crown-to-sole height, head centred over the rendered head, sole on y=316.
+rendered frame, which carries the rig's exact stature, bob and footing: one
+median scale per facing (so heads keep one size), head centred over the
+rendered head, crown and sole split the remaining height error (the standing
+sole is y=316).
 Writes painted.png and painted_frames.tres; preview the wanderer with
 `-- --blender-hero=painted`.
 """
@@ -24,11 +27,12 @@ import tempfile
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from statistics import median
 
 from PIL import Image
 
-from build_blender_character import (BASELINE, CANVAS, DIRECTIONS, FRAMES, ROOT, character_meta, opaque_box,
-                                     ground, out_dir, write_atlas)
+from build_blender_character import (BASELINE, CANVAS, DIRECTIONS, FRAMES, ROOT, SOLE_SINK, character_meta,
+                                     opaque_box, out_dir, write_atlas)
 
 FACING_TEXT = {
     "down": "front view, facing the viewer",
@@ -44,17 +48,19 @@ PROMPT = """Use your built-in image generation tool to create ONE image, then sa
 
 Image generation prompt (pass both attached images as references: image 1 = pose guide, image 2 = identity and style):
 
-Use case: pose-locked repaint of a game walking animation. Image 1 is the POSE GUIDE: a 2x2 sheet of four 3D-rendered frames of one chibi character, all in the same facing: {facing}. Top-left: passing pose, left foot planted, right leg lifting slightly. Top-right: contact pose, right foot forward on its heel, left foot behind on its toes. Bottom-left: passing pose, right foot planted, left leg lifting slightly. Bottom-right: contact pose, left foot forward on its heel, right foot behind on its toes. Arms swing opposite to the legs. Image 2 is the IDENTITY AND STYLE reference: the game's existing hand-painted pixel-art sprite of the SAME character standing, usually in this same facing; if its facing differs, take only identity and style from it, never its facing.
+Use case: pose-locked repaint of a game walking animation. Image 1 is the POSE GUIDE: a 3x3 sheet of nine 3D-rendered frames of one chibi character, all in the same facing: {facing}. Read it left to right, top to bottom. Frame 1 (top-left): relaxed standing pose, feet together, arms at the sides. Frames 2-9 are one smooth eight-frame walk cycle of two steps: 2 passing (left leg swinging past the planted right leg, knee raised), 3 up (body at its highest, right foot pushing off on its toes, left leg reaching forward), 4 contact (left heel strikes in front, right foot behind on its toes), 5 down (body at its lowest, left knee bent taking the weight, right foot lifting behind), then 6-9 repeat passing, up, contact, down with the legs swapped. Arms swing opposite to the legs. The body really rises and sinks between frames: keep each frame's head height exactly as in image 1. Image 2 is the IDENTITY AND STYLE reference: the game's existing hand-painted pixel-art sprite of the SAME character standing, usually in this same facing; if its facing differs, take only identity and style from it, never its facing.
 
-Repaint all four frames of image 1 as finished sprites of {identity}, in exactly the painted pixel-art style of image 2: same face, hair shape and hair highlights, outfit details, colour palette, dark brown outlines and soft painterly shading lit from the upper left. All four frames must show the identical character with the identical face, hair silhouette and outfit; only the legs, arms and a slight body bob change between frames.
+Repaint all nine frames of image 1 as finished sprites of {identity}, in exactly the painted pixel-art style of image 2: same face, hair shape and hair highlights, outfit details, colour palette, dark brown outlines and soft painterly shading lit from the upper left. All nine frames must show the identical character with the identical face, hair silhouette, head size and outfit; only the legs, arms, coat hem and body height change between frames.
 
-Keep from image 1 for every frame: the exact facing angle, the exact leg and arm positions (which foot is forward), the head position, the silhouette size and the feet position, and the 2x2 placement. The 3D guide's blocky hair and simplified shapes are only placeholders: replace them with the hair and cloth of image 2, but never change pose, facing or size, and never add knots, buns or tails of hair that image 2 does not have. Each sprite stays centred in its own quadrant with generous transparent margins, feet on the same baseline.
+Keep from image 1 for every frame: the exact facing angle, the exact leg and arm positions (which foot is forward, which knee is bent), the head position and height, the silhouette size and the feet position, and the 3x3 placement. The 3D guide's blocky hair and simplified shapes are only placeholders: replace them with the hair and cloth of image 2, but never change pose, facing or size, and never add knots, buns or tails of hair that image 2 does not have. Each sprite stays centred in its own cell with generous transparent margins.
 
 Genuine transparent RGBA background. Square output. No floor, no ground shadow, no text, no labels, no grid lines, no checkerboard, no extra characters."""
 # Opaque ImageGen output: pixels this close to the corner colour are background.
 KEY_TOLERANCE = 48
 MIN_BLOB = 400
 HAZE_ALPHA = 16
+# Guide and repaint lay the FRAMES poses out row by row on a square grid.
+GRID = 3
 
 
 def cell(image: Image.Image, column: int, row: int, columns: int, rows: int) -> Image.Image:
@@ -78,10 +84,10 @@ def style_cells(name: str) -> dict:
 
 def guide(walk: Image.Image, direction: str) -> Image.Image:
     column = DIRECTIONS.index(direction)
-    sheet = Image.new("RGBA", (CANVAS * 2, CANVAS * 2))
+    sheet = Image.new("RGBA", (CANVAS * GRID, CANVAS * GRID))
     for row in range(FRAMES):
         frame = walk.crop((column * CANVAS, row * CANVAS, (column + 1) * CANVAS, (row + 1) * CANVAS))
-        sheet.alpha_composite(frame, ((row % 2) * CANVAS, (row // 2) * CANVAS))
+        sheet.alpha_composite(frame, ((row % GRID) * CANVAS, (row // GRID) * CANVAS))
     return sheet
 
 
@@ -167,14 +173,27 @@ def clean_alpha(frame: Image.Image) -> Image.Image:
     return frame
 
 
-def fit(painted: Image.Image, rendered: Image.Image) -> Image.Image:
+def fit(painted: Image.Image, rendered: Image.Image, scale: float, standing: bool = False) -> tuple:
+    """Place one painted cell over its rendered frame at the facing's shared
+    scale, head centred over the rendered head. Returns (frame, height error).
+
+    A per-cell scale (painted crown-to-sole onto rendered crown-to-sole)
+    shrank the whole sprite, head included, wherever ImageGen bent a knee
+    less than the rig, so heads pulsed. With one scale the height error is
+    split between crown and sole, keeping most of the rig's bob, and the sole
+    never sinks more than SOLE_SINK px below the ground line. The standing
+    pose keeps its sole exactly on the rendered sole (the ground line)."""
     box = opaque_box(rendered)
-    scale = (box[3] - box[1]) / painted.height
-    resized = painted.resize((max(1, round(painted.width * scale)), box[3] - box[1]), Image.LANCZOS)
+    resized = painted.resize((max(1, round(painted.width * scale)), max(1, round(painted.height * scale))), Image.LANCZOS)
+    error = resized.height - (box[3] - box[1])
+    if standing:
+        top = box[3] - resized.height
+    else:
+        top = min(box[1] - round(error / 2), BASELINE + SOLE_SINK - resized.height)
     frame = Image.new("RGBA", (CANVAS, CANVAS))
     left = round(head_centre(rendered) - head_centre(resized))
-    frame.alpha_composite(resized, (left, BASELINE - resized.height))
-    return frame
+    frame.alpha_composite(resized, (left, top))
+    return frame, error
 
 
 def main() -> None:
@@ -200,12 +219,19 @@ def main() -> None:
     for direction in DIRECTIONS:
         sheet = keyed(Image.open(source / f"{direction}.png"))
         column = DIRECTIONS.index(direction)
+        rendered = [walk.crop((column * CANVAS, row * CANVAS, (column + 1) * CANVAS, (row + 1) * CANVAS))
+                    for row in range(FRAMES)]
+        painted = [sprite(cell(sheet, row % GRID, row // GRID, GRID, GRID)) for row in range(FRAMES)]
+        scale = median((opaque_box(r)[3] - opaque_box(r)[1]) / p.height for r, p in zip(rendered, painted))
+        errors = []
         for row in range(FRAMES):
-            rendered = walk.crop((column * CANVAS, row * CANVAS, (column + 1) * CANVAS, (row + 1) * CANVAS))
-            painted = sprite(cell(sheet, row % 2, row // 2, 2, 2))
             # Keep ImageGen's own colours: the rig palette maps its dark hair
             # outlines to brown, which reads as a second layer of hair.
-            frames[direction, row] = ground(clean_alpha(fit(painted, rendered)), limit=3)
+            frame, error = fit(painted[row], rendered[row], scale, standing=row == 0)
+            frames[direction, row] = clean_alpha(frame)
+            errors.append(error)
+        # Large errors mean ImageGen ignored a pose; repaint that facing.
+        print(f"{direction}: height error vs rig {errors} px", flush=True)
     step = float(json.loads((target / "metrics.json").read_text())["step_length"])
     stature = write_atlas(args.character, frames, "painted", f"blender_{args.character}_painted", step)
     print(f"standing height {stature} px")

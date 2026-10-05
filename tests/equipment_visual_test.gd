@@ -76,7 +76,8 @@ func _run() -> void:
 	var save_path := "user://equipment_visual_%d.json" % Time.get_ticks_usec()
 	check(bool(state.call("save_game", save_path, false)), "Visual loadout save failed")
 	state.call("equip_loadout", original)
-	check(sprite.sprite_frames == Appearance.walking_frames(original), "Starter loadout retained upgraded art")
+	# The unequipped traveler walks with the rigged repaint; upgrades keep their hand-painted art.
+	check(sprite.sprite_frames == load(str(player.get("DEFAULT_TRAVELER_WALK"))), "Starter loadout retained upgraded art")
 	check(bool(state.call("load_game", save_path, false)), "Visual loadout load failed")
 	await process_frame
 	check(sprite.sprite_frames == Appearance.walking_frames(state.get("equipped")), "Load did not restore exploration art")

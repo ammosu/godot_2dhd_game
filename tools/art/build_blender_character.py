@@ -23,8 +23,12 @@ ROOT = Path(__file__).resolve().parents[2]
 BLENDER_DIR = ROOT / "tools/art/blender"
 CANVAS = 352
 BASELINE = 316
-FRAMES = 4
+# Frame 0 stands; frames 1-8 are the walk cycle (rig_common.WALK).
+FRAMES = 9
+POSES = ["stand", "passing", "up", "contact", "down", "passing", "up", "contact", "down"]
 PALETTE_COLOURS = 32
+# Pixels a walking sole may dip below the ground line (see ground_cycle).
+SOLE_SINK = 2
 # Animation order matches wanderer_steady_frames.tres.
 DIRECTIONS = ["down", "up", "left", "right", "down_left", "down_right", "up_left", "up_right"]
 
@@ -65,12 +69,21 @@ def to_palette(image: Image.Image, palette: Image.Image) -> Image.Image:
     return result
 
 
-def ground(frame: Image.Image, limit: int = 28) -> Image.Image:
-    """The tilted camera draws the sole nearer the lens lower on screen;
-    upright sprites treat the lowest pixel as ground."""
-    shift = BASELINE - opaque_box(frame)[3]
-    assert abs(shift) <= limit, f"sole {shift} px off the ground"
-    return ImageChops.offset(frame, 0, shift)
+def ground_cycle(frames: list, sink: int = SOLE_SINK, limit: int = 28) -> list:
+    """Ground a facing's frames together on its standing frame (frame 0).
+
+    Per-frame grounding on the lowest pixel erased the rig's body bob: in the
+    up pose the lifted near foot projects lowest and pushed the whole body
+    down. One shared shift keeps the rendered rise and fall; a frame whose
+    near sole would sink more than `sink` px below the ground line (where the
+    depth-tested billboard buries it) is lifted only that far."""
+    shift = BASELINE - opaque_box(frames[0])[3]
+    assert abs(shift) <= limit, f"standing sole {shift} px off the ground"
+    result = []
+    for frame in frames:
+        below = opaque_box(frame)[3] + shift - BASELINE
+        result.append(ImageChops.offset(frame, 0, shift - max(0, below - sink)))
+    return result
 
 
 def render_frames(name: str, blender: str) -> tuple:
@@ -82,10 +95,13 @@ def render_frames(name: str, blender: str) -> tuple:
                         "--", name, temp], check=True, stdout=subprocess.DEVNULL)
         metrics = json.loads((Path(temp) / "metrics.json").read_text())
         for direction in DIRECTIONS:
+            cycle = []
             for row in range(FRAMES):
                 frame = Image.open(Path(temp) / f"{direction}_{row}.png").convert("RGBA")
                 assert frame.size == (CANVAS, CANVAS)
-                frames[direction, row] = ground(to_palette(frame, palette))
+                cycle.append(to_palette(frame, palette))
+            for row, frame in enumerate(ground_cycle(cycle)):
+                frames[direction, row] = frame
     return frames, metrics
 
 
@@ -116,6 +132,7 @@ metadata/body_height = {float(stature)}
 metadata/width_scale = 1.0
 metadata/step_length = {step_length}
 metadata/direction = "{direction}"
+metadata/pose = "{POSES[row]}"
 metadata/variant = "{variant}"
 ''')
             refs.append(f'{{"duration": 1.0, "texture": SubResource("{sub_id}")}}')
