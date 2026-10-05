@@ -441,6 +441,8 @@ func _process(delta: float) -> void:
 
 
 func _map_title(map_id: String) -> String:
+	if map_id == "east_road" and str(GameState.flags.get("prologue", "")) == "road":
+		return "霧中的舊道" # The sign has not been read yet.
 	if HouseCatalog.is_interior(map_id):
 		return str(HouseCatalog.find_home(map_id).name)
 	if CryptLayout.NAMES.has(map_id):

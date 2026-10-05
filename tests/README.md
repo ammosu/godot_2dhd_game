@@ -36,11 +36,11 @@
 
 設計參考：[Riot 職業定位說明](https://support-leagueoflegends.riotgames.com/hc/en-us/articles/201752864-Choosing-the-Right-Champion)，借用耐久、機動與傷害的取捨，數值依本遊戲節奏調整。
 
-## 開場影片
+## 序幕〈霧中醒來〉
 
-`godot --headless --path . --fixed-fps 60 --script tests/opening_cutscene_test.gd`
-驗證選角後的開場影片：完整播放會先在東行舊道的霧中醒來（主觀低角度鏡頭），再經過東行舊道與暮光村、主角沿舊道向西走、播放期間鎖定輸入並隱藏 HUD；單次按鍵只顯示跳過提示，逾時不跳過，兩次確認才跳過；走位中跳過會停止腳本路徑；三種結束方式都回到暮光村出生點、恢復探索鏡頭與 HUD，接上原本的旁白，且不寫正式存檔。成功標記 `OPENING_CUTSCENE_TEST_PASS natural skip_confirm skip_mid_walk final_state no_save shots=9`。
-移除 `--headless` 並加 `-- --capture-dir=/absolute/existing/directory` 可在每個鏡頭 25%／55%／85% 各存一張截圖；分別以 `--rendering-method forward_plus` 與 `gl_compatibility` 檢查。
+`godot --headless --path . --script tests/prologue_test.gd`
+走完選角後的序幕：醒來影片鎖定輸入並隱藏 HUD，結束後在濃霧舊道的醒來點恢復探索並顯示操作說明；舊道上沒有野怪、驛路旅人、支線事件或其他出口，路燈全熄，小地圖不列出暮光村；序幕中存檔被拒；往東走會被霧送回醒來點；太早走到村口會被擋回；只讀一個線索不觸發低語，讀完路標與路燈才播放低語，旅人回應後播放月光過場；**跳過**月光過場後月光、光斑與村口兩盞路燈仍會亮起；村口過場經過暮光村與五段夢境後，在旅人居所床邊醒來，露米說完台詞後離開；拿外衣前門口不放行，窗外與裝備架（夢境呼應）台詞正常；拿外衣後序幕結束、走出居所回到村子，露米不再重複外衣台詞；全程不寫正式存檔。成功標記 `PROLOGUE_TEST_PASS waking clues fog_turn_back west_hold whisper moonbeam_skip arrival dream lodge coat_gate no_save`。
+移除 `--headless` 並加 `-- --capture-dir=/absolute/existing/directory` 可存下每個過場鏡頭與三張探索畫面（醒來、跟隨月光、居所）；分別以 `--rendering-method forward_plus` 與 `gl_compatibility` 檢查霧的濃度。
 
 ## 第一章〈醒來的古道〉
 
@@ -862,7 +862,7 @@ Repeat with `gl_compatibility`. Checks wood/gravel presence and the tilted/repai
 
 `godot --headless --path . --script tests/camera_settle_test.gd` 驗證 30／60／120 FPS 行走、旋轉後鏡頭確實停止；成功標記 `CAMERA_SETTLE_TEST_PASS`。花朵的連續移動畫面仍需分別以 Forward+ 與 Compatibility 目視確認。
 
-主角步伐節奏：`godot --headless --path . --fixed-fps 60 --script tests/player_locomotion_cadence_test.gd` 驗證行走影格依實際移動距離推進（圖集的 `step_length` 中繼資料，未提供時用 `player.gd` 的 `STEP_LENGTH`，且不短於 `MIN_CADENCE_STRIDE` 0.54 m，避免慢速劇情步行步頻過快；步數未達每秒 `MAX_STEPS_PER_SECOND` 上限的速度每公尺相位相差不超過 10%，超過上限則固定每秒步數；相位每循環 4 單位，四幀與九幀圖集共用；加 `-- --legacy-hero` 可驗證舊四幀圖集）、腳步聲只落在著地影格（四幀圖集 1、3；九幀圖集 3、7）且數量與著地次數相同、搖桿半推按比例減速、放開後依實際速度煞車並把著地姿勢走完至過渡姿勢再站定（九幀圖集在經過或上升姿勢可直接回到站姿）、劇情與門口步行緩起緩停、鎖定朝向後退時倒放步伐、站立時鏡頭環繞仍面向原本的世界方向、八方向扇區遲滯，以及站立呼吸以腳底為軸。成功標記 `PLAYER_LOCOMOTION_CADENCE_TEST_PASS`。直接呼叫 `_update_sprite(方向, 移動, delta)`（不傳 `traveled`）的測試與擷取工具仍使用固定 8 fps 的時間節奏，結果可重現。步幅需以 `godot --path . --script tests/opening_cutscene_test.gd -- --capture-dir <目錄>` 目視微調。
+主角步伐節奏：`godot --headless --path . --fixed-fps 60 --script tests/player_locomotion_cadence_test.gd` 驗證行走影格依實際移動距離推進（圖集的 `step_length` 中繼資料，未提供時用 `player.gd` 的 `STEP_LENGTH`，且不短於 `MIN_CADENCE_STRIDE` 0.54 m，避免慢速劇情步行步頻過快；步數未達每秒 `MAX_STEPS_PER_SECOND` 上限的速度每公尺相位相差不超過 10%，超過上限則固定每秒步數；相位每循環 4 單位，四幀與九幀圖集共用；加 `-- --legacy-hero` 可驗證舊四幀圖集）、腳步聲只落在著地影格（四幀圖集 1、3；九幀圖集 3、7）且數量與著地次數相同、搖桿半推按比例減速、放開後依實際速度煞車並把著地姿勢走完至過渡姿勢再站定（九幀圖集在經過或上升姿勢可直接回到站姿）、劇情與門口步行緩起緩停、鎖定朝向後退時倒放步伐、站立時鏡頭環繞仍面向原本的世界方向、八方向扇區遲滯，以及站立呼吸以腳底為軸。成功標記 `PLAYER_LOCOMOTION_CADENCE_TEST_PASS`。直接呼叫 `_update_sprite(方向, 移動, delta)`（不傳 `traveled`）的測試與擷取工具仍使用固定 8 fps 的時間節奏，結果可重現。步幅需以 `godot --path . --script tests/prologue_test.gd -- --capture-dir=<目錄>` 目視微調。
 
 村莊道路交界：`godot --headless --path . --script tests/village_road_overlap_test.gd` 檢查廣場、十字路、環村步道與出村道路的所有同高重疊區，每處必須恰有一張路面顯示。村莊建立時由實際 BoxMesh 範圍產生 shader 排除區，先建立的路面擁有交界，保留原本路高與碰撞。成功標記 `VILLAGE_ROAD_OVERLAP_TEST_PASS`；移除 `--headless` 並分別使用 `--rendering-method forward_plus`／`gl_compatibility`，會擷取 `/tmp/village-road-overlap-<renderer>.png`，供東側交界目視檢查。
 

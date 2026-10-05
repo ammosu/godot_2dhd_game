@@ -412,6 +412,8 @@ func take_item(item: String) -> void:
 
 
 func get_quest_text() -> String:
+	if flags.has("prologue"):
+		return load("res://scripts/story/prologue.gd").objective()
 	if quest_state == QuestState.COMPLETE and chapter_stage != Chapter.COMPLETE and not current_map.begins_with("house_"):
 		return load("res://scripts/story/chapter_one.gd").objective(int(chapter_stage), current_map)
 	if chapter_stage == Chapter.COMPLETE and int(inventory.get("starbay_reply", 0)) > 0:

@@ -37,7 +37,7 @@ static var _rigged_layouts: Dictionary[String, bool] = {}
 ## Distance between successive foot contacts (m). Measured once from the
 ## traveler's side profile (wanderer_steady_frames "left"/"right"): contact
 ## frames span about 0.68 m heel to toe at the 1.45 m stature, minus roughly
-## 0.15 m of shoe. Tune by eye with tests/opening_cutscene_test.gd --capture-dir.
+## 0.15 m of shoe. Tune by eye with tests/prologue_test.gd --capture-dir.
 const STEP_LENGTH: float = 0.54
 ## Cadence floor (phase units per second) for crawls; scales with the stride.
 const MIN_WALK_FPS: float = 4.0

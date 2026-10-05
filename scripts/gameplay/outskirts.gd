@@ -193,7 +193,14 @@ static func build(world: Node3D, map_id: String) -> void:
 	else:
 		water.creek(world.get("_map_root"), Vector3(0, 0.085, -5))
 		preload("res://scripts/gameplay/creek_bridge.gd").build(world.get("_map_root"), Vector3(0, 0, -5))
-	if not forest:
+	if not forest and GameState.flags.has("prologue"):
+		# The prologue's waking road keeps its shape but has no beasts or combat HUD.
+		var terrain := Node3D.new()
+		terrain.name = "FieldTerrain"
+		world.get("_map_root").add_child(terrain)
+		preload("res://scripts/gameplay/field_terrain.gd").build(terrain)
+		preload("res://scripts/gameplay/ashen_crypt.gd").build_entrance(world)
+	elif not forest:
 		var field: Node3D = load("res://scripts/gameplay/field_combat.gd").new()
 		preload("res://scripts/gameplay/ashen_crypt.gd").build_entrance(world)
 		field.name = "FieldCombat"

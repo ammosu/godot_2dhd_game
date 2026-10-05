@@ -111,7 +111,7 @@ func configure(world: Node3D, id: String) -> void:
 					shape.shape = shape.shape.duplicate()
 					shape.shape.size.y = 8.0
 					shape.position.y = 2.0
-		elif node is Node3D and str(node.name) != "FieldCombat":
+		elif node is Node3D and str(node.name) not in ["FieldCombat", "FieldTerrain"]:
 			var at := Vector2(node.position.x, node.position.z)
 			if node.has_node("TreeArt"):
 				# Place root on the rendered earth; never on decorative crag tops.

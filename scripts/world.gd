@@ -24,7 +24,7 @@ const MoonSeal = preload("res://scripts/gameplay/moon_seal.gd")
 const CutscenePlayer = preload("res://scripts/gameplay/cutscene_player.gd")
 const VillageMap = preload("res://scripts/gameplay/village_map.gd")
 const RuinsMap = preload("res://scripts/gameplay/ruins_map.gd")
-const OpeningCutscene = preload("res://scripts/story/opening_cutscene.gd")
+const Prologue = preload("res://scripts/story/prologue.gd")
 const PlaythroughTest = preload("res://scripts/testing/playthrough_test.gd")
 const BodyLife = preload("res://scripts/gameplay/body_life.gd")
 const ActorActing = preload("res://scripts/gameplay/actor_acting.gd")
@@ -221,6 +221,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_echo() or GameState.is_input_locked():
 		return
 	if event.is_action_pressed("save_game"):
+		get_viewport().set_input_as_handled()
+		if Prologue.active():
+			_show_notice("序幕進行中，無法存檔")
+			return
 		GameState.remember_player_position(player.global_position)
 		GameState.save_game()
 		get_viewport().set_input_as_handled()
@@ -235,16 +239,9 @@ func _show_class_selection() -> void:
 	add_child(selection)
 
 
+## A new journey opens with the playable prologue (see scripts/story/prologue.gd).
 func _play_opening() -> CutscenePlayer:
-	var film := CutscenePlayer.new()
-	film.host = self
-	film.actor = player
-	film.hidden_layers.assign([$HUD, $MobileControls, $Notices])
-	film.pause_on_focus_loss = not _test_mode
-	add_child(film)
-	film.finished.connect(func(_skipped: bool) -> void: _show_intro())
-	film.play(OpeningCutscene.shots())
-	return film
+	return Prologue.start(self) as CutscenePlayer
 
 
 ## Plays a chapter film and returns to where the traveler stood, or to
@@ -351,7 +348,8 @@ func cutscene_event(event_id: String) -> void:
 			flash.tween_property(glow, "light_energy", 0.0, 1.8).set_trans(Tween.TRANS_SINE)
 			flash.tween_callback(glow.queue_free)
 		_:
-			ChapterOne.cutscene_event(self, event_id)
+			if not Prologue.cutscene_event(self, event_id):
+				ChapterOne.cutscene_event(self, event_id)
 
 
 ## A named performer for films: a travelling companion, else a map actor by interaction id.
@@ -422,14 +420,6 @@ func cutscene_conclude() -> void:
 		return
 	_load_map("village", "default")
 	player.face_world_position(player.global_position + Vector3.FORWARD)
-
-
-func _show_intro() -> void:
-	dialogue_ui.show_dialogue([
-		{"speaker": "旁白", "text": "月光已經三個晚上沒有照進暮光村了。月亮還在，只是光不再落到這裡。"},
-		{"speaker": "旁白", "text": "月燈只剩最後一點光，霧在村外越聚越多。先四處看看，再去廣場左邊找長老。"},
-		{"speaker": "系統", "text": "使用左側搖桿移動；靠近頭上有記號的人或物件後，點右側「互動」。" if MobileControls.is_mobile_device() else "使用 WASD 或方向鍵移動；靠近頭上有記號的人或物件後，按 Space 互動。M 靜音，- / = 調整音量。"},
-	])
 
 
 func _show_story_preview() -> void:
@@ -580,6 +570,7 @@ func _load_map(map_id: String, spawn_id: String) -> void:
 	if spawn_id in ["from_base", "from_peak", "from_mountain", "from_east_road", "from_village", "from_forest", "from_road", "from_ruins", "from_caravan", "from_city"]:
 		var destination: String = str(Outskirts.NAMES.get(GameState.current_map, "北境遺跡" if GameState.current_map == "ruins" else "暮光村"))
 		_show_notice("抵達・" + destination)
+	Prologue.on_map_loaded(self, GameState.current_map)
 	ChapterOne.on_map_loaded(self, GameState.current_map)
 	_refresh_map_destinations()
 	_profile_map_stamp("total_" + map_id, profile_started)
@@ -626,6 +617,9 @@ func _retain_map_materials() -> void:
 
 
 func _get_spawn_position(map_id: String, spawn_id: String) -> Vector3:
+	var prologue_spawn: Variant = Prologue.spawn(map_id, spawn_id)
+	if prologue_spawn != null:
+		return prologue_spawn
 	if CryptLayout.NAMES.has(map_id):
 		return CryptLayout.spawn(map_id, spawn_id)
 	if map_id == "east_road" and spawn_id == "from_crypt":
@@ -1002,6 +996,8 @@ func _close_arrival_door(home_id: String) -> void:
 func _handle_interaction(interaction_id: String) -> void:
 	if GameState.is_input_locked() or _portal_transition_pending:
 		return
+	if Prologue.handle(self, interaction_id):
+		return
 	if ChapterOne.handle(self, interaction_id):
 		var speaker := _map_root.get_node_or_null(NodePath(interaction_id.capitalize()))
 		if interaction_id == "party_talk":
@@ -1095,6 +1091,8 @@ func _handle_interaction(interaction_id: String) -> void:
 		# City libraries keep the old street map: optional lore beyond the main path.
 		if GameState.current_map.begins_with("house_city_") and str(HouseCatalog.City.home(GameState.current_map).kind) == "library":
 			shelf_lines.append_array(ChapterOne.city_map_lines())
+		if GameState.current_map == Prologue.LODGE:
+			shelf_lines.append_array(Prologue.rack_lines())
 		dialogue_ui.show_dialogue(shelf_lines)
 		return
 	match interaction_id:
@@ -1160,7 +1158,7 @@ func _talk_to_rumi() -> void:
 			dialogue_ui.show_dialogue([
 				{"speaker": "村童・露米", "text": "以前月燈一亮，廣場就跟白天一樣。現在連小豬都不敢靠近村口。"},
 				{"speaker": "村童・露米", "text": "還有，好奇怪喔。燈旁邊的影子沒有躲開光，全都朝北邊伸過去。"},
-				{"speaker": "村童・露米", "text": "媽媽說你的外衣補好了。艾爾爺爺好像知道發生什麼事，你幫我們問問他好不好？"},
+				{"speaker": "村童・露米", "text": "艾爾爺爺好像知道發生什麼事，你幫我們問問他好不好？"},
 			])
 		GameState.QuestState.ACTIVE:
 			dialogue_ui.show_dialogue([{"speaker": "村童・露米", "text": "湯我會幫你熱著。一定要回來喔。"}])
@@ -1444,7 +1442,8 @@ func _update_quest_markers() -> void:
 			"guardian":
 				marker.visible = GameState.quest_state == GameState.QuestState.ACTIVE and not bool(GameState.flags.get("guardian_defeated", false))
 			_:
-				var chapter_marker: Variant = ChapterOne.marker_visible(interaction_id)
+				var prologue_marker: Variant = Prologue.marker_visible(interaction_id)
+				var chapter_marker: Variant = ChapterOne.marker_visible(interaction_id) if prologue_marker == null else prologue_marker
 				if chapter_marker != null:
 					marker.visible = bool(chapter_marker)
 				else:
@@ -2219,7 +2218,7 @@ func _refresh_map_destinations() -> void:
 		if target == null or target.get_parent() is CharacterBody3D:
 			continue
 		# Ordinary homes are scenery, not navigation landmarks.
-		if target.interaction_id.begins_with("enter_house_"):
+		if target.interaction_id.begins_with("enter_house_") or Prologue.hides_destination(target.interaction_id):
 			continue
 		var kind := "event"
 		if target.interaction_id.begins_with("portal_") or Outskirts.EXITS.has(target.interaction_id) or target.interaction_id == "leave_house":

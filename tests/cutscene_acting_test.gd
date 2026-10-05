@@ -42,13 +42,15 @@ func _run() -> void:
 	var Acting: GDScript = load("res://scripts/gameplay/actor_acting.gd")
 	var Lines: GDScript = load("res://scripts/story/chapter_one_lines.gd")
 	var Films: GDScript = load("res://scripts/story/chapter_one_cutscenes.gd")
-	var Opening: GDScript = load("res://scripts/story/opening_cutscene.gd")
+	var Prologue: GDScript = load("res://scripts/story/prologue_cutscenes.gd")
+	var PrologueLines: GDScript = load("res://scripts/story/prologue_lines.gd")
 
 	# Authored data only names beats and bubbles that exist.
 	var authored: int = _validate_lines(Lines.SCENES, "SCENES", Acting) + _validate_lines(Lines.PARTY_TALK, "PARTY_TALK", Acting)
 	check(authored >= 50, "chapter one dialogue carries acting (%d lines)" % authored)
+	check(_validate_lines(PrologueLines.SCENES, "PROLOGUE", Acting) >= 10, "prologue dialogue carries acting")
 	var film_acts: int = 0
-	var films: Array = [Opening.shots(), Films.light_east(), Films.seal_open(), Films.shard_rise(), Films.homecoming(), Films.rescue_intro(), Films.ember_flow(), Films.blue_lamp(), Films.end_card()]
+	var films: Array = [Prologue.waking(), Prologue.whisper(), Prologue.moonbeam(), Prologue.arrival(), Films.light_east(), Films.seal_open(), Films.shard_rise(), Films.homecoming(), Films.rescue_intro(), Films.ember_flow(), Films.blue_lamp(), Films.end_card()]
 	for film: Array in films:
 		for shot: Dictionary in film:
 			for beat: Dictionary in shot.get("acts", []):
