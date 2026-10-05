@@ -1,5 +1,8 @@
 extends SceneTree
 ## Exercise the actual male archer player and both bow tiers without writing saves.
+## Exploration now walks with the rigged repaint; this covers the hand-painted
+## diagonal atlas behind --legacy-hero and the armed combat walk.
+## test-args: -- --legacy-hero
 const ClassArt = preload("res://scripts/gameplay/class_art.gd")
 const ActionArt = preload("res://scripts/gameplay/action_sprite_library.gd")
 const INPUTS: Array[Vector2] = [Vector2(-1, 1), Vector2(1, 1), Vector2(-1, -1), Vector2(1, -1)]

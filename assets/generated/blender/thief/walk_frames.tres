@@ -1,4 +1,4 @@
-[gd_resource type="SpriteFrames" load_steps=34 format=3]
+[gd_resource type="SpriteFrames" load_steps=74 format=3]
 
 [ext_resource type="Texture2D" path="res://assets/generated/blender/thief/walk.png" id="1_atlas"]
 
@@ -10,8 +10,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "down"
+metadata/pose = "stand"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_0_1"]
@@ -22,8 +23,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "down"
+metadata/pose = "passing"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_0_2"]
@@ -34,8 +36,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "down"
+metadata/pose = "up"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_0_3"]
@@ -46,8 +49,74 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "down"
+metadata/pose = "contact"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_0_4"]
+atlas = ExtResource("1_atlas")
+region = Rect2(0, 1408, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "down"
+metadata/pose = "down"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_0_5"]
+atlas = ExtResource("1_atlas")
+region = Rect2(0, 1760, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "down"
+metadata/pose = "passing"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_0_6"]
+atlas = ExtResource("1_atlas")
+region = Rect2(0, 2112, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "down"
+metadata/pose = "up"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_0_7"]
+atlas = ExtResource("1_atlas")
+region = Rect2(0, 2464, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "down"
+metadata/pose = "contact"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_0_8"]
+atlas = ExtResource("1_atlas")
+region = Rect2(0, 2816, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "down"
+metadata/pose = "down"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_1_0"]
@@ -58,8 +127,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "up"
+metadata/pose = "stand"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_1_1"]
@@ -70,8 +140,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "up"
+metadata/pose = "passing"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_1_2"]
@@ -82,8 +153,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "up"
+metadata/pose = "up"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_1_3"]
@@ -94,8 +166,74 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "up"
+metadata/pose = "contact"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_1_4"]
+atlas = ExtResource("1_atlas")
+region = Rect2(352, 1408, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "up"
+metadata/pose = "down"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_1_5"]
+atlas = ExtResource("1_atlas")
+region = Rect2(352, 1760, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "up"
+metadata/pose = "passing"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_1_6"]
+atlas = ExtResource("1_atlas")
+region = Rect2(352, 2112, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "up"
+metadata/pose = "up"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_1_7"]
+atlas = ExtResource("1_atlas")
+region = Rect2(352, 2464, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "up"
+metadata/pose = "contact"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_1_8"]
+atlas = ExtResource("1_atlas")
+region = Rect2(352, 2816, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "up"
+metadata/pose = "down"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_2_0"]
@@ -106,8 +244,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "left"
+metadata/pose = "stand"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_2_1"]
@@ -118,8 +257,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "left"
+metadata/pose = "passing"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_2_2"]
@@ -130,8 +270,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "left"
+metadata/pose = "up"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_2_3"]
@@ -142,8 +283,74 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "left"
+metadata/pose = "contact"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_2_4"]
+atlas = ExtResource("1_atlas")
+region = Rect2(704, 1408, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "left"
+metadata/pose = "down"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_2_5"]
+atlas = ExtResource("1_atlas")
+region = Rect2(704, 1760, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "left"
+metadata/pose = "passing"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_2_6"]
+atlas = ExtResource("1_atlas")
+region = Rect2(704, 2112, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "left"
+metadata/pose = "up"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_2_7"]
+atlas = ExtResource("1_atlas")
+region = Rect2(704, 2464, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "left"
+metadata/pose = "contact"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_2_8"]
+atlas = ExtResource("1_atlas")
+region = Rect2(704, 2816, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "left"
+metadata/pose = "down"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_3_0"]
@@ -154,8 +361,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "right"
+metadata/pose = "stand"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_3_1"]
@@ -166,8 +374,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "right"
+metadata/pose = "passing"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_3_2"]
@@ -178,8 +387,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "right"
+metadata/pose = "up"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_3_3"]
@@ -190,8 +400,74 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "right"
+metadata/pose = "contact"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_3_4"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1056, 1408, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "right"
+metadata/pose = "down"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_3_5"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1056, 1760, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "right"
+metadata/pose = "passing"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_3_6"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1056, 2112, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "right"
+metadata/pose = "up"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_3_7"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1056, 2464, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "right"
+metadata/pose = "contact"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_3_8"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1056, 2816, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "right"
+metadata/pose = "down"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_4_0"]
@@ -202,8 +478,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "down_left"
+metadata/pose = "stand"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_4_1"]
@@ -214,8 +491,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "down_left"
+metadata/pose = "passing"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_4_2"]
@@ -226,8 +504,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "down_left"
+metadata/pose = "up"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_4_3"]
@@ -238,8 +517,74 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "down_left"
+metadata/pose = "contact"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_4_4"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1408, 1408, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "down_left"
+metadata/pose = "down"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_4_5"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1408, 1760, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "down_left"
+metadata/pose = "passing"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_4_6"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1408, 2112, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "down_left"
+metadata/pose = "up"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_4_7"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1408, 2464, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "down_left"
+metadata/pose = "contact"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_4_8"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1408, 2816, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "down_left"
+metadata/pose = "down"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_5_0"]
@@ -250,8 +595,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "down_right"
+metadata/pose = "stand"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_5_1"]
@@ -262,8 +608,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "down_right"
+metadata/pose = "passing"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_5_2"]
@@ -274,8 +621,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "down_right"
+metadata/pose = "up"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_5_3"]
@@ -286,8 +634,74 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "down_right"
+metadata/pose = "contact"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_5_4"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1760, 1408, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "down_right"
+metadata/pose = "down"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_5_5"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1760, 1760, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "down_right"
+metadata/pose = "passing"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_5_6"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1760, 2112, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "down_right"
+metadata/pose = "up"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_5_7"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1760, 2464, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "down_right"
+metadata/pose = "contact"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_5_8"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1760, 2816, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "down_right"
+metadata/pose = "down"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_6_0"]
@@ -298,8 +712,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "up_left"
+metadata/pose = "stand"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_6_1"]
@@ -310,8 +725,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "up_left"
+metadata/pose = "passing"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_6_2"]
@@ -322,8 +738,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "up_left"
+metadata/pose = "up"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_6_3"]
@@ -334,8 +751,74 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "up_left"
+metadata/pose = "contact"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_6_4"]
+atlas = ExtResource("1_atlas")
+region = Rect2(2112, 1408, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "up_left"
+metadata/pose = "down"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_6_5"]
+atlas = ExtResource("1_atlas")
+region = Rect2(2112, 1760, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "up_left"
+metadata/pose = "passing"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_6_6"]
+atlas = ExtResource("1_atlas")
+region = Rect2(2112, 2112, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "up_left"
+metadata/pose = "up"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_6_7"]
+atlas = ExtResource("1_atlas")
+region = Rect2(2112, 2464, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "up_left"
+metadata/pose = "contact"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_6_8"]
+atlas = ExtResource("1_atlas")
+region = Rect2(2112, 2816, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "up_left"
+metadata/pose = "down"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_7_0"]
@@ -346,8 +829,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "up_right"
+metadata/pose = "stand"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_7_1"]
@@ -358,8 +842,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "up_right"
+metadata/pose = "passing"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_7_2"]
@@ -370,8 +855,9 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "up_right"
+metadata/pose = "up"
 metadata/variant = "blender_thief"
 
 [sub_resource type="AtlasTexture" id="Frame_7_3"]
@@ -382,48 +868,114 @@ metadata/ground_y = 316.0
 metadata/anchor_x = 176.0
 metadata/body_height = 290.0
 metadata/width_scale = 1.0
-metadata/step_length = 0.4744
+metadata/step_length = 0.4048
 metadata/direction = "up_right"
+metadata/pose = "contact"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_7_4"]
+atlas = ExtResource("1_atlas")
+region = Rect2(2464, 1408, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "up_right"
+metadata/pose = "down"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_7_5"]
+atlas = ExtResource("1_atlas")
+region = Rect2(2464, 1760, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "up_right"
+metadata/pose = "passing"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_7_6"]
+atlas = ExtResource("1_atlas")
+region = Rect2(2464, 2112, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "up_right"
+metadata/pose = "up"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_7_7"]
+atlas = ExtResource("1_atlas")
+region = Rect2(2464, 2464, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "up_right"
+metadata/pose = "contact"
+metadata/variant = "blender_thief"
+
+[sub_resource type="AtlasTexture" id="Frame_7_8"]
+atlas = ExtResource("1_atlas")
+region = Rect2(2464, 2816, 352, 352)
+filter_clip = true
+metadata/ground_y = 316.0
+metadata/anchor_x = 176.0
+metadata/body_height = 290.0
+metadata/width_scale = 1.0
+metadata/step_length = 0.4048
+metadata/direction = "up_right"
+metadata/pose = "down"
 metadata/variant = "blender_thief"
 
 [resource]
 animations = [{
-"frames": [{"duration": 1.0, "texture": SubResource("Frame_0_0")}, {"duration": 1.0, "texture": SubResource("Frame_0_1")}, {"duration": 1.0, "texture": SubResource("Frame_0_2")}, {"duration": 1.0, "texture": SubResource("Frame_0_3")}],
+"frames": [{"duration": 1.0, "texture": SubResource("Frame_0_0")}, {"duration": 1.0, "texture": SubResource("Frame_0_1")}, {"duration": 1.0, "texture": SubResource("Frame_0_2")}, {"duration": 1.0, "texture": SubResource("Frame_0_3")}, {"duration": 1.0, "texture": SubResource("Frame_0_4")}, {"duration": 1.0, "texture": SubResource("Frame_0_5")}, {"duration": 1.0, "texture": SubResource("Frame_0_6")}, {"duration": 1.0, "texture": SubResource("Frame_0_7")}, {"duration": 1.0, "texture": SubResource("Frame_0_8")}],
 "loop": true,
 "name": &"down",
 "speed": 8.0
 }, {
-"frames": [{"duration": 1.0, "texture": SubResource("Frame_1_0")}, {"duration": 1.0, "texture": SubResource("Frame_1_1")}, {"duration": 1.0, "texture": SubResource("Frame_1_2")}, {"duration": 1.0, "texture": SubResource("Frame_1_3")}],
+"frames": [{"duration": 1.0, "texture": SubResource("Frame_1_0")}, {"duration": 1.0, "texture": SubResource("Frame_1_1")}, {"duration": 1.0, "texture": SubResource("Frame_1_2")}, {"duration": 1.0, "texture": SubResource("Frame_1_3")}, {"duration": 1.0, "texture": SubResource("Frame_1_4")}, {"duration": 1.0, "texture": SubResource("Frame_1_5")}, {"duration": 1.0, "texture": SubResource("Frame_1_6")}, {"duration": 1.0, "texture": SubResource("Frame_1_7")}, {"duration": 1.0, "texture": SubResource("Frame_1_8")}],
 "loop": true,
 "name": &"up",
 "speed": 8.0
 }, {
-"frames": [{"duration": 1.0, "texture": SubResource("Frame_2_0")}, {"duration": 1.0, "texture": SubResource("Frame_2_1")}, {"duration": 1.0, "texture": SubResource("Frame_2_2")}, {"duration": 1.0, "texture": SubResource("Frame_2_3")}],
+"frames": [{"duration": 1.0, "texture": SubResource("Frame_2_0")}, {"duration": 1.0, "texture": SubResource("Frame_2_1")}, {"duration": 1.0, "texture": SubResource("Frame_2_2")}, {"duration": 1.0, "texture": SubResource("Frame_2_3")}, {"duration": 1.0, "texture": SubResource("Frame_2_4")}, {"duration": 1.0, "texture": SubResource("Frame_2_5")}, {"duration": 1.0, "texture": SubResource("Frame_2_6")}, {"duration": 1.0, "texture": SubResource("Frame_2_7")}, {"duration": 1.0, "texture": SubResource("Frame_2_8")}],
 "loop": true,
 "name": &"left",
 "speed": 8.0
 }, {
-"frames": [{"duration": 1.0, "texture": SubResource("Frame_3_0")}, {"duration": 1.0, "texture": SubResource("Frame_3_1")}, {"duration": 1.0, "texture": SubResource("Frame_3_2")}, {"duration": 1.0, "texture": SubResource("Frame_3_3")}],
+"frames": [{"duration": 1.0, "texture": SubResource("Frame_3_0")}, {"duration": 1.0, "texture": SubResource("Frame_3_1")}, {"duration": 1.0, "texture": SubResource("Frame_3_2")}, {"duration": 1.0, "texture": SubResource("Frame_3_3")}, {"duration": 1.0, "texture": SubResource("Frame_3_4")}, {"duration": 1.0, "texture": SubResource("Frame_3_5")}, {"duration": 1.0, "texture": SubResource("Frame_3_6")}, {"duration": 1.0, "texture": SubResource("Frame_3_7")}, {"duration": 1.0, "texture": SubResource("Frame_3_8")}],
 "loop": true,
 "name": &"right",
 "speed": 8.0
 }, {
-"frames": [{"duration": 1.0, "texture": SubResource("Frame_4_0")}, {"duration": 1.0, "texture": SubResource("Frame_4_1")}, {"duration": 1.0, "texture": SubResource("Frame_4_2")}, {"duration": 1.0, "texture": SubResource("Frame_4_3")}],
+"frames": [{"duration": 1.0, "texture": SubResource("Frame_4_0")}, {"duration": 1.0, "texture": SubResource("Frame_4_1")}, {"duration": 1.0, "texture": SubResource("Frame_4_2")}, {"duration": 1.0, "texture": SubResource("Frame_4_3")}, {"duration": 1.0, "texture": SubResource("Frame_4_4")}, {"duration": 1.0, "texture": SubResource("Frame_4_5")}, {"duration": 1.0, "texture": SubResource("Frame_4_6")}, {"duration": 1.0, "texture": SubResource("Frame_4_7")}, {"duration": 1.0, "texture": SubResource("Frame_4_8")}],
 "loop": true,
 "name": &"down_left",
 "speed": 8.0
 }, {
-"frames": [{"duration": 1.0, "texture": SubResource("Frame_5_0")}, {"duration": 1.0, "texture": SubResource("Frame_5_1")}, {"duration": 1.0, "texture": SubResource("Frame_5_2")}, {"duration": 1.0, "texture": SubResource("Frame_5_3")}],
+"frames": [{"duration": 1.0, "texture": SubResource("Frame_5_0")}, {"duration": 1.0, "texture": SubResource("Frame_5_1")}, {"duration": 1.0, "texture": SubResource("Frame_5_2")}, {"duration": 1.0, "texture": SubResource("Frame_5_3")}, {"duration": 1.0, "texture": SubResource("Frame_5_4")}, {"duration": 1.0, "texture": SubResource("Frame_5_5")}, {"duration": 1.0, "texture": SubResource("Frame_5_6")}, {"duration": 1.0, "texture": SubResource("Frame_5_7")}, {"duration": 1.0, "texture": SubResource("Frame_5_8")}],
 "loop": true,
 "name": &"down_right",
 "speed": 8.0
 }, {
-"frames": [{"duration": 1.0, "texture": SubResource("Frame_6_0")}, {"duration": 1.0, "texture": SubResource("Frame_6_1")}, {"duration": 1.0, "texture": SubResource("Frame_6_2")}, {"duration": 1.0, "texture": SubResource("Frame_6_3")}],
+"frames": [{"duration": 1.0, "texture": SubResource("Frame_6_0")}, {"duration": 1.0, "texture": SubResource("Frame_6_1")}, {"duration": 1.0, "texture": SubResource("Frame_6_2")}, {"duration": 1.0, "texture": SubResource("Frame_6_3")}, {"duration": 1.0, "texture": SubResource("Frame_6_4")}, {"duration": 1.0, "texture": SubResource("Frame_6_5")}, {"duration": 1.0, "texture": SubResource("Frame_6_6")}, {"duration": 1.0, "texture": SubResource("Frame_6_7")}, {"duration": 1.0, "texture": SubResource("Frame_6_8")}],
 "loop": true,
 "name": &"up_left",
 "speed": 8.0
 }, {
-"frames": [{"duration": 1.0, "texture": SubResource("Frame_7_0")}, {"duration": 1.0, "texture": SubResource("Frame_7_1")}, {"duration": 1.0, "texture": SubResource("Frame_7_2")}, {"duration": 1.0, "texture": SubResource("Frame_7_3")}],
+"frames": [{"duration": 1.0, "texture": SubResource("Frame_7_0")}, {"duration": 1.0, "texture": SubResource("Frame_7_1")}, {"duration": 1.0, "texture": SubResource("Frame_7_2")}, {"duration": 1.0, "texture": SubResource("Frame_7_3")}, {"duration": 1.0, "texture": SubResource("Frame_7_4")}, {"duration": 1.0, "texture": SubResource("Frame_7_5")}, {"duration": 1.0, "texture": SubResource("Frame_7_6")}, {"duration": 1.0, "texture": SubResource("Frame_7_7")}, {"duration": 1.0, "texture": SubResource("Frame_7_8")}],
 "loop": true,
 "name": &"up_right",
 "speed": 8.0

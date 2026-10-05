@@ -36,6 +36,7 @@ func _run() -> void:
 	root.add_child(player)
 	player.set_physics_process(false)
 	var sprite := player.get_node("Sprite3D") as AnimatedSprite3D
+	var legacy := OS.get_cmdline_user_args().has("--legacy-hero")
 	_check(TownAppearance.diagonal_source("missing_supplement").is_empty(), "Missing diagonal sheets must no-op")
 	_check(not TownAppearance.diagonal_source("archer").is_empty(), "Archer diagonal supplement is data-driven")
 	for body: String in ["male", "female"]:
@@ -50,9 +51,16 @@ func _run() -> void:
 					for frame: int in range(4):
 						player.call("_update_sprite", facing, Vector3.FORWARD, 0.125)
 						var texture := sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame) as AtlasTexture
-						_check(bool(texture.get_meta("town_unarmed", false)) == town, "%s %s %s walking art" % [body, vocation, map_id])
-						if town:
-							_check_profile_fallback(texture, str(sprite.animation), state.call("get_visual_loadout"), sprite.frame)
+						# Exploration walks with each class's rigged repaint (--legacy-hero
+						# restores the hand-painted town atlases checked below).
+						var rigged := str(texture.get_meta("variant", "")).begins_with("blender_")
+						if legacy:
+							_check(bool(texture.get_meta("town_unarmed", false)) == town, "%s %s %s walking art" % [body, vocation, map_id])
+							if town:
+								_check_profile_fallback(texture, str(sprite.animation), state.call("get_visual_loadout"), sprite.frame)
+						else:
+							var id := ClassArt.vocation(state.call("get_visual_loadout"))
+							_check(rigged and texture.get_meta("variant") == "blender_%s_painted" % ("wanderer" if id.is_empty() else id), "%s %s %s rigged walking art" % [body, vocation, map_id])
 						_check(sprite.pixel_size > 0.0 and is_finite(sprite.offset.x), "Valid grounded pose")
 					player.call("_update_sprite", Vector2.ZERO, Vector3.ZERO, 0.0)
 					_check(sprite.frame == 0, "Idle resets walking frame")

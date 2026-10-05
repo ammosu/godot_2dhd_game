@@ -11,10 +11,12 @@ in `source/` (excluded from the Web export).
 | `archer/`, `thief/`, `mage/` | archer, thief, mage | `../town/<id>.png` (+ `<id>_diagonal.png` where it exists) |
 | `female_traveler/`, `female_archer/`, `female_mage/`, `female_thief/` | heroines | `../town/<id>.png` (+ `<id>_diagonal.png` where it exists) |
 
-Only `wanderer/` uses the current nine-frame layout (standing pose + eight-frame
-walk, updated 2026-10-05) and is the unequipped traveler's default field walk.
-The other directories still hold the earlier four-frame atlases (`-- --blender-hero`
-preview only); rebuilding them renders and repaints the nine-frame layout.
+Every directory uses the nine-frame layout (standing pose + eight-frame walk,
+wanderer 2026-10-05, the rest the same day) and is the exploration walk by
+default: the unequipped traveler uses `wanderer/`, each class or heroine its
+own directory; traveler gear upgrades keep their hand-painted atlases, and door
+gestures and combat keep their existing art. `-- --legacy-hero` restores the
+hand-painted exploration atlases.
 
 Facings without diagonal art borrow the nearest cardinal sprite as the identity
 reference (front for down-diagonals, profile for up-diagonals).
@@ -24,7 +26,7 @@ reference (front for down-diagonals, profile for up-diagonals).
 1. `tools/art/blender/rig_common.py` holds the shared chibi rig (18 bones; skirt quarters follow the thighs), four-tone toon shading with brush-noise borders, per-material coloured inverted-hull outlines, the walk poses and one orthographic camera (20° elevation, 200 px/m, 352 px canvas). `characters/<name>.py` builds each character's parts (the heroines share `characters/heroine.py`'s ponytail head); `characters/<name>.json` names its painted style references and identity text.
 2. `python3 tools/art/build_blender_character.py <name>` renders 8 facings × 9 frames: frame 0 is a dedicated standing pose (`metadata/pose = "stand"`), frames 1-8 one walk cycle of two steps, each passing → up → contact → down. Hips are re-grounded per pose, so the leg angles alone give the body bob (relative to contact: down −5 px, passing +2 px, up +4 px; about 3 % of stature). Every pixel maps to a 32-colour median-cut palette of the style sheets. Each facing is grounded as a whole on its standing sole (y=316): per-frame lowest-pixel grounding erased the bob, because the tilted camera draws a lifted near foot lowest. A stride frame's sole may sit above the line (a far planted foot) and at most `SOLE_SINK` (2 px) below it. Writes `walk.png` / `walk_frames.tres` (`-- --blender-hero`, for the current class). The rig's contact stride (ankle to ankle, currently 0.405 m) is stored as `metadata/step_length`; `player.gd` paces the cycle by that stride but never shorter than `MIN_CADENCE_STRIDE` (0.54 m, the hand-painted stride: at the 0.40 m rig stride a 1.9 m/s cutscene stroll looked hurried) and never above `MAX_STEPS_PER_SECOND` (7); the feet glide a little instead of scurrying.
 3. `python3 tools/art/paint_blender_character.py <name>` sends each facing to Codex's built-in ImageGen as its own call: a 3 × 3 guide of the nine rendered frames plus the painted standing sprite of that facing from the style references. One call per facing keeps that facing's frames consistent. Unmodified outputs are kept in `source/<facing>.png`; `--repaint down,up` regenerates chosen facings.
-4. The same script fits each painted cell at one median scale per facing (a per-cell scale shrank heads wherever ImageGen bent a knee less than the rig), centres the crown band over the rendered head, splits any remaining height error between crown and sole (standing sole exactly on y=316), keeps ImageGen's own colours (mapping them to the rig palette turned dark hair outlines brown, reading as a second layer of hair), drops alpha below 16 and writes `painted.png` / `painted_frames.tres` (`-- --blender-hero=painted`). It prints each facing's per-frame height error against the rig; facings above about 8 px were repainted, keeping the lower-error take. The wanderer's final errors stay within ±10 px.
+4. The same script fits each painted cell at one median scale per facing (a per-cell scale shrank heads wherever ImageGen bent a knee less than the rig), centres the crown band over the rendered head, splits any remaining height error between crown and sole (standing sole exactly on y=316), keeps ImageGen's own colours (mapping them to the rig palette turned dark hair outlines brown, reading as a second layer of hair), drops alpha below 16 and writes `painted.png` / `painted_frames.tres` (`-- --blender-hero=painted`). It prints each facing's per-frame height error against the rig; facings above about 8-10 px were repainted, keeping the lower-error take unless the lower-error take turned the wrong way (the mage's left profile retake walked screen-right, so the earlier take stayed). Final errors stay within ±13 px. Height error does not catch a wrong facing: inspect every retake by eye.
 
 ## Repaint prompt
 

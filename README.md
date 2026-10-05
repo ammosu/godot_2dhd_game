@@ -164,8 +164,8 @@ Blender 骨架角色：`tools/art/blender/rig_common.py` 是共用的 Q 版骨�
 套用原圖 32 色調色盤並以站姿腳底對齊 y=316，並把骨架實測步幅寫入每幀 `step_length`；`player.gd` 依此換格（步幅不短於 0.54 m、每秒至多 7 步，避免慢速劇情步行或全速移動時步頻過快）。
 `python3 tools/art/paint_blender_character.py <名稱>` 每個方向呼叫一次 Codex ImageGen，依原圖同方向站姿重繪，再依渲染幀對齊
 （流程與提示詞見 [assets/generated/blender/README.md](assets/generated/blender/README.md)）。
-未裝備升級的旅人預設使用旅人重繪版九幀行走圖；`-- --legacy-hero` 改回原本四幀手繪圖。
-其他職業試玩：`godot --path . -- --village-preview --blender-hero=painted`（重繪版）或 `--blender-hero`（原始渲染），依目前職業選用對應圖集（除旅人外仍為舊四幀版），沒有圖集的沿用原圖；只替換探索行走圖，開門與戰鬥圖不變。
+探索行走預設使用各職業與女主角的重繪版九幀行走圖（未裝備升級的旅人用 `wanderer`，旅人換裝升級後沿用手繪圖）；開門與戰鬥圖不變。
+`-- --legacy-hero` 改回原本的手繪探索圖；`--blender-hero` 顯示未重繪的原始渲染。
 
 原版畫風的分層換裝測試：`godot --path . scenes/layered_equipment_lab.tscn`。
 旅人、諾亞、長老各以五張共用圖層組合兩武器、兩防具與四個戰鬥姿勢，共 48 組；1／2／3 切換角色，E 拆層。

@@ -18,14 +18,15 @@ const TownAppearance = preload("res://scripts/gameplay/town_appearance.gd")
 const ClassArt = preload("res://scripts/gameplay/class_art.gd")
 const CONVERSATION_DISTANCE: float = 1.35
 const MovementFacing = preload("res://scripts/gameplay/movement_facing.gd")
-## Developer preview of Blender-rigged walking art (tools/art/build_blender_character.py):
-## `-- --blender-hero` shows the raw render of the current class, `-- --blender-hero=painted`
-## the repaint over it, `-- --legacy-hero` the hand-painted four-frame atlas.
-## Classes without such an atlas keep their usual art. The unequipped traveler
-## walks with the painted rig (stand + eight-frame cycle) by default.
+## Exploration walks use the painted Blender rig (tools/art/build_blender_character.py:
+## a standing pose plus an eight-frame cycle) for the unequipped traveler and for
+## every class and heroine whose atlas has that layout; traveler gear upgrades
+## keep their hand-painted art. `-- --blender-hero` previews the raw render,
+## `-- --blender-hero=painted` the repaint, `-- --legacy-hero` the hand-painted art.
 const RENDERED_WALK_FLAGS: Dictionary[String, String] = {"--blender-hero": "walk", "--blender-hero=painted": "painted", "--legacy-hero": ""}
 const DEFAULT_TRAVELER_WALK := "res://assets/generated/blender/wanderer/painted_frames.tres"
 const RENDERED_WALK_PATH := "res://assets/generated/blender/%s/%s_frames.tres"
+static var _rigged_layouts: Dictionary[String, bool] = {}
 
 # Locomotion tuning. A walk cycle of N frames holds two steps starting at a
 # passing pose, contacts at N/4 and 3N/4: the legacy four-frame atlases are
@@ -150,16 +151,26 @@ func presentation_height() -> float:
 
 
 static func _rendered_walk_path(loadout: Dictionary) -> String:
+	var vocation := ClassArt.vocation(loadout)
+	var id := "wanderer" if vocation.is_empty() else vocation
 	for flag: String in OS.get_cmdline_user_args():
 		if RENDERED_WALK_FLAGS.has(flag):
 			if str(RENDERED_WALK_FLAGS[flag]).is_empty():
 				return ""
-			var vocation := ClassArt.vocation(loadout)
-			var path := RENDERED_WALK_PATH % ["wanderer" if vocation.is_empty() else vocation, RENDERED_WALK_FLAGS[flag]]
-			return path if ResourceLoader.exists(path) else ""
-	if ClassArt.vocation(loadout).is_empty() and EquipmentAppearance.variant(loadout).is_empty():
-		return DEFAULT_TRAVELER_WALK
-	return ""
+			var preview := RENDERED_WALK_PATH % [id, RENDERED_WALK_FLAGS[flag]]
+			return preview if ResourceLoader.exists(preview) else ""
+	if vocation.is_empty() and not EquipmentAppearance.variant(loadout).is_empty():
+		return ""
+	var path := RENDERED_WALK_PATH % [id, "painted"]
+	return path if _has_rigged_layout(path) else ""
+
+
+static func _has_rigged_layout(path: String) -> bool:
+	if not _rigged_layouts.has(path):
+		var frames := load(path) as SpriteFrames if ResourceLoader.exists(path) else null
+		var first: Texture2D = frames.get_frame_texture(&"down", 0) if frames != null and frames.has_animation(&"down") else null
+		_rigged_layouts[path] = first != null and str(first.get_meta("pose", "")) == "stand"
+	return _rigged_layouts[path]
 
 
 func _refresh_equipment() -> void:
