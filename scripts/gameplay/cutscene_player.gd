@@ -7,6 +7,8 @@ extends Node3D
 ##   cutscene_ground(point: Vector3) -> Vector3   # snaps a route point onto walkable ground
 ##   cutscene_event(event_id: String) -> void     # one-shot scenery beats (lights, seals)
 ##   cutscene_conclude() -> void                  # final map/spawn, loaded under black
+##   cutscene_cast(id: String) -> Node3D           # optional: a named performer (companion, villager)
+##   cutscene_sprite(id: String) -> SpriteBase3D   # optional: the visible art that acts ("actor" = traveler)
 ##
 ## Shot keys (all optional except duration):
 ##   duration, map, spawn, music, black, letterbox, fade_in, fade_out,
@@ -18,10 +20,16 @@ extends Node3D
 ##     id: host.cutscene_event(id); face: the actor turns toward that world point (a reaction beat)
 ##   A shot with actor_path but no actor_face faces the first route point at shot start, so the
 ##   pre-walk idle already looks where the actor is about to go.
+##   cast: {id: {at, face, path}}: other performers. at places them, face turns them, path walks
+##     them point to point (companions walk with their own gait). They are released on conclude.
+##   acts: [{at, who, act, emote}]: procedural acting (actor_acting.gd) on "actor" or a cast id.
 
 signal finished(skipped: bool)
 
 const Overlay = preload("res://scripts/ui/cutscene_overlay.gd")
+const Acting = preload("res://scripts/gameplay/actor_acting.gd")
+## A walking cast member moves on to its next route point within this distance.
+const CAST_ARRIVE: float = 0.35
 const SKIP_CONFIRM_SECONDS: float = 2.5
 const TEXT_FADE_SECONDS: float = 0.6
 const END_FADE_SECONDS: float = 0.8
@@ -48,6 +56,11 @@ var _fired_events: Dictionary = {}
 var _walk_started: bool = false
 var _look_actor_point: Vector3 = Vector3.ZERO
 var _look_actor_primed: bool = false
+var _fired_acts: Dictionary = {}
+## Performers this film moved, and the routes they are still walking (id -> points).
+var _cast: Dictionary[String, Node3D] = {}
+var _cast_routes: Dictionary[String, PackedVector3Array] = {}
+var _acted: Array[SpriteBase3D] = []
 
 
 func _ready() -> void:
@@ -97,6 +110,7 @@ func _start_shot(index: int) -> void:
 	shot_index = index
 	shot_time = 0.0
 	_fired_events.clear()
+	_fired_acts.clear()
 	_walk_started = false
 	_look_actor_primed = false
 	var shot := current_shot()
@@ -122,6 +136,7 @@ func _start_shot(index: int) -> void:
 		_face_actor(host.cutscene_ground((shot.actor_path as Array)[0]))
 	elif is_instance_valid(actor) and actor.has_meta("cutscene_facing"):
 		actor.remove_meta("cutscene_facing")
+	_stage_cast(shot.get("cast", {}))
 	_update_presentation()
 
 
@@ -161,6 +176,14 @@ func _process(delta: float) -> void:
 			_face_actor(beat.face)
 		if beat.has("id"):
 			host.cutscene_event(str(beat.id))
+	var acts: Array = shot.get("acts", [])
+	for act_index: int in range(acts.size()):
+		var beat: Dictionary = acts[act_index]
+		if _fired_acts.has(act_index) or shot_time < float(beat.get("at", 0.0)):
+			continue
+		_fired_acts[act_index] = true
+		perform(str(beat.get("who", "actor")), StringName(beat.get("act", "")), StringName(beat.get("emote", "")))
+	_walk_cast()
 	var duration := float(shot.duration)
 	_update_camera(clampf(shot_time / duration, 0.0, 1.0), delta)
 	_update_presentation()
@@ -169,6 +192,82 @@ func _process(delta: float) -> void:
 			_start_shot(shot_index + 1)
 		else:
 			_conclude()
+
+
+## Play an acting beat on the traveler ("actor") or a cast member.
+func perform(who: String, beat: StringName, emote: StringName = &"") -> void:
+	var sprite: SpriteBase3D = host.call("cutscene_sprite", who) if host.has_method("cutscene_sprite") else null
+	if sprite == null and who == "actor" and is_instance_valid(actor):
+		sprite = actor.get_node_or_null("Sprite3D") as SpriteBase3D
+	if sprite == null:
+		push_warning("Cutscene acting has no performer: %s" % who)
+		return
+	Acting.ensure(sprite).call("act", beat, emote)
+	if not _acted.has(sprite):
+		_acted.append(sprite)
+
+
+func _stage_cast(cast: Dictionary) -> void:
+	if cast.is_empty() or not host.has_method("cutscene_cast"):
+		return
+	for id: String in cast:
+		var spec: Dictionary = cast[id]
+		var member: Node3D = host.call("cutscene_cast", id)
+		if member == null:
+			push_warning("Cutscene cast member missing: %s" % id)
+			continue
+		_cast[id] = member
+		_cast_routes.erase(id)
+		if spec.has("at"):
+			var spot: Vector3 = host.cutscene_ground(spec.at)
+			member.global_position = spot
+			# Companions otherwise walk back to the traveler's trail.
+			if "combat_goal" in member:
+				member.set("combat_goal", spot)
+		if spec.has("path") and "combat_goal" in member:
+			var route := PackedVector3Array()
+			for point: Vector3 in spec.path:
+				route.append(host.cutscene_ground(point))
+			_cast_routes[id] = route
+			member.set("combat_goal", route[0])
+		if spec.has("face") and member.has_method("face_world_position"):
+			member.call("face_world_position", host.cutscene_ground(spec.face))
+
+
+func _walk_cast() -> void:
+	for id: String in _cast_routes.keys():
+		var member: Node3D = _cast.get(id)
+		var route: PackedVector3Array = _cast_routes[id]
+		if not is_instance_valid(member) or route.is_empty():
+			_cast_routes.erase(id)
+			continue
+		var goal: Vector3 = route[0]
+		if Vector2(member.global_position.x - goal.x, member.global_position.z - goal.z).length() <= CAST_ARRIVE and route.size() > 1:
+			route.remove_at(0)
+			_cast_routes[id] = route
+			member.set("combat_goal", route[0])
+
+
+## Hand performers back: companions rejoin the trail, nobody keeps a pose or bubble.
+func _release_cast() -> void:
+	for id: String in _cast:
+		var member: Node3D = _cast[id]
+		if not is_instance_valid(member):
+			continue
+		if "combat_goal" in member:
+			member.set("combat_goal", Vector3.INF)
+		if member.has_method("set_action"):
+			member.call("set_action", -1, &"left")
+		if member.has_method("snap_behind_leader"):
+			member.call("snap_behind_leader")
+	_cast.clear()
+	_cast_routes.clear()
+	for sprite: SpriteBase3D in _acted:
+		if is_instance_valid(sprite):
+			var acting: Node = Acting.find(sprite)
+			if acting != null:
+				acting.call("clear")
+	_acted.clear()
 
 
 func _actor_is_walking() -> bool:
@@ -251,6 +350,8 @@ func _conclude() -> void:
 	if is_instance_valid(_previous_camera):
 		_previous_camera.make_current()
 	host.cutscene_conclude()
+	# After the host has placed the traveler, so companions rejoin at the final spot.
+	_release_cast()
 	for index: int in range(hidden_layers.size()):
 		if is_instance_valid(hidden_layers[index]):
 			hidden_layers[index].visible = _layer_visibility[index]

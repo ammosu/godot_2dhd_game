@@ -27,23 +27,13 @@ const LOWER_WALLS: Array[Rect2] = [
 
 static func portal(world: Node3D, at: Vector3, id: String) -> void:
 	var root: Node3D = world.get("_map_root")
-	var veil := MeshInstance3D.new()
-	veil.name = "CryptPortal"
-	var plane := QuadMesh.new()
-	plane.size = Vector2(2.44, 3.55)
-	plane.orientation = PlaneMesh.FACE_Z
-	veil.mesh = plane
-	var surface := ShaderMaterial.new()
-	surface.shader = preload("res://shaders/crypt_portal.gdshader")
-	veil.material_override = surface
-	veil.position = at + Vector3(0, 1.8, -0.16)
-	root.add_child(veil)
-	var light := OmniLight3D.new()
-	light.position = at + Vector3(0, 1.6, 0.4)
-	light.light_color = Color("63dfff")
-	light.light_energy = 0.8
-	light.omni_range = 5.0
-	root.add_child(light)
+	var vortex: Node3D = preload("res://scripts/gameplay/portal_vortex.gd").new()
+	vortex.name = "CryptPortal"
+	vortex.traveler = world.get_node("Player")
+	vortex.position = at
+	vortex.set_meta("exit_id", id)
+	vortex.add_to_group("portal_vortices")
+	root.add_child(vortex)
 	var exit := preload("res://scripts/gameplay/road_exit.gd").new()
 	exit.name = id
 	exit.interaction_id = id

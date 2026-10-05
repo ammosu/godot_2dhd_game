@@ -6,9 +6,15 @@ extends RefCounted
 ## the traveler is badly hurt he braces and shields them for a few seconds.
 ## Sia: rings her hand bell, slowing enemies around herself and easing a
 ## little of the traveler's wounds.
+##
+## Commands (the traveler calls them; the AI above keeps running otherwise):
+## Noah "挑釁" draws nearby enemies onto himself for a few seconds. A blow that
+## reaches him staggers him instead of hurting him (companions still cannot fall)
+## and breaks the taunt. Sia "鳴鈴" rings at once and always eases wounds.
 
 ## An enemy counts as engaged while chasing within this range of the traveler.
 const Awareness = preload("res://scripts/gameplay/enemy_awareness.gd")
+const Acting = preload("res://scripts/gameplay/actor_acting.gd")
 const ENGAGE_RADIUS: float = 9.0
 const NOAH_REACH: float = 1.5
 const NOAH_STANDOFF: float = 1.4
@@ -34,6 +40,16 @@ const BELL_RADIUS: float = 5.5
 const BELL_SLOW: float = 2.5
 const HEAL_TRIGGER: float = 0.7
 const HEAL_RATIO: float = 0.12
+const TAUNT_TIME: float = 4.5
+const TAUNT_RADIUS: float = 6.5
+const TAUNT_COOLDOWN: float = 12.0
+const STAGGER_TIME: float = 1.4
+const BELL_COMMAND_COOLDOWN: float = 10.0
+const COMMANDS: Dictionary[String, Dictionary] = {
+	"noah": {"name": "挑釁", "glyph": "taunt", "hotkey": "Z", "cooldown": TAUNT_COOLDOWN, "accent": Color("9fd4ff"), "bark": "看這邊！"},
+	"sia": {"name": "鳴鈴", "glyph": "bell", "hotkey": "X", "cooldown": BELL_COMMAND_COOLDOWN, "accent": Color("ffe0a0"), "bark": "鈴聲，響吧！"},
+}
+const TAUNT_COLOR := Color("8fc8ff")
 
 var ward_time: float = 0.0
 var _state: Dictionary = {}
@@ -57,16 +73,25 @@ func incoming_damage(raw: int) -> int:
 func step(field: Node3D, delta: float) -> void:
 	ward_time = maxf(0.0, ward_time - delta)
 	var engaged: Array[Dictionary] = _engaged(field)
+	if not engaged.is_empty() and find_follower(field, "noah") != null:
+		_introduce(field, "commands", "點同伴按鈕下令：諾亞挑釁、希雅鳴鈴" if MobileControls.is_mobile_device() else "Z：諾亞挑釁・X：希雅鳴鈴・按住 Tab 放慢時間下令")
 	for node: Node in field.get_tree().get_nodes_in_group("party_followers"):
 		if node.is_queued_for_deletion():
 			continue
 		var follower := node as Node3D
 		var id: String = str(follower.get("resident_id"))
-		if not _state.has(id):
-			_state[id] = {"phase": "", "time": 0.0, "cooldown": 0.6, "ward_cooldown": 0.0, "target": {}}
-		var state: Dictionary = _state[id]
+		var state: Dictionary = _ensure_state(id)
 		state.cooldown = maxf(0.0, float(state.cooldown) - delta)
 		state.ward_cooldown = maxf(0.0, float(state.ward_cooldown) - delta)
+		state.command_cooldown = maxf(0.0, float(state.command_cooldown) - delta)
+		if float(state.stagger) > 0.0:
+			# Knocked off balance: hold the brace until he finds his feet.
+			state.stagger = maxf(0.0, float(state.stagger) - delta)
+			follower.set("combat_goal", follower.global_position if not engaged.is_empty() else Vector3.INF)
+			if float(state.stagger) == 0.0:
+				state.phase = ""
+				follower.call("set_action", -1, &"left")
+			continue
 		if engaged.is_empty():
 			state.phase = ""
 			follower.set("combat_goal", Vector3.INF)
@@ -76,6 +101,104 @@ func step(field: Node3D, delta: float) -> void:
 			_noah(field, follower, state, engaged, delta)
 		elif id == "sia":
 			_sia(field, follower, state, engaged, delta)
+
+
+func _ensure_state(id: String) -> Dictionary:
+	if not _state.has(id):
+		_state[id] = {"phase": "", "time": 0.0, "cooldown": 0.6, "ward_cooldown": 0.0, "target": {}, "command_cooldown": 0.0, "stagger": 0.0, "commanded": false}
+	return _state[id]
+
+
+static func find_follower(field: Node3D, id: String) -> Node3D:
+	for node: Node in field.get_tree().get_nodes_in_group("party_followers"):
+		if not node.is_queued_for_deletion() and str(node.get("resident_id")) == id:
+			return node as Node3D
+	return null
+
+
+func command_cooldown(id: String) -> float:
+	return float(_ensure_state(id).command_cooldown)
+
+
+func is_staggered(id: String) -> bool:
+	return float(_ensure_state(id).stagger) > 0.0
+
+
+## Why a command cannot be given now, or "" when it can.
+func command_block(field: Node3D, id: String) -> String:
+	if not COMMANDS.has(id) or find_follower(field, id) == null:
+		return "同伴不在身邊"
+	if _engaged(field).is_empty():
+		return "沒有交戰中的敵人"
+	if is_staggered(id):
+		return "諾亞還沒站穩"
+	if command_cooldown(id) > 0.0:
+		return "%s冷卻中" % str(COMMANDS[id].name)
+	return ""
+
+
+## The traveler's order. Returns true when the companion acts on it.
+func command(field: Node3D, id: String) -> bool:
+	if not command_block(field, id).is_empty():
+		return false
+	var ally: Node3D = find_follower(field, id)
+	var state: Dictionary = _ensure_state(id)
+	state.command_cooldown = float(COMMANDS[id].cooldown)
+	var hero := field.get("player") as Node3D
+	if id == "noah":
+		var drawn: int = 0
+		for enemy: Dictionary in _engaged(field):
+			var at: Vector3 = (enemy.body as Node3D).global_position
+			if at.distance_to(ally.global_position) <= TAUNT_RADIUS or at.distance_to(hero.global_position) <= TAUNT_RADIUS:
+				enemy.taunt = TAUNT_TIME
+				enemy.taunt_by = ally
+				drawn += 1
+		_begin(state, "guard", WARD_POSE_TIME)
+		ally.call("set_action", 3, _side(field, hero.global_position - ally.global_position))
+		field.call("_effect", "ward", ally.global_position, 1.0)
+		field.call("_number", ally.global_position, "挑釁 ×%d" % drawn, TAUNT_COLOR, &"noah")
+		GameAudio.play_cue(&"guard")
+	else:
+		# Ring straight away; the windup only reads as the bell being raised.
+		state.commanded = true
+		_begin(state, "windup", 0.12)
+		ally.call("set_action", 1, _side(field, hero.global_position - ally.global_position))
+	var art: Node = ally.get_node_or_null("CharacterArt")
+	if art is SpriteBase3D:
+		Acting.ensure(art).call("act", &"hop", &"exclaim")
+	field.call("_number", ally.global_position + Vector3.UP * 0.6, str(COMMANDS[id].bark), Color(COMMANDS[id].accent), StringName(id))
+	var director: Variant = field.get("director")
+	if director != null:
+		director.call("on_command", field, ally)
+	return true
+
+
+## An enemy drawn by the taunt struck Noah: he braces and staggers, unhurt.
+func ally_struck(field: Node3D, ally: Node3D) -> void:
+	var state: Dictionary = _ensure_state(str(ally.get("resident_id")))
+	state.stagger = STAGGER_TIME
+	state.phase = "stagger"
+	ally.call("set_action", 3, ally.get("action_side"))
+	var art: Node = ally.get_node_or_null("CharacterArt")
+	if art is SpriteBase3D:
+		Acting.ensure(art).call("act", &"recoil", &"shock")
+	field.call("_number", ally.global_position, "格擋・踉蹌", TAUNT_COLOR, &"noah")
+	GameAudio.play_cue(&"guard", 0.85)
+	# Knocked back, he can no longer hold anyone's attention.
+	for enemy: Dictionary in field.get("enemies"):
+		if enemy.get("taunt_by") == ally:
+			enemy.taunt = 0.0
+	_introduce(field, "stagger", "諾亞擋下攻擊而踉蹌，挑釁中斷")
+
+
+## The enemy's current target point when a taunt holds it, otherwise INF.
+static func taunt_target(enemy: Dictionary) -> Vector3:
+	if float(enemy.get("taunt", 0.0)) <= 0.0:
+		return Vector3.INF
+	var ally: Variant = enemy.get("taunt_by")
+	if not (ally is Node3D) or not is_instance_valid(ally):
+		return Vector3.INF
+	return (ally as Node3D).global_position
 
 
 func _engaged(field: Node3D) -> Array[Dictionary]:
@@ -159,7 +282,8 @@ func _sia(field: Node3D, follower: Node3D, state: Dictionary, engaged: Array[Dic
 				follower.call("set_action", 1, _side(field, focus - follower.global_position))
 		"windup":
 			if float(state.time) <= 0.0:
-				_ring(field, follower, hero)
+				_ring(field, follower, hero, bool(state.commanded))
+				state.commanded = false
 				_begin(state, "ring", SIA_RING)
 				follower.call("set_action", 2, follower.get("action_side"))
 		"ring":
@@ -173,7 +297,7 @@ func _sia(field: Node3D, follower: Node3D, state: Dictionary, engaged: Array[Dic
 				follower.call("set_action", -1, &"left")
 
 
-func _ring(field: Node3D, follower: Node3D, hero: Node3D) -> void:
+func _ring(field: Node3D, follower: Node3D, hero: Node3D, commanded: bool = false) -> void:
 	GameAudio.play_cue(&"hand_bell")
 	field.call("_effect", "bell_wave", follower.global_position, BELL_RADIUS)
 	var slowed: bool = false
@@ -185,7 +309,7 @@ func _ring(field: Node3D, follower: Node3D, hero: Node3D) -> void:
 	if slowed:
 		field.call("_number", follower.global_position, "鐘聲：減速", BELL_COLOR, &"sia")
 		_introduce(field, "slow", "希雅・鐘聲：減速附近敵人")
-	if GameState.player_hp < roundi(GameState.player_max_hp * HEAL_TRIGGER):
+	if GameState.player_hp < GameState.player_max_hp and (commanded or GameState.player_hp < roundi(GameState.player_max_hp * HEAL_TRIGGER)):
 		var amount: int = maxi(1, roundi(GameState.player_max_hp * HEAL_RATIO))
 		GameState.heal_player(amount)
 		field.call("_number", hero.global_position, "回復 +%d" % amount, HEAL_COLOR, &"sia")

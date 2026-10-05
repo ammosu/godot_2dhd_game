@@ -95,8 +95,11 @@ func _run() -> void:
 			player.move_and_collide(step)
 			await physics_frame
 			await process_frame
-			if state.get("current_map") == destination:
+			if state.get("current_map") == destination or world.get("_portal_transition_pending"):
 				break
+		# Crossing plays a short light transition before the map changes.
+		if state.get("current_map") != destination:
+			await world.map_presented
 		assert(state.get("current_map") == destination)
 		await create_timer(0.25).timeout
 		assert(state.get("current_map") == destination)

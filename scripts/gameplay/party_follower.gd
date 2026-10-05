@@ -64,6 +64,16 @@ func set_action(pose: int, side: StringName) -> void:
 		_sprite.action_side = side
 
 
+## Turn toward a world point while standing (cutscene blocking, reactions).
+func face_world_position(point: Vector3) -> void:
+	var direction: Vector3 = (point - global_position) * Vector3(1, 0, 1)
+	if direction.length_squared() < 0.0001:
+		return
+	_heading = direction.normalized()
+	if is_instance_valid(_sprite):
+		_sprite.world_heading = _heading
+
+
 ## Restart the trail directly behind the traveler (map load, teleport).
 func snap_behind_leader() -> void:
 	if not is_instance_valid(leader):

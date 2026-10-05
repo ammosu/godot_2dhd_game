@@ -16,6 +16,10 @@ const DeathEffect = preload("res://scripts/gameplay/enemy_death_effect.gd")
 const Effect = preload("res://scripts/gameplay/world_combat_effect.gd")
 const HitFeedback = preload("res://scripts/gameplay/hit_feedback.gd")
 const Allies = preload("res://scripts/gameplay/field_allies.gd")
+const Director = preload("res://scripts/gameplay/field_combat_director.gd")
+const TimeDilation = preload("res://scripts/systems/time_dilation.gd")
+const WHEEL_SLOW: StringName = &"command_wheel"
+const WHEEL_TIME_SCALE: float = 0.25
 const SPAWNS: Array[Dictionary] = [
 	{"id": "road_wolf_west", "at": Vector3(-4, 0.05, 10), "caster": false},
 	{"id": "road_wolf_ramp", "at": Vector3(2, 0.41, 10.5), "caster": false, "elite": true},
@@ -94,6 +98,7 @@ var recovery_map: String = "village"
 var recovery_spawn: String = "from_east_road"
 var automation := Automation.new()
 var allies := Allies.new()
+var director := Director.new()
 var _ward_marker: MeshInstance3D
 var _auto_button: Button
 var _auto_settings_button: Button
@@ -128,6 +133,11 @@ var _last_target: Dictionary = {}
 var _hero_sprite: Sprite3D
 var _hud: Control
 var _buttons: Dictionary[String, Button] = {}
+var _command_row: HBoxContainer
+var _command_buttons: Dictionary[String, Button] = {}
+var _wheel: Control
+var _wheel_buttons: Dictionary[String, Button] = {}
+var _wheel_hint: Label
 var _focus_paused: bool = false
 var _previous_camera_distance: float = 11.0
 var _rig: Hd2dCameraRig
@@ -283,8 +293,19 @@ func _committed_move_scale() -> float:
 	return 1.0
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_released("command_wheel"):
+		close_command_wheel()
 	if event.is_echo() or GameState.mode != GameState.Mode.EXPLORE:
 		return
+	if event.is_action_pressed("command_wheel"):
+		if open_command_wheel():
+			get_viewport().set_input_as_handled()
+		return
+	for id: String in Allies.COMMANDS:
+		if event.is_action_pressed("command_" + id):
+			command_ally(id)
+			get_viewport().set_input_as_handled()
+			return
 	var action: String = ""
 	if event is InputEventKey and event.pressed:
 		if event.physical_keycode == KEY_B:
@@ -383,6 +404,47 @@ func perform(action: String, automated: bool = false) -> bool:
 	player.call("face_world_position", player.global_position + facing)
 	return true
 
+## Order a companion; a refusal explains itself once in the notice line.
+func command_ally(id: String) -> bool:
+	if not ready_for_combat or _focus_paused or GameState.mode != GameState.Mode.EXPLORE:
+		return false
+	var reason: String = allies.command_block(self, id)
+	if not reason.is_empty():
+		if Allies.find_follower(self, id) != null:
+			GameState.notification_requested.emit(reason)
+		return false
+	var done: bool = allies.command(self, id)
+	close_command_wheel()
+	return done
+
+
+func has_companions() -> bool:
+	for id: String in Allies.COMMANDS:
+		if Allies.find_follower(self, id) != null:
+			return true
+	return false
+
+
+## Holding the wheel slows the fight so an order can be chosen calmly.
+func open_command_wheel() -> bool:
+	if not ready_for_combat or not has_companions() or not is_engaged() or GameState.mode != GameState.Mode.EXPLORE:
+		return false
+	_wheel.show()
+	TimeDilation.request(WHEEL_SLOW, WHEEL_TIME_SCALE)
+	_update_command_hud()
+	return true
+
+
+func close_command_wheel() -> void:
+	if is_instance_valid(_wheel):
+		_wheel.hide()
+	TimeDilation.release(WHEEL_SLOW)
+
+
+func is_command_wheel_open() -> bool:
+	return is_instance_valid(_wheel) and _wheel.visible
+
+
 func can_hit(from: Vector3, to: Vector3, reach: float) -> bool:
 	if absf(from.y - to.y) > 0.7 or Vector2(from.x - to.x, from.z - to.z).length() > reach:
 		return false
@@ -390,6 +452,7 @@ func can_hit(from: Vector3, to: Vector3, reach: float) -> bool:
 	return get_world_3d().direct_space_state.intersect_ray(ray).is_empty()
 
 func _physics_process(delta: float) -> void:
+	director.advance_real(delta)
 	var active: bool = GameState.mode == GameState.Mode.EXPLORE and not _focus_paused
 	_hud.visible = GameState.mode == GameState.Mode.EXPLORE
 	_auto_controls.visible = _hud.visible
@@ -436,6 +499,7 @@ func _physics_process(delta: float) -> void:
 		if GameState.mode != GameState.Mode.EXPLORE:
 			return
 	allies.step(self, delta)
+	director.step(self, delta)
 	_update_readability()
 	for id: String in loot_nodes.keys():
 		var node: Node3D = loot_nodes[id]
@@ -630,6 +694,8 @@ func _hurt_hero() -> void:
 
 func _strike() -> void:
 	swing = 0.20
+	if skill_pending:
+		director.on_skill(self)
 	var profile := GameState.class_profile()
 	var ranged: bool = bool(profile.ranged)
 	var radius: float = float(profile.reach) if ranged else 2.6 if skill_pending else 1.65
@@ -730,6 +796,7 @@ func _damage_enemy(enemy: Dictionary, damage: int, source: Vector3 = Vector3.INF
 		_effects.append(death)
 		GameState.defeat_field_enemy(enemy.id, enemy.body.global_position, enemy.caster)
 		_sync_loot()
+		director.on_enemy_defeated(self, enemy)
 
 func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 	var body: CharacterBody3D = enemy.body
@@ -761,6 +828,7 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 		enemy.label.hide()
 		return
 	Awareness.update(self, enemy, delta)
+	enemy.taunt = maxf(0.0, float(enemy.get("taunt", 0.0)) - delta)
 	var movement := Vector3.ZERO
 	# Strike and follow-through root the feet; a new attack may still start.
 	var committed: bool = float(enemy.swing) > 0 or float(enemy.recovery) > 0
@@ -771,11 +839,14 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 	elif float(enemy.hurt) == 0:
 		var target: Vector3 = enemy.home
 		if enemy.state == "chase":
-			target = enemy.last_seen
+			# A companion's taunt overrides the traveler as the quarry.
+			var taunted: Vector3 = Allies.taunt_target(enemy)
+			target = taunted if taunted.is_finite() else enemy.last_seen
 			var reach: float = 4.8 if enemy.caster else maxf(1.85 if enemy.art == "dusk_bat" else 1.35, _contact_spacing(enemy) + 0.3)
 			var approach: Vector3 = _approach_position(enemy, target)
 			var in_lane: bool = enemy.caster or at.distance_to(approach) < 0.35
-			if enemy.target_visible and in_lane and can_hit(at, target, reach):
+			var sighted: bool = enemy.target_visible or taunted.is_finite()
+			if sighted and in_lane and can_hit(at, target, reach):
 				if float(enemy.cooldown) == 0:
 					enemy.aim = target
 					enemy.facing = (target - at).normalized()
@@ -786,7 +857,7 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 					enemy.warning.position = enemy.aim + Vector3.UP * 0.04
 					enemy.warning.visible = enemy.charged_attack
 				target = at
-			elif not enemy.caster and enemy.target_visible:
+			elif not enemy.caster and sighted:
 				target = approach
 		elif enemy.state == "return":
 			if at.distance_to(target) < 0.5:
@@ -962,6 +1033,9 @@ func _enemy_strike(enemy: Dictionary) -> void:
 	_effect("bolt" if enemy.caster else "claw", enemy.aim)
 	var reach: float = 5.2 if enemy.caster else maxf(1.8, _contact_spacing(enemy) + 0.4)
 	var radius: float = 1.15 if enemy.caster else 0.95
+	var taunter: Variant = enemy.get("taunt_by")
+	if Allies.taunt_target(enemy).is_finite() and (taunter as Node3D).global_position.distance_to(enemy.aim) < radius + 0.3:
+		allies.ally_struck(self, taunter as Node3D)
 	if invulnerable <= 0 and can_hit(enemy.body.global_position, player.global_position, reach) and player.global_position.distance_to(enemy.aim) < radius:
 		var power: int = int(enemy.attack_power) if enemy.charged_attack else roundi(float(enemy.attack_power) * 0.75)
 		var damage: int = allies.incoming_damage(maxi(1, power - GameState.player_defense))
@@ -1207,6 +1281,8 @@ func _build_hud() -> void:
 		button.add_to_group("camera_touch_blocker")
 		_buttons[action] = button
 
+	_build_command_hud(layer, mobile)
+
 	_auto_controls = Control.new()
 	_auto_controls.theme = GameState.ui_theme
 	_auto_controls.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1268,10 +1344,132 @@ func _build_hud() -> void:
 	_auto_options.hide()
 	_update_hud()
 
+func _command_button(id: String, size: float) -> Button:
+	var spec: Dictionary = Allies.COMMANDS[id]
+	var button := IconButton.new()
+	button.custom_minimum_size = Vector2(size, size)
+	button.glyph = str(spec.glyph)
+	button.caption = str(spec.name)
+	button.hotkey = str(spec.hotkey)
+	button.accent = spec.accent
+	button.pressed.connect(func() -> void: command_ally(id))
+	button.add_to_group("camera_touch_blocker")
+	return button
+
+
+## Companion orders sit just above the traveler's own actions; the wheel is a
+## larger, slowed-time version of the same two orders.
+func _build_command_hud(layer: CanvasLayer, mobile: bool) -> void:
+	_command_row = HBoxContainer.new()
+	_command_row.name = "CommandRow"
+	_command_row.theme = GameState.ui_theme
+	_command_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_command_row.add_theme_constant_override("separation", 10)
+	layer.add_child(_command_row)
+	_command_row.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	_command_row.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_command_row.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_command_row.offset_left = -80
+	_command_row.offset_right = 80
+	_command_row.offset_top = -180
+	_command_row.offset_bottom = -112
+	if mobile:
+		_command_row.anchor_left = 0.0
+		_command_row.anchor_right = 1.0
+		_command_row.offset_left = 366
+		_command_row.offset_right = -204
+	for id: String in Allies.COMMANDS:
+		var button := _command_button(id, 64.0)
+		button.name = "Command_" + id
+		_command_row.add_child(button)
+		_command_buttons[id] = button
+	_command_row.hide()
+
+	_wheel = Control.new()
+	_wheel.name = "CommandWheel"
+	_wheel.theme = GameState.ui_theme
+	_wheel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(_wheel)
+	_wheel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var shade := ColorRect.new()
+	shade.color = Color(0.02, 0.03, 0.07, 0.38)
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_wheel.add_child(shade)
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var board := PanelContainer.new()
+	board.add_theme_stylebox_override("panel", HudTheme.panel(16))
+	board.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_wheel.add_child(board)
+	board.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	board.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	board.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var column := VBoxContainer.new()
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_theme_constant_override("separation", 12)
+	board.add_child(column)
+	var title := Label.new()
+	title.text = "指揮同伴"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 26)
+	column.add_child(title)
+	var cards := HBoxContainer.new()
+	cards.alignment = BoxContainer.ALIGNMENT_CENTER
+	cards.add_theme_constant_override("separation", 72)
+	column.add_child(cards)
+	for id: String in Allies.COMMANDS:
+		var card := VBoxContainer.new()
+		card.alignment = BoxContainer.ALIGNMENT_CENTER
+		cards.add_child(card)
+		var button := _command_button(id, 116.0)
+		button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		card.add_child(button)
+		_wheel_buttons[id] = button
+		var name_label := Label.new()
+		name_label.text = ("諾亞" if id == "noah" else "希雅") + "・" + str(Allies.COMMANDS[id].name)
+		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		card.add_child(name_label)
+		var detail := Label.new()
+		detail.text = "引開附近敵人，被打中會踉蹌" if id == "noah" else "立刻減速周圍敵人並回復"
+		detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		detail.add_theme_font_size_override("font_size", 14)
+		detail.modulate = Color("c9d6e2")
+		card.add_child(detail)
+	_wheel_hint = Label.new()
+	_wheel_hint.text = "按 Z／X 下令・放開 Tab 返回"
+	_wheel_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_wheel_hint.add_theme_font_size_override("font_size", 15)
+	_wheel_hint.modulate = Color("afc1ce")
+	column.add_child(_wheel_hint)
+	_wheel.hide()
+
+
+func _update_command_hud() -> void:
+	if not is_instance_valid(_command_row):
+		return
+	var present: bool = ready_for_combat and has_companions() and GameState.mode == GameState.Mode.EXPLORE
+	_command_row.visible = present
+	if is_command_wheel_open() and (not present or not is_engaged()):
+		close_command_wheel()
+	if not present:
+		return
+	for id: String in Allies.COMMANDS:
+		var here: bool = Allies.find_follower(self, id) != null
+		var cooldown: float = allies.command_cooldown(id)
+		var blocked: bool = not allies.command_block(self, id).is_empty()
+		for button: Button in [_command_buttons[id], _wheel_buttons[id]]:
+			button.visible = here
+			button.cooldown = cooldown
+			button.cooldown_fraction = clampf(cooldown / float(Allies.COMMANDS[id].cooldown), 0.0, 1.0)
+			button.disabled = blocked
+			button.tooltip_text = "%s・%s [%s]" % ["諾亞" if id == "noah" else "希雅", Allies.COMMANDS[id].name, Allies.COMMANDS[id].hotkey]
+			button.queue_redraw()
+
+
 func _set_auto_settings_expanded(expanded: bool) -> void:
 	_auto_options.visible = expanded
 
 func _update_hud() -> void:
+	_update_command_hud()
 	_auto_button.set_pressed_no_signal(automation.enabled)
 	_auto_button.caption = "自動・開" if automation.enabled else "自動・關"
 	_auto_button.accent = Color("8affce") if automation.enabled else Color("8394a7")
@@ -1301,6 +1499,8 @@ func _resume_focus() -> void:
 	_focus_paused = false
 
 func _exit_tree() -> void:
+	close_command_wheel()
+	director.shutdown(self)
 	if is_instance_valid(player):
 		var rig := player.get_parent().get_node_or_null("CameraRig")
 		if is_instance_valid(rig):

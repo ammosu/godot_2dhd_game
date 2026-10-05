@@ -11,6 +11,11 @@ const Effects = preload("res://scripts/gameplay/world_combat_effect.gd")
 const HitFeedback = preload("res://scripts/gameplay/hit_feedback.gd")
 const Battle = preload("res://scripts/systems/action_battle.gd")
 const COURT := Rect2(-8.0, -13.0, 16.0, 14.0)
+const FRAME_SHOT: StringName = &"battle_frame"
+## Lens distance for the arena fight, scaled from the rig's default combat distance.
+const FRAME_NEAR: float = 14.0
+const FRAME_FAR: float = 22.0
+const COMBAT_DISTANCE: float = 21.0
 const CELL: float = 0.5
 ## Ground covered per foot contact; the four-frame cycle (walk_a, idle, walk_b,
 ## idle) advances two frames per step, so cadence follows real speed.
@@ -46,6 +51,7 @@ var _player_mask: int
 var _player_processing: bool
 var _guardian_layer: int = 0
 var _finished: bool = false
+var _frame: Dictionary = {}
 var _clock: float = 0.0
 var _paths: Dictionary = {}
 var _numbers: Array[Dictionary] = []
@@ -171,6 +177,8 @@ func setup(model: RefCounted, traveler: CharacterBody3D, camera_rig: Node3D, ori
 	session.steering_resolver = _steer
 	session.visibility_resolver = _visible
 	rig.begin_combat_shot(bodies[0])
+	_frame = {"focus": bodies[0].global_position, "distance_scale": 1.0, "blend_in": 0.7, "blend_out": 0.6, "follow_rate": 2.5}
+	rig.request_shot(FRAME_SHOT, _frame, 10)
 	refresh(0.0)
 
 func _build_boundary() -> void:
@@ -281,6 +289,7 @@ func refresh(delta: float) -> void:
 		return
 	_clock += delta
 	rig.set_combat_target(bodies[int(session.controlled)])
+	_update_frame()
 	var camera: Camera3D = get_viewport().get_camera_3d()
 	for index: int in range(6):
 		var actor: Dictionary = session.actors[index]
@@ -363,6 +372,28 @@ func _apply_impact_feedback(index: int, actor: Dictionary, camera: Camera3D) -> 
 	var shiver: Vector3 = HitFeedback.tremor(float(actor.get("hit_stop", 0.0)), camera) if hurt > 0.0 else Vector3.ZERO
 	sprite.position.x = shiver.x
 	sprite.position.z = shiver.z
+
+## Center between everyone still standing (the controlled hero counts double)
+## and pull back as the fight spreads, so neither side leaves the frame.
+func _update_frame() -> void:
+	var controlled: int = int(session.controlled)
+	var anchor: Vector3 = bodies[controlled].global_position
+	var total: Vector3 = anchor * 2.0
+	var weight: float = 2.0
+	var points: Array[Vector3] = [anchor]
+	for index: int in range(bodies.size()):
+		if index == controlled or int(session.actors[index].hp) <= 0:
+			continue
+		points.append(bodies[index].global_position)
+		total += bodies[index].global_position
+		weight += 1.0
+	var focus: Vector3 = total / weight
+	var spread: float = 0.0
+	for point: Vector3 in points:
+		spread = maxf(spread, Vector2(point.x - focus.x, point.z - focus.z).length())
+	var distance: float = clampf(10.0 + spread * 1.5, FRAME_NEAR, FRAME_FAR)
+	rig.call("update_shot", FRAME_SHOT, {"focus": focus, "distance_scale": distance / COMBAT_DISTANCE})
+
 
 func advance_effects(delta: float) -> void:
 	rig.advance_combat_feedback(delta)
@@ -485,6 +516,7 @@ func finish() -> void:
 		if body != null:
 			body.collision_layer = _guardian_layer
 	if is_instance_valid(rig):
+		rig.call("release_shot", FRAME_SHOT)
 		rig.end_combat_shot()
 
 func _exit_tree() -> void:

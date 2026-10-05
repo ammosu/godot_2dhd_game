@@ -49,6 +49,8 @@ static func shots() -> Array[Dictionary]:
 			# The whisper makes him glance around toward the lens side, then settle back on the road west.
 			"events": [{"at": 2.2, "id": "road_whisper"}, {"at": 2.5, "face": Vector3(-6.0, 0.0, 9.0)},
 				{"at": 3.5, "face": Vector3(-12.0, 0.0, 5.0)}],
+			# Startled by the voice, then a small nod: he will go west.
+			"acts": [{"at": 2.3, "who": "actor", "act": "surprise", "emote": "question"}, {"at": 4.4, "who": "actor", "act": "nod"}],
 			"speaker": "低語", "caption": "……往西走。那裡還有一盞燈。",
 			"fade_out": 1.0,
 		},

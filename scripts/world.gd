@@ -27,6 +27,12 @@ const RuinsMap = preload("res://scripts/gameplay/ruins_map.gd")
 const OpeningCutscene = preload("res://scripts/story/opening_cutscene.gd")
 const PlaythroughTest = preload("res://scripts/testing/playthrough_test.gd")
 const BodyLife = preload("res://scripts/gameplay/body_life.gd")
+const ActorActing = preload("res://scripts/gameplay/actor_acting.gd")
+const PortalTransition = preload("res://scripts/ui/portal_transition.gd")
+const PORTAL_SHOT: StringName = &"portal_cross"
+## Seconds of walking into the light before the screen is fully covered.
+const PORTAL_COVER_SECONDS: float = 0.85
+const PORTAL_REVEAL_SECONDS: float = 0.75
 const PortraitFaces = preload("res://scripts/ui/portrait_faces.gd")
 
 const PALETTE := {
@@ -80,6 +86,7 @@ var _village_gate_light: OmniLight3D
 var _village_gate_marker: Label3D
 var _village_gate_is_open: bool = false
 var _portal_transition_pending: bool = false
+var _portal_fx: PortalTransition
 var _quest_markers: Dictionary = {}
 ## Only chapter films return to the player's current exploration location.
 var _chapter_cutscene_return: Dictionary = {}
@@ -113,6 +120,9 @@ func _ready() -> void:
 	battle_ui.battle_finished.connect(_on_battle_finished)
 	GameState.state_changed.connect(_on_conversation_state_changed)
 	dialogue_ui.line_revealing.connect(_on_line_revealing)
+	dialogue_ui.line_acted.connect(_on_line_acted)
+	_portal_fx = PortalTransition.new()
+	add_child(_portal_fx)
 	var hero_life := BodyLife.new()
 	hero_life.breathing = false # Idle motion of the hero belongs to the player script.
 	player.sprite.add_child(hero_life)
@@ -344,6 +354,49 @@ func cutscene_event(event_id: String) -> void:
 			ChapterOne.cutscene_event(self, event_id)
 
 
+## A named performer for films: a travelling companion, else a map actor by interaction id.
+func cutscene_cast(id: String) -> Node3D:
+	for follower: Node in get_tree().get_nodes_in_group("party_followers"):
+		if not follower.is_queued_for_deletion() and str(follower.get("resident_id")) == id:
+			return follower as Node3D
+	if not is_instance_valid(_map_root):
+		return null
+	for node: Node in _map_root.find_children("*", "Interactable3D", true, false):
+		if str(node.get("interaction_id")) == id:
+			return node as Node3D
+	return null
+
+
+## The art that visibly acts for a performer; "actor" and "hero" are the traveler.
+func cutscene_sprite(id: String) -> SpriteBase3D:
+	if id in ["actor", "hero"]:
+		var field: Node = _map_root.get_node_or_null("FieldCombat") if is_instance_valid(_map_root) else null
+		if field != null:
+			var combat_art: Variant = field.get("_hero_sprite")
+			if combat_art is SpriteBase3D and is_instance_valid(combat_art) and (combat_art as SpriteBase3D).visible:
+				return combat_art
+		return player.sprite
+	var member: Node3D = cutscene_cast(id)
+	if member == null:
+		return null
+	var art: Node = member.get_node_or_null("CharacterArt")
+	if art is SpriteBase3D:
+		return art
+	for child: Node in member.find_children("*", "SpriteBase3D", true, false):
+		return child as SpriteBase3D
+	return null
+
+
+## Dialogue lines may carry "act"/"emote"; the speaker (or the partner) performs it.
+func _on_line_acted(speaker: String, beat: StringName, emote: StringName) -> void:
+	var face: String = PortraitFaces.speaker_face_id(speaker)
+	var sprite: SpriteBase3D = cutscene_sprite(face) if not face.is_empty() else null
+	if sprite == null and speaker not in NARRATOR_SPEAKERS and is_instance_valid(_conversation_art) and _conversation_art is SpriteBase3D:
+		sprite = _conversation_art as SpriteBase3D
+	if sprite != null:
+		ActorActing.ensure(sprite).call("act", beat, emote)
+
+
 func cutscene_conclude() -> void:
 	if not _chapter_cutscene_return.is_empty():
 		var destination: Dictionary = _chapter_cutscene_return
@@ -404,6 +457,7 @@ func _on_map_change_requested(map_id: String, spawn_id: String) -> void:
 
 func _load_map(map_id: String, spawn_id: String) -> void:
 	_film_hidden.clear()
+	($CameraRig as Hd2dCameraRig).release_shot(PORTAL_SHOT, true)
 	player.auto_walk.cancel()
 	_cancel_conversation_step()
 	dialogue_ui.clear_illustration()
@@ -1007,6 +1061,10 @@ func _handle_interaction(interaction_id: String) -> void:
 	if Outskirts.EXITS.has(interaction_id):
 		var route: Array = Outskirts.EXITS[interaction_id]
 		if GameState.current_map == route[0]:
+			var vortex: Node3D = _portal_vortex(interaction_id)
+			if vortex != null:
+				_cross_portal(str(route[1]), str(route[2]), vortex.call("opening_center"), vortex)
+				return
 			_portal_transition_pending = true
 			GameState.request_map(route[1], route[2])
 		return
@@ -1724,16 +1782,131 @@ func _try_enter_portal(interaction_id: String) -> void:
 		return
 	if interaction_id == "portal_to_ruins":
 		if GameState.quest_state == GameState.QuestState.NOT_STARTED:
+			_reject_at_sealed_gate()
 			dialogue_ui.show_dialogue([
 				{"speaker": "古老門扉", "text": "藍色紋路一閃即逝，門扉沒有開啟。"},
 				{"speaker": "守門人・諾亞", "text": "它只聽從長老的月印。先去廣場找艾爾長老吧。"},
 			])
 			return
-		_portal_transition_pending = true
-		GameState.request_map("ruins", "from_village")
+		_cross_portal("ruins", "from_village", _portal_gate_center(interaction_id))
 	elif interaction_id == "portal_to_village":
-		_portal_transition_pending = true
-		GameState.request_map("village", "from_ruins")
+		_cross_portal("village", "from_ruins", _portal_gate_center(interaction_id))
+
+
+func _portal_vortex(exit_id: String) -> Node3D:
+	for node: Node in get_tree().get_nodes_in_group("portal_vortices"):
+		if is_instance_valid(_map_root) and _map_root.is_ancestor_of(node) and str(node.get_meta("exit_id", "")) == exit_id:
+			return node as Node3D
+	return null
+
+
+func _portal_gate_center(interaction_id: String) -> Vector3:
+	var gate := _map_root.find_child(interaction_id.capitalize(), false, false) as Node3D if is_instance_valid(_map_root) else null
+	return (gate.global_position if gate != null else player.global_position) + Vector3.UP * 1.5
+
+
+## Walk into the light, ripple the screen shut, change maps under it, and open
+## again on arrival with a small burst. A short scripted beat, not a skippable film.
+func _cross_portal(map_id: String, spawn: String, center: Vector3, vortex: Node3D = null) -> void:
+	if _portal_transition_pending:
+		return
+	_portal_transition_pending = true
+	var source: Node3D = _map_root
+	GameState.set_mode(GameState.Mode.CUTSCENE)
+	var rig := $CameraRig as Hd2dCameraRig
+	rig.request_shot(PORTAL_SHOT, {"focus": player.global_position.lerp(Vector3(center.x, player.global_position.y, center.z), 0.6), "distance_scale": 0.72, "relative": true, "blend_in": 0.6}, 50)
+	var inward: Vector3 = (center - player.global_position) * Vector3(1, 0, 1)
+	inward = inward.normalized() if inward.length() > 0.05 else -player.global_basis.z
+	player.play_scripted_walk(PackedVector3Array([player.global_position + inward * 1.1]), 1.7)
+	if vortex != null:
+		vortex.call("surge", PORTAL_COVER_SECONDS * 0.8)
+	GameAudio.play_cue(&"skill", 0.72)
+	var camera := get_viewport().get_camera_3d()
+	var screen := Vector2(0.5, 0.5)
+	if camera != null and not camera.is_position_behind(center):
+		screen = (camera.unproject_position(center) / get_viewport().get_visible_rect().size).clamp(Vector2(0.15, 0.15), Vector2(0.85, 0.85))
+	await _portal_fx.cover(PORTAL_COVER_SECONDS, screen, Color("dcf2ff") if vortex != null else Color("eef4ff"))
+	player.stop_scripted_walk()
+	if not is_instance_valid(source) or source != _map_root:
+		# Something else changed the map meanwhile; just clear the screen.
+		_portal_fx.cancel()
+		return
+	# Hand control back before the new map runs its arrival beats (dialogue, films).
+	GameState.set_mode(GameState.Mode.EXPLORE)
+	GameState.request_map(map_id, spawn)
+	await map_presented
+	_portal_arrival_burst()
+	var hero_art: SpriteBase3D = cutscene_sprite("hero")
+	if hero_art != null:
+		ActorActing.ensure(hero_art).call("act", &"hop", &"none")
+	GameAudio.play_cue(&"moon_heal", 1.25)
+	# The map build is one long frame; start opening only once frames are short again.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	await _portal_fx.reveal(PORTAL_REVEAL_SECONDS)
+
+
+## Motes thrown up around the traveler as they step out of the light.
+func _portal_arrival_burst() -> void:
+	var burst := CPUParticles3D.new()
+	burst.name = "PortalArrival"
+	burst.one_shot = true
+	burst.amount = 36
+	burst.lifetime = 1.1
+	burst.explosiveness = 0.85
+	burst.emission_shape = CPUParticles3D.EMISSION_SHAPE_RING
+	burst.emission_ring_axis = Vector3.UP
+	burst.emission_ring_radius = 0.55
+	burst.emission_ring_inner_radius = 0.2
+	burst.emission_ring_height = 0.1
+	burst.direction = Vector3.UP
+	burst.spread = 35.0
+	burst.initial_velocity_min = 0.8
+	burst.initial_velocity_max = 1.8
+	burst.gravity = Vector3(0, -0.6, 0)
+	var fade := Gradient.new()
+	fade.set_color(0, Color(0.85, 0.96, 1.0, 1.0))
+	fade.set_color(1, Color(0.4, 0.85, 1.0, 0.0))
+	burst.color_ramp = fade
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.06, 0.06)
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	material.vertex_color_use_as_albedo = true
+	quad.material = material
+	burst.mesh = quad
+	_map_root.add_child(burst)
+	burst.global_position = player.global_position + Vector3.UP * 0.1
+	burst.emitting = true
+	burst.finished.connect(burst.queue_free)
+	var glow := OmniLight3D.new()
+	glow.light_color = Color("bfe9ff")
+	glow.omni_range = 4.0
+	glow.light_energy = 2.5
+	_map_root.add_child(glow)
+	glow.global_position = player.global_position + Vector3.UP * 1.2
+	var dim := glow.create_tween()
+	dim.tween_property(glow, "light_energy", 0.0, 0.9).set_trans(Tween.TRANS_SINE)
+	dim.tween_callback(glow.queue_free)
+
+
+## The sealed moon gate refuses: its seal flares, the traveler starts back.
+func _reject_at_sealed_gate() -> void:
+	var hero_art: SpriteBase3D = cutscene_sprite("hero")
+	if hero_art != null:
+		ActorActing.ensure(hero_art).call("act", &"recoil", &"shock")
+	GameAudio.play_cue(&"guard", 1.3)
+	if is_instance_valid(_village_gate_light):
+		var flare := create_tween()
+		flare.tween_property(_village_gate_light, "light_energy", 2.6, 0.12)
+		flare.tween_property(_village_gate_light, "light_energy", 0.15, 0.7).set_trans(Tween.TRANS_SINE)
+	if is_instance_valid(_village_gate_seal):
+		var pulse := create_tween()
+		pulse.tween_property(_village_gate_seal, "scale", Vector3.ONE * 1.12, 0.1)
+		pulse.tween_property(_village_gate_seal, "scale", Vector3.ONE, 0.35).set_trans(Tween.TRANS_BACK)
 
 
 func _add_portal_box(parent: Node3D, local_position: Vector3, size: Vector3, material: Material) -> MeshInstance3D:

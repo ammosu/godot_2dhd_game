@@ -57,6 +57,34 @@
 `godot --headless --path . --script tests/chapter_one_cutscene_test.gd`
 驗證光路轉東與章末（碎片復甦 → 提燈人 → 藍燈 → 返村交信 → 章末卡）的自然播放、提前跳過、事件中跳過：鎖定輸入、隱藏 HUD、結束後回到正確地圖與位置、光路朝東、階段只在正確時機前進、不寫正式存檔。成功標記 `CHAPTER_ONE_CUTSCENE_TEST_PASS natural skip_early skip_event restore input_lock east glow stages no_save`。
 
+## 演技元件與鏡頭請求
+
+`godot --headless --path . --fixed-fps 60 --script tests/actor_acting_test.gd`
+驗證 `actor_acting.gd`：每種動作都會移動 sprite 並精確回到原位、中途換動作不累積偏移、`clear()` 立即復位、點頭經由 BodyLife 下沉兩次、氣泡位於可見頭頂上方並彈出後淡出、呼叫端可覆寫或只顯示氣泡，且所有表情字形都在隨附字型中。成功標記 `ACTOR_ACTING_TEST_PASS beats rest interrupt clear nod bubble glyphs`。
+
+`godot --headless --path . --fixed-fps 60 --script tests/camera_shot_request_test.gd`
+驗證 `Hd2dCameraRig.request_shot()`：淡入而非跳切、取景焦點與距離、優先序與釋放後交接不回彈、淡出後精確回到靜止畫面、慢動作下的實際時間／遊戲時間計時、偏航相對於玩家朝向，以及 `snap_to_target()` 清空請求。成功標記 `CAMERA_SHOT_REQUEST_TEST_PASS blend priority handoff rest unscaled yaw snap`。
+
+## 戰鬥鏡頭導演
+
+`godot --headless --path . --fixed-fps 60 --script tests/field_combat_director_test.gd`
+在東行舊道與兩隻狼交戰：開戰推近並讓旅人與同伴冒出「！」、推近交接給動態取景、取景隨戰場分散拉遠且旅人不偏離中心、對話取景優先、技能推近比目前畫面更近、非最後一擊不放慢、最後一擊短暫慢動作（物理頻率同步提高）並精確恢復、戰後釋放鏡頭，以及慢動作中離開地圖會恢復時間。成功標記 `FIELD_COMBAT_DIRECTOR_TEST_PASS engage frame spread dialogue skill finish restore release exit`。
+
+## 指揮同伴
+
+`godot --headless --path . --fixed-fps 60 --script tests/companion_command_test.gd`
+驗證非交戰時拒絕下令並說明、首次交戰介紹按鍵、按住 Tab 開啟指令盤並放慢至 0.25 倍、下令後關閉並恢復時間、諾亞挑釁標記狼並進入冷卻且鏡頭看向諾亞、被挑釁的狼走向諾亞並打中他（諾亞格擋踉蹌、旅人不受傷、挑釁中斷）、踉蹌結束恢復、希雅鳴鈴半秒內響起並回復輕傷的旅人，以及開著指令盤離開地圖會恢復時間。成功標記 `COMPANION_COMMAND_TEST_PASS refuse wheel taunt stagger unharmed bell cooldown exit`。
+
+## 過場與對話演技
+
+`godot --headless --path . --script tests/cutscene_acting_test.gd`
+檢查第一章台詞與所有影片中的 `act`／`emote` 名稱都存在；以影片 `cast` 讓諾亞就位並面向主角、希雅依路線走到終點，`acts` 依時間讓旅人、諾亞與露米演出；影片結束後同伴回到隊伍、所有氣泡與動作清除；中途跳過不會讓角色停在半空；對話台詞由說話者（旅人、同伴、村民）演出。成功標記 `CUTSCENE_ACTING_TEST_PASS data cast place face walk acts release skip dialogue`。
+
+## 傳送門穿越
+
+`godot --headless --path . --script tests/portal_crossing_test.gd`
+驗證月印封鎖的北門會閃光並讓旅人驚退、墓窟漩渦隨距離增亮、穿越時鎖定操作、鏡頭推近、畫面漣漪與漩渦湧光、只換圖一次、抵達後立即恢復操作並釋放鏡頭、腳邊光點與畫面重新展開後隱藏，以及開啟的北門也走相同轉場。成功標記 `PORTAL_CROSSING_TEST_PASS seal proximity lock lens ripple flare single arrive burst reveal gate`。
+
 # Playthrough smoke test
 
 地圖防墜落回歸：`godot --headless --path . --script tests/ground_safety_test.gd`。

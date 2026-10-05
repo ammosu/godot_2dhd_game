@@ -43,6 +43,8 @@ static func seal_open() -> Array[Dictionary]:
 				"look_from": door + Vector3(0, 1.5, 0.3), "look_to": door + Vector3(0, 1.5, 0.3)},
 			# First a light test with the hand bell (the crest answers), then the real strike.
 			"events": [{"at": 0.0, "id": "party_to_door"}, {"at": 0.9, "id": "crest_answer"}, {"at": 2.4, "id": "seal_ring"}],
+			"acts": [{"at": 1.1, "who": "actor", "emote": "question"}, {"at": 1.3, "who": "sia", "emote": "music"},
+				{"at": 2.9, "who": "noah", "act": "surprise"}],
 			"caption": "叮……鐘紋回應了。噹——",
 		},
 		{
@@ -58,6 +60,7 @@ static func seal_open() -> Array[Dictionary]:
 			"camera": {"from": door + Vector3(-2.4, 1.7, 4.4), "to": door + Vector3(-2.1, 1.6, 4.0),
 				"look_from": door + Vector3(0, 1.1, -0.6), "look_to": door + Vector3(0, 1.1, -1.0)},
 			"events": [{"at": 1.0, "id": "noah_enters"}],
+			"acts": [{"at": 1.6, "who": "sia", "emote": "ellipsis"}],
 			"caption": "門後的通道，通往地下。",
 			"fade_out": 0.8,
 		},
@@ -76,6 +79,7 @@ static func shard_rise() -> Array[Dictionary]:
 			"camera": {"from": overlook + Vector3(-2.6, 1.9, -5.2), "to": overlook + Vector3(-2.2, 1.8, -4.4),
 				"look_from": overlook + Vector3(1.2, 2.2, 3.0), "look_to": overlook + Vector3(1.0, 2.3, 3.0)},
 			"events": [{"at": 0.0, "id": "shard_in_hand"}],
+			"acts": [{"at": 1.4, "who": "sia", "act": "joy", "emote": "music"}, {"at": 2.4, "who": "noah", "act": "nod"}],
 			"caption": "雲海上方，月光最亮的地方。",
 		},
 		{
@@ -84,6 +88,7 @@ static func shard_rise() -> Array[Dictionary]:
 			"camera": {"track": true, "from": Vector3(2.3, 1.35, -2.4), "to": Vector3(2.1, 1.3, -2.2),
 				"look_from": Vector3(-0.12, 1.0, -0.2), "look_to": Vector3(-0.12, 1.02, -0.2)},
 			"events": [{"at": 0.8, "id": "ash_fall"}, {"at": 1.4, "id": "shard_glow"}],
+			"acts": [{"at": 1.6, "who": "actor", "act": "surprise", "emote": "none"}],
 			"caption": "碎片上的灰落下了。淡淡的光，重新亮了起來。",
 		},
 		{
@@ -92,6 +97,7 @@ static func shard_rise() -> Array[Dictionary]:
 			"camera": {"from": overlook + Vector3(-1.2, 3.2, 1.6), "to": overlook + Vector3(-1.1, 2.9, 2.2),
 				"look_from": points[-26] + Vector3(0, 1.2, 0), "look_to": points[-21] + Vector3(0, 1.4, 0)},
 			"events": [{"at": 0.0, "id": "lantern_approach"}],
+			"acts": [{"at": 1.6, "who": "noah", "act": "hop", "emote": "exclaim"}, {"at": 2.0, "who": "sia", "emote": "question"}],
 			"caption": "霧裡，有一盞燈正朝這裡走來。",
 		},
 	]
@@ -114,6 +120,7 @@ static func homecoming() -> Array[Dictionary]:
 			"camera": {"from": Vector3(9.5, 2.6, 9.5), "to": Vector3(9.0, 2.4, 8.6),
 				"look_from": Vector3(6.8, 1.0, 4.4), "look_to": Vector3(7.0, 1.0, 4.6)},
 			"caption": "露米還守在月燈旁。",
+			"acts": [{"at": 0.9, "who": "rumi", "act": "joy", "emote": "exclaim"}, {"at": 1.8, "who": "actor", "emote": "music"}],
 			"fade_out": 0.8,
 		},
 	]
@@ -127,6 +134,7 @@ static func rescue_intro() -> Array[Dictionary]:
 			"camera": {"from": Vector3(1.0, 3.4, 9.0), "to": Vector3(1.6, 3.0, 8.2),
 				"look_from": Vector3(5.0, 0.8, 3.4), "look_to": Vector3(5.2, 0.8, 3.4)},
 			"caption": "新點亮的路燈，引來了野獸。",
+			"acts": [{"at": 1.0, "who": "actor", "act": "surprise"}],
 			"fade_out": 0.4,
 		},
 	]
@@ -140,6 +148,7 @@ static func ember_flow() -> Array[Dictionary]:
 			"camera": {"from": Vector3(3.4, 3.6, -3.0), "to": Vector3(3.0, 3.4, 0.0),
 				"look_from": Vector3(0, 0.3, -7.0), "look_to": Vector3(0, 0.3, 4.0)},
 			"events": [{"at": 0.3, "id": "ember_flow"}],
+			"acts": [{"at": 1.8, "who": "actor", "emote": "question"}],
 			"caption": "王座的微光，沿著石縫流向出口。",
 			"fade_out": 0.6,
 		},
@@ -157,6 +166,7 @@ static func blue_lamp() -> Array[Dictionary]:
 			"camera": {"from": overlook + Vector3(-0.8, 2.3, -1.4), "to": overlook + Vector3(-0.7, 2.3, -1.2),
 				"look_from": overlook + Vector3(24, 3.6, 31), "look_to": overlook + Vector3(24.5, 3.8, 31.5)},
 			"caption": "海的那一邊，一盞藍色的燈亮著。",
+			"acts": [{"at": 1.0, "who": "sia", "act": "hop", "emote": "exclaim"}, {"at": 2.0, "who": "noah", "emote": "ellipsis"}],
 			"fade_out": 0.6,
 		},
 	]

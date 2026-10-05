@@ -4,6 +4,8 @@ extends CanvasLayer
 signal page_shown(index: int)
 ## A speaker's line starts (true) or stops (false) typing, for world body language.
 signal line_revealing(speaker: String, active: bool)
+## A line asked its speaker to act ("act": beat, "emote": bubble; see actor_acting.gd).
+signal line_acted(speaker: String, beat: StringName, emote: StringName)
 
 const Cinematic = preload("res://scripts/ui/dialogue_cinematic.gd")
 const Presentation = preload("res://scripts/ui/presentation_theme.gd")
@@ -163,6 +165,8 @@ func _show_current_line() -> void:
 		_cinematic.play(_illustration.texture)
 	_hint_label.text = "%02d / %02d   ·   %s" % [_line_index + 1, _lines.size(), "點一下繼續" if MobileControls.is_mobile_device() else "Space / Enter  繼續"]
 	page_shown.emit(_line_index)
+	if line.has("act") or line.has("emote"):
+		line_acted.emit(_speaker_label.text, StringName(line.get("act", "")), StringName(line.get("emote", "")))
 
 
 func _show_portrait(face_id: String) -> void:

@@ -105,6 +105,18 @@ func _draw_glyph(ink: Color) -> void:
 			draw_arc(Vector2(-8, 12), 11, PI, TAU, 20, ink, 3, true)
 			_line([Vector2(5, -15), Vector2(21, -15), Vector2(16, -21)], ink)
 			_line([Vector2(21, 14), Vector2(5, 14), Vector2(10, 20)], ink)
+		"taunt":
+			# A raised spear and a shout mark: draws the enemy's attention.
+			_line([Vector2(-18, 20), Vector2(10, -12)], ink, 4)
+			draw_colored_polygon(PackedVector2Array([Vector2(8, -21), Vector2(19, -18), Vector2(16, -7), Vector2(9, -10)]), ink)
+			_line([Vector2(-6, -21), Vector2(-6, -5)], ink, 4)
+			draw_circle(Vector2(-6, 2), 2.6, ink)
+		"bell":
+			_line([Vector2(-16, 12), Vector2(-12, -6), Vector2(-6, -14), Vector2(6, -14), Vector2(12, -6), Vector2(16, 12), Vector2(-16, 12)], ink)
+			_line([Vector2(0, -14), Vector2(0, -21)], ink)
+			draw_circle(Vector2(0, 17), 4, ink)
+			draw_arc(Vector2.ZERO, 24, -0.5, 0.5, 8, Color(ink, 0.7), 2, true)
+			draw_arc(Vector2.ZERO, 24, PI - 0.5, PI + 0.5, 8, Color(ink, 0.7), 2, true)
 		"potion":
 			_line([Vector2(-7, -20), Vector2(-7, -8), Vector2(-16, 6), Vector2(-13, 19), Vector2(13, 19), Vector2(16, 6), Vector2(7, -8), Vector2(7, -20), Vector2(-7, -20)], ink)
 			_line([Vector2(-10, -23), Vector2(10, -23)], ink, 4)

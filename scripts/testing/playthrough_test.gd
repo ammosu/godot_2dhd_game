@@ -82,7 +82,8 @@ func run() -> void:
 		return
 
 	world._village_gate_portal.body_entered.emit(world.player)
-	await get_tree().process_frame
+	# Crossing plays a short light transition before the map changes.
+	await world.map_presented
 	await get_tree().process_frame
 	if not _require(GameState.current_map == "ruins" and world._map_root.name == "Map_Ruins", "automatic portal transition to ruins"):
 		return
@@ -146,7 +147,7 @@ func run() -> void:
 	if not _require(GameState.quest_state == GameState.QuestState.ACTIVE and not GameState.flags.get("guardian_defeated", false) and not GameState.inventory.has("moon_shard"), "defeat preserves trial for retry"):
 		return
 	world._on_portal_body_entered(world.player, "portal_to_ruins")
-	await get_tree().process_frame
+	await world.map_presented
 	await get_tree().process_frame
 	if not _require(GameState.current_map == "ruins" and world._map_root.has_node("Guardian"), "return to trial after defeat"):
 		return
@@ -205,7 +206,7 @@ func run() -> void:
 		return
 
 	world._on_portal_body_entered(world.player, "portal_to_village")
-	await get_tree().process_frame
+	await world.map_presented
 	await get_tree().process_frame
 	if not _require(GameState.current_map == "village", "automatic portal transition to village"):
 		return
