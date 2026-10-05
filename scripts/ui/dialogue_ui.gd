@@ -20,6 +20,7 @@ var _root: Control
 var _speaker_label: Label
 var _body_label: Label
 var _hint_label: Label
+var _story_shade: ColorRect
 var _illustration: TextureRect
 var _lines: Array = []
 var _line_index: int = 0
@@ -72,6 +73,7 @@ func show_dialogue(lines: Array, finished_callback: Callable = Callable()) -> vo
 		_root.modulate.a = 1.0
 	_root.visible = true
 	_open = true
+	_notify_hud("set_dialogue_open", true)
 	GameState.set_mode(GameState.Mode.DIALOGUE)
 	_show_current_line()
 
@@ -135,6 +137,8 @@ func _show_current_line() -> void:
 	var line: Dictionary = _lines[_line_index]
 	_illustration.texture = line.get("illustration") as Texture2D
 	_illustration.visible = _illustration.texture != null
+	_story_shade.visible = _illustration.visible
+	_notify_hud("set_story_focus", _illustration.visible)
 	var next_motion: String = str(line.get("motion", "")) if _illustration.visible else ""
 	if next_motion != _motion:
 		_motion = next_motion
@@ -224,6 +228,7 @@ func _finish_dialogue() -> void:
 	else:
 		_hide_closed_root() # A full-screen cinematic insert cuts straight out.
 	clear_illustration()
+	_notify_hud("set_dialogue_open", false)
 	GameState.set_mode(GameState.Mode.EXPLORE)
 	var callback := _finished_callback
 	_finished_callback = Callable()
@@ -245,6 +250,8 @@ func _stop_cinematic() -> void:
 
 
 func clear_illustration() -> void:
+	_story_shade.hide()
+	_notify_hud("set_story_focus", false)
 	_stop_cinematic()
 	_motion = ""
 	_motion_elapsed = 0.0
@@ -270,12 +277,19 @@ func _build_ui() -> void:
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(shade)
 
+	_story_shade = ColorRect.new()
+	_story_shade.name = "StoryShade"
+	_root.add_child(_story_shade)
+	_story_shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_story_shade.color = Color(0, 0, 0, 0.76)
+	_story_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_story_shade.hide()
 	_illustration = TextureRect.new()
 	_illustration.name = "MemoryIllustration"
-	_illustration.anchor_left = 0.20
-	_illustration.anchor_top = 0.16
-	_illustration.anchor_right = 0.80
-	_illustration.anchor_bottom = 0.65
+	_illustration.anchor_left = 0.15
+	_illustration.anchor_top = 0.025
+	_illustration.anchor_right = 0.85
+	_illustration.anchor_bottom = 0.70
 	_illustration.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_illustration.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_illustration.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -378,3 +392,13 @@ func _build_ui() -> void:
 	_root.add_child(_cinematic)
 	_cinematic.finished.connect(_stop_cinematic)
 	_root.visible = false
+
+
+func _notify_hud(method: StringName, value: bool) -> void:
+	var hud := get_tree().get_first_node_in_group("world_hud")
+	if hud != null:
+		hud.call(method, value)
+
+func _exit_tree() -> void:
+	_notify_hud("set_story_focus", false)
+	_notify_hud("set_dialogue_open", false)

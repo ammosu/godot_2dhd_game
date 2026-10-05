@@ -22,6 +22,7 @@ static func build(parent: Node3D, position: Vector3) -> Node3D:
 		mesh.name = "Metalwork" if index == 0 else "FrostedGlass"
 		mesh.mesh = _frame_mesh if index == 0 else _pane_mesh
 		mesh.material_override = _metal if index == 0 else _glass
+		mesh.set_meta("dialogue_lantern", true)
 		root.add_child(mesh)
 	var light := OmniLight3D.new()
 	light.name = "RoadLight"

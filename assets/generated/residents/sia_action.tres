@@ -1,0 +1,81 @@
+[gd_resource type="SpriteFrames" load_steps=10 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/generated/residents/sia_action_frames.png" id="1"]
+
+[sub_resource type="AtlasTexture" id="Frame_0_0"]
+atlas = ExtResource("1")
+region = Rect2(2, 2, 260, 380)
+margin = Rect2(334.0, 82, 700, 100)
+filter_clip = true
+metadata/ground_y = 460.0
+metadata/reference_height = 376.0
+metadata/visible_height = 376.0
+
+[sub_resource type="AtlasTexture" id="Frame_0_1"]
+atlas = ExtResource("1")
+region = Rect2(330, 2, 303, 406)
+margin = Rect2(340.0, 56, 657, 74)
+filter_clip = true
+metadata/ground_y = 460.0
+metadata/reference_height = 376.0
+metadata/visible_height = 402.0
+
+[sub_resource type="AtlasTexture" id="Frame_0_2"]
+atlas = ExtResource("1")
+region = Rect2(658, 2, 243, 352)
+margin = Rect2(350.5, 110, 717, 128)
+filter_clip = true
+metadata/ground_y = 460.0
+metadata/reference_height = 376.0
+metadata/visible_height = 348.0
+
+[sub_resource type="AtlasTexture" id="Frame_0_3"]
+atlas = ExtResource("1")
+region = Rect2(986, 2, 324, 380)
+margin = Rect2(327.5, 82, 636, 100)
+filter_clip = true
+metadata/ground_y = 460.0
+metadata/reference_height = 376.0
+metadata/visible_height = 376.0
+
+[sub_resource type="AtlasTexture" id="Frame_1_0"]
+atlas = ExtResource("1")
+region = Rect2(2, 412, 264, 376)
+margin = Rect2(364.5, 86, 696, 104)
+filter_clip = true
+metadata/ground_y = 460.0
+metadata/reference_height = 370.5
+metadata/visible_height = 372.0
+
+[sub_resource type="AtlasTexture" id="Frame_1_1"]
+atlas = ExtResource("1")
+region = Rect2(330, 412, 293, 395)
+margin = Rect2(315.0, 67, 667, 85)
+filter_clip = true
+metadata/ground_y = 460.0
+metadata/reference_height = 370.5
+metadata/visible_height = 391.0
+
+[sub_resource type="AtlasTexture" id="Frame_1_2"]
+atlas = ExtResource("1")
+region = Rect2(658, 412, 258, 341)
+margin = Rect2(361.5, 121, 702, 139)
+filter_clip = true
+metadata/ground_y = 460.0
+metadata/reference_height = 370.5
+metadata/visible_height = 337.0
+
+[sub_resource type="AtlasTexture" id="Frame_1_3"]
+atlas = ExtResource("1")
+region = Rect2(986, 412, 295, 373)
+margin = Rect2(347.5, 89, 665, 107)
+filter_clip = true
+metadata/ground_y = 460.0
+metadata/reference_height = 370.5
+metadata/visible_height = 369.0
+
+[resource]
+animations = [
+{"frames": [{"duration": 1.0, "texture": SubResource("Frame_0_0")}, {"duration": 1.0, "texture": SubResource("Frame_0_1")}, {"duration": 1.0, "texture": SubResource("Frame_0_2")}, {"duration": 1.0, "texture": SubResource("Frame_0_3")}], "loop": false, "name": &"left", "speed": 6.0},
+{"frames": [{"duration": 1.0, "texture": SubResource("Frame_1_0")}, {"duration": 1.0, "texture": SubResource("Frame_1_1")}, {"duration": 1.0, "texture": SubResource("Frame_1_2")}, {"duration": 1.0, "texture": SubResource("Frame_1_3")}], "loop": false, "name": &"right", "speed": 6.0}
+]

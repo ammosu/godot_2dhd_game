@@ -53,6 +53,7 @@ func _run() -> void:
 	var player_art := player.get_node("Sprite3D") as AnimatedSprite3D
 	var rig := world.get_node("CameraRig") as Node3D
 	rig.set_process(false)
+	rig.set("snap_dialogue_framing", false) # this test places the lens itself
 	var camera := rig.get_node("Camera3D") as Camera3D
 	var dialogue := world.get_node("DialogueUI")
 	await process_frame

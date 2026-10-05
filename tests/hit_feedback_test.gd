@@ -55,7 +55,12 @@ func _run() -> void:
 	var cooldown: float = field.attack_cooldown
 	field._physics_process(0.016)
 	assert(enemy.body.global_position.is_equal_approx(held_at), "Held enemies do not move")
-	assert(sprite.material_overlay != null, "Held enemies flash white")
+	assert(sprite.material_overlay != null, "Contact briefly blends white")
+	assert(HitFeedback.FLASH_TIME <= 0.035, "Flash lasts at most half the old 70ms")
+	HitFeedback.apply_flash(sprite, 10.0)
+	assert(is_equal_approx(sprite.material_overlay.get_shader_parameter("flash"), 0.65), "Even saturated flash retains 35% actor color")
+	field._advance_enemy(enemy, 0.025)
+	assert(float(enemy.hit_stop) > 0.0 and sprite.material_overlay == null, "Flash expires independently during hit stop")
 	assert(not Vector2(sprite.position.x, sprite.position.z).is_zero_approx(), "Held enemies shiver")
 	assert(field.swing == swing, "The attacker's swing pose holds")
 	assert(field.attack_cooldown < cooldown, "Cooldowns keep running through hit stop")

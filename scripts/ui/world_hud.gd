@@ -1,8 +1,8 @@
 class_name WorldHud
 extends CanvasLayer
 ## Exploration HUD: location title, travel hints, compact status card, mini-map
-## and interaction prompt. Notices live on a separate higher layer so they stay
-## legible over dialogue and battle; the owner adds `notices` beside this layer.
+## and interaction prompt. Notices queue while dialogue is open; the owner
+## adds `notices` beside this layer.
 
 signal destination_selected(point: Dictionary)
 
@@ -27,7 +27,15 @@ var _quest_row: HBoxContainer
 var _quest_marker: Label
 var _quest_flash: Tween
 var _travel_hints: PanelContainer
-var _notice_generation: int = 0
+var _story_focus: bool = false
+var _field_combat_active: bool = false
+var _dialogue_open: bool = false
+const COMBAT_NOTICE_TTL_MS: int = 8000
+const RESULT_NOTICE_TTL_MS: int = 6000
+var _active_notice: Dictionary = {}
+var _notice_queue: Array[Dictionary] = []
+var _notice_seen: Dictionary = {}
+var _notice_remaining: float = 0.0
 var _notice_banner: PanelContainer
 var _notice_tween: Tween
 var _prompt_pill: PanelContainer
@@ -41,6 +49,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	add_to_group("world_hud")
 	_quest_panel = PanelContainer.new()
 	_quest_panel.position = Vector2(24.0, 24.0)
 	_quest_panel.name = "QuestPanel"
@@ -247,7 +256,7 @@ func layout(field_combat_active: bool) -> void:
 	quest_label.custom_minimum_size.x = maxf(40.0, _quest_panel.custom_minimum_size.x - 20.0 - marker_width)
 	_quest_panel.size.x = _quest_panel.custom_minimum_size.x
 	_quest_panel.reset_size()
-	_travel_hints.visible = not mobile and GameState.mode == GameState.Mode.EXPLORE and not field_combat_active
+	_travel_hints.visible = not _story_focus and not mobile and GameState.mode == GameState.Mode.EXPLORE and not field_combat_active
 
 
 ## `field_panel_top` is the field combat panel's top edge in viewport pixels, or NAN without one.
@@ -262,6 +271,11 @@ func layout_interaction_prompt(field_panel_top: float) -> void:
 
 
 func set_prompt(prompt: String) -> void:
+	var player := get_parent().get_node_or_null("Player")
+	if player != null and is_instance_valid(player.field_combat) and player.field_combat.has_nearby_enemy(7.0):
+		var target: Interactable3D = player.get_nearest_interactable()
+		if target != null and target.low_priority:
+			prompt = ""
 	if prompt == _prompt_action.text and _prompt_pill.visible == not prompt.is_empty():
 		return
 	_prompt_action.text = prompt
@@ -269,10 +283,11 @@ func set_prompt(prompt: String) -> void:
 
 
 func refresh(field_combat_active: bool) -> void:
+	_field_combat_active = field_combat_active
 	var fighting: bool = GameState.mode == GameState.Mode.BATTLE
-	mini_map.visible = not fighting
-	player_status.visible = not fighting
-	_quest_panel.visible = not fighting or not MobileControls.is_mobile_device()
+	mini_map.visible = not fighting and not _story_focus and not _dialogue_open
+	player_status.visible = not fighting and not _story_focus and not _dialogue_open
+	_quest_panel.visible = not _story_focus and (not fighting or not MobileControls.is_mobile_device())
 	_update_mini_map_targets()
 	map_label.text = _map_title(GameState.current_map)
 	_show_objective(GameState.get_quest_text(), not fighting and not field_combat_active)
@@ -306,25 +321,123 @@ func _show_objective(raw: String, allowed: bool) -> void:
 		_quest_flash.tween_property(_quest_row, "modulate", Color.WHITE, 1.4).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 
+func set_story_focus(enabled: bool) -> void:
+	_story_focus = enabled
+	refresh(_field_combat_active)
+
+func set_dialogue_open(enabled: bool) -> void:
+	_dialogue_open = enabled
+	refresh(_field_combat_active)
+	if enabled:
+		var now: int = Time.get_ticks_msec()
+		_notice_queue = _notice_queue.filter(func(entry: Dictionary) -> bool:
+			return entry.kind != "navigation" or now - int(entry.time) >= 2000
+		)
+		if _notice_remaining > 0.0 and _active_notice.get("kind", "") == "navigation" and now - int(_active_notice.time) >= 2000:
+			_notice_queue.push_front(_active_notice.duplicate())
+		_active_notice.clear()
+		if _notice_tween != null:
+			_notice_tween.kill()
+		notice_label.text = ""
+		_notice_remaining = 0.0
+		_notice_banner.hide()
+
+## Only older arrivals survive dialogue; automatic arrival scenes dismiss fresh ones.
+func _notice_kind(message: String) -> String:
+	if message.begins_with("抵達・"):
+		return "navigation"
+	if message.begins_with("獲得："):
+		return "item"
+	if message.begins_with("諾亞・") or message.begins_with("希雅・"):
+		return "tutorial"
+	if message.begins_with("經驗") or message.begins_with("拾取") or message.begins_with("影襲需要"):
+		return "combat"
+	return "result"
+
+
+func _notice_engaged() -> bool:
+	var player := get_parent().get_node_or_null("Player")
+	return GameState.mode == GameState.Mode.BATTLE or (player != null and is_instance_valid(player.field_combat) and player.field_combat.is_engaged())
+
+
+func _prune_notices(now: int) -> void:
+	var engaged: bool = _notice_engaged()
+	_notice_queue = _notice_queue.filter(func(entry: Dictionary) -> bool:
+		if entry.kind == "navigation":
+			return true
+		if entry.kind in ["item", "result"]:
+			return entry.map == GameState.current_map and now - int(entry.time) <= RESULT_NOTICE_TTL_MS and not engaged
+		return entry.map == GameState.current_map and now - int(entry.time) <= COMBAT_NOTICE_TTL_MS and (entry.kind != "tutorial" or engaged)
+	)
+
+
 func show_notice(message: String) -> void:
-	_notice_generation += 1
-	var generation := _notice_generation
-	notice_label.text = message
-	if _notice_tween != null:
-		_notice_tween.kill()
-	_notice_banner.show()
-	_notice_banner.reset_size()
-	_notice_tween = create_tween()
-	_notice_tween.tween_property(_notice_banner, "modulate:a", 1.0, 0.18)
-	await get_tree().create_timer(2.6).timeout
-	if generation != _notice_generation:
+	if message.is_empty():
 		return
-	_notice_tween = create_tween()
-	_notice_tween.tween_property(_notice_banner, "modulate:a", 0.0, 0.35)
-	await _notice_tween.finished
-	if generation == _notice_generation:
+	var now: int = Time.get_ticks_msec()
+	_prune_notices(now)
+	var kind: String = _notice_kind(message)
+	if kind == "navigation":
+		# Arrival signals can follow the automatic dialogue signal in the same frame.
+		if _dialogue_open or GameState.mode == GameState.Mode.DIALOGUE:
+			return
+		# Each arrival is a new navigation event, even when revisiting a map.
+		_notice_queue.push_front({"message": message, "kind": kind, "time": now, "map": GameState.current_map})
+		_notice_remaining = 0.0
+		return
+	if kind == "tutorial" and not _notice_engaged():
+		return
+	# Rewards may recur in a later fight, but duplicate signals and interrupted
+	# banners must not replay. Story results are unique for this HUD's lifetime.
+	if _notice_seen.has(message) and (kind not in ["combat"] or now - int(_notice_seen[message]) <= COMBAT_NOTICE_TTL_MS):
+		return
+	_notice_seen[message] = now
+	if kind == "item" and not _notice_queue.is_empty() and _notice_queue.back().kind == "item":
+		_notice_queue.back().message += "、" + message.trim_prefix("獲得：")
+	else:
+		_notice_queue.append({"message": message, "kind": kind, "time": now, "map": GameState.current_map})
+	# Consume on the next frame so consecutive item signals form one banner.
+
+
+func _process(delta: float) -> void:
+	_prune_notices(Time.get_ticks_msec())
+	if not _active_notice.is_empty() and _active_notice.kind != "navigation":
+		if _active_notice.map != GameState.current_map or (_notice_engaged() and _active_notice.kind in ["item", "result"]):
+			_notice_remaining = 0.0
+			_active_notice.clear()
+	if _notice_engaged() and _notice_remaining > 0.0 and _active_notice.get("kind", "") == "navigation" and _notice_queue.any(func(entry: Dictionary) -> bool: return entry.kind in ["combat", "tutorial"]):
+		_notice_queue.push_front(_active_notice.duplicate())
+		_notice_remaining = 0.0
+		_active_notice.clear()
+	if _dialogue_open or _story_focus or GameState.mode in [GameState.Mode.DIALOGUE, GameState.Mode.CUTSCENE]:
+		return
+	_notice_remaining = maxf(0.0, _notice_remaining - delta)
+	if _notice_remaining > 0.0:
+		return
+	if _notice_queue.is_empty():
 		notice_label.text = ""
 		_notice_banner.hide()
+		return
+	if _notice_tween != null:
+		_notice_tween.kill()
+	# Battle information takes priority while engaged; arrivals keep their queue.
+	var preferred := PackedStringArray(["combat", "tutorial"] if _notice_engaged() else ["navigation", "item", "result"])
+	var next: int = 0
+	for index: int in range(_notice_queue.size()):
+		if _notice_queue[index].kind in preferred:
+			next = index
+			break
+	_active_notice = _notice_queue[next].duplicate()
+	notice_label.text = str(_active_notice.message)
+	_notice_queue.remove_at(next)
+	_notice_banner.show()
+	_notice_banner.reset_size()
+	_notice_banner.modulate.a = 0.0
+	_notice_tween = create_tween()
+	_notice_tween.tween_property(_notice_banner, "modulate:a", 1.0, 0.18)
+	_notice_tween.tween_interval(2.6)
+	_notice_tween.tween_property(_notice_banner, "modulate:a", 0.0, 0.35)
+	_notice_remaining = 3.13
 
 
 func _map_title(map_id: String) -> String:

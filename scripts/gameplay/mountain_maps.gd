@@ -46,6 +46,30 @@ static func build(world: Node3D, map_id: String) -> void:
 	var parent: Node3D = world.get("_map_root")
 	var points := route(map_id)
 	preload("res://scripts/gameplay/mountain_landscape.gd").build(world, points, map_id)
+	if map_id in ["wind_gorge", "moon_highland"]:
+		# The upper trail rises above a moonlit cloud sea.
+		var clouds: MeshInstance3D = preload("res://scripts/gameplay/panorama_ring.gd").new()
+		clouds.name = "CloudSea"
+		clouds.texture = preload("res://assets/generated/chapter_one/cloud_sea.png")
+		# Tall and low enough that the band's lower edge stays below every lens.
+		clouds.base_y = -16.0 if map_id == "wind_gorge" else -13.0
+		clouds.height = 28.0
+		clouds.tint = Color("c4ccd8")
+		parent.add_child(clouds)
+		var moon: Sprite3D = preload("res://scripts/gameplay/sky_moon.gd").new()
+		moon.name = "SkyMoon"
+		moon.texture = preload("res://assets/generated/chapter_one/moon.png")
+		moon.direction = Vector3(0.5, 0.34, 0.8)
+		parent.add_child(moon)
+		if map_id == "moon_highland":
+			# Beyond the sea: the blue lamp the lantern bearer points to.
+			var blue: Sprite3D = preload("res://scripts/gameplay/sky_moon.gd").new()
+			blue.name = "BlueLamp"
+			blue.texture = preload("res://assets/generated/chapter_one/moon.png")
+			blue.modulate = Color(0.45, 0.75, 1.8)
+			blue.direction = Vector3(0.62, -0.035, 0.78)
+			blue.diameter = 1.7
+			parent.add_child(blue)
 	var turf := Terrain._surface()
 	var trail := Terrain._surface()
 	var rim := Terrain._surface()
@@ -88,6 +112,9 @@ static func build(world: Node3D, map_id: String) -> void:
 		world.props.add_tree(end + Vector3(1.6, 0, 0.5))
 		# Close the summit end with a stone wall, keeping the overlook walkable.
 		world.props.add_box("SummitEnd", end + Vector3(0, 0.45, -0.5), Vector3(width * 2, 0.9, 0.6), Color("727d83"), true)
+		# Weathered cliff stone, matching the rim, instead of a flat grey slab.
+		for mesh: Node in parent.get_node("SummitEnd").find_children("*", "MeshInstance3D", true, false):
+			(mesh as MeshInstance3D).material_override = preload("res://scripts/gameplay/mountain_landscape.gd").material(Terrain.CLIFF, Color("818776"))
 		world.props.add_crystal(end + Vector3(-1.5, 0, 0), 0.7)
 		outskirts.add_interaction(world, "highland_view", "眺望月冠群山", points[-9])
 

@@ -25,6 +25,31 @@ func _finish_dialogue() -> void:
 		dialogue.call("advance")
 		guard += 1
 	await process_frame
+	var film := world.get_node_or_null("CutscenePlayer")
+	if film != null:
+		film.call("skip")
+		await film.finished
+		await process_frame
+		await _finish_dialogue()
+
+
+## Page every dialogue and skip every film until both are done; returns films skipped.
+func _drain() -> int:
+	var dialogue: Node = world.get_node("DialogueUI")
+	var films: int = 0
+	for step: int in range(400):
+		var film: Node = world.get_node_or_null("CutscenePlayer")
+		if film != null:
+			film.call("skip")
+			await film.finished
+			await process_frame
+			films += 1
+		elif dialogue.call("is_open"):
+			dialogue.call("advance")
+			await process_frame
+		else:
+			break
+	return films
 
 
 func _go(map_id: String, spawn_id: String) -> void:
@@ -85,6 +110,34 @@ func _run() -> void:
 	var player := world.get_node("Player") as CharacterBody3D
 	await _go("east_road", "from_village")
 	check(_followers() == ["noah"], "Noah follows across maps")
+	# Road rescue: the lamps drew two beasts onto the road traveler.
+	var watch: Node = (world.get("_map_root") as Node3D).get_node_or_null("EscortWatch")
+	check(watch != null, "rescue staged on first arrival")
+	var guard: int = 0
+	while not world.get_node("DialogueUI").call("is_open") and world.get_node_or_null("CutscenePlayer") == null and guard < 300:
+		await physics_frame
+		guard += 1
+	var intro: Node = world.get_node_or_null("CutscenePlayer")
+	check(intro != null, "rescue opens on a framing shot")
+	if intro != null:
+		intro.call("skip")
+		await intro.finished
+		await process_frame
+	check(str(state.get("flags").get("ch1_escort", "")) == "fighting", "rescue begins with its scene")
+	await _finish_dialogue()
+	await _interact("crypt_seal")
+	check(_stage() == Chapter.NOAH_JOINED, "seal waits until the traveler is safe")
+	var field: Node3D = world.get("_map_root").get_node("FieldCombat")
+	for enemy: Dictionary in field.get("enemies"):
+		if str(enemy.id) in ["road_wolf_west", "road_bat_south"]:
+			check((enemy.body as Node3D).global_position.distance_to(Vector3(5, 0, 2)) < 4.5, "beast moved to the traveler " + str(enemy.id))
+			enemy.hp = 0
+	for frame: int in range(5):
+		await physics_frame
+	check(str(state.get("flags").get("ch1_escort", "")) == "won", "rescue won")
+	check(world.get("_quest_markers")["road_traveler"].visible, "traveler marked after the rescue")
+	await _interact("road_traveler")
+	check(str(state.get("flags").get("ch1_escort", "")) == "done", "rescue thanked")
 	player.global_position = Vector3(-4, player.global_position.y, 5)
 	for frame: int in range(90):
 		await physics_frame
@@ -97,7 +150,6 @@ func _run() -> void:
 	for frame: int in range(60):
 		await physics_frame
 	check(str(player.call("get_interaction_prompt")) == "查看鐘紋封門", "seal prompt outranks companions")
-	await _interact("road_traveler")
 	await _interact("crypt_seal")
 	check(_stage() == Chapter.SEAL_FOUND, "seal found")
 	check(world.get("_quest_markers").has("crypt_seal") and not world.get("_quest_markers")["crypt_seal"].visible, "seal marker idle while searching")
@@ -142,19 +194,30 @@ func _run() -> void:
 
 	await _go("moon_highland", "from_base")
 	world.call("_handle_interaction", "highland_view")
+	# Ending order: shard film -> illustrated lantern bearer -> one chapter card -> hint home.
+	var film: Node = world.get_node_or_null("CutscenePlayer")
+	check(film != null, "ending opens with the shard film")
+	if film != null:
+		film.call("skip")
+		await film.finished
+		await process_frame
 	var lines: Array = world.get_node("DialogueUI").get("_lines")
 	var illustrated: int = 0
 	for line: Dictionary in lines:
 		if line.has("illustration"):
 			illustrated += 1
-	check(illustrated >= 5 and str(lines[-1].text).contains("第一章"), "lantern bearer illustrated ending")
-	await _finish_dialogue()
-	check(_stage() == Chapter.COMPLETE, "chapter complete")
-	check(str(state.call("get_quest_text")).contains("第一章完成"), "completion objective")
+	check(illustrated >= 5 and illustrated < lines.size(), "bearer pages illustrated, party reactions live")
+	# Bearer -> blue lamp film -> the traveler's decision -> homecoming -> reply -> card.
+	var films_seen: int = await _drain()
+	check(films_seen >= 3, "blue lamp, homecoming and card films all play")
+	check(str(state.get("current_map")) == "village", "the party comes home")
+	check(_stage() == Chapter.COMPLETE, "chapter complete after the card")
+	check(not state.get("inventory").has("starbay_reply"), "reply handed over in the ending")
 
 	await _go("village", "default")
 	await _interact("rumi")
 	check(not state.get("inventory").has("starbay_reply"), "reply delivered to Rumi")
+	check(str(state.call("get_quest_text")).contains("第一章完成"), "completion objective after the epilogue")
 
 	# Save v10 round trip keeps the stage and party.
 	check(int(state.get("SAVE_VERSION")) == 10, "save version bumped")

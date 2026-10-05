@@ -89,6 +89,10 @@ func _run() -> void:
 	assert(state.player_mp >= mp_before, "Skills disabled must not spend MP")
 	# With enemies cleared, approach a stationary terrace drop from both ramp
 	# sides. Previously these routes hit the low vertical wall and never advanced.
+	# Finish any dodge/recovery before probing navigation without combat ticks.
+	for frame: int in range(120):
+		await physics_frame
+		field._physics_process(1.0 / 60.0)
 	var drop := Node3D.new()
 	field.add_child(drop)
 	drop.position = Vector3(10, 1.85, 10.5)

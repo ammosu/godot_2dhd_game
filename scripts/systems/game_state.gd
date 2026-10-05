@@ -414,6 +414,8 @@ func take_item(item: String) -> void:
 func get_quest_text() -> String:
 	if quest_state == QuestState.COMPLETE and chapter_stage != Chapter.COMPLETE and not current_map.begins_with("house_"):
 		return load("res://scripts/story/chapter_one.gd").objective(int(chapter_stage), current_map)
+	if chapter_stage == Chapter.COMPLETE and int(inventory.get("starbay_reply", 0)) > 0:
+		return "尾聲：把星灣的回信交給露米"
 	if current_map == "ashen_crypt_1":
 		return "B1・探索左右環路與側室 → 北端下降 B2"
 	if current_map == "ashen_crypt_2":

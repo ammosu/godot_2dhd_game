@@ -22,6 +22,10 @@ These are the initial original music set, not completed listening/mixing accepta
 
 ## Short effects
 
+### Hand bell (2026-10-05)
+
+`hand_bell.wav` is Sia's field bell: an original, sample-free synthesized small bell (inharmonic partials with individual decays, a short mallet click and a slow beat between two hum partials). Rebuild with `python3 tools/art/build_bell.py`; standard library only. Mono 48 kHz / 16-bit, 1.3 s, peak 0.34, no loop.
+
 ### Surface footsteps (2026-09-20)
 
 Six original, sample-free synthesized clips were authored in `tools/art/build_footsteps.py`: `step_dirt_1.wav` / `step_dirt_2.wav` (0.18 s), `step_stone_1.wav` / `step_stone_2.wav` (0.16 s), and `step_wood_1.wav` / `step_wood_2.wav` (0.20 s). Rebuild with `python3 tools/art/build_footsteps.py`; Python standard library only, fixed seeds and explicit sole-impact, filtered-noise and material-resonance formulas. No recordings, downloaded samples or third-party synthesizers are used. Mono 48 kHz / 16-bit PCM, peak 0.32, faded zero endpoints, no looping. Dirt emphasizes low friction, stone a short bright contact, wood a damped low resonance. Alternating variants reduce exact repetition.

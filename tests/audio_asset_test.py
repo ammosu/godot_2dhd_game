@@ -43,6 +43,21 @@ class AudioAssetTest(unittest.TestCase):
                     self.assertGreater(min(edge_rms), 0.005, "Loop has a silent edge")
                     self.assertLess(max(edge_rms) / min(edge_rms), 2.0, "Loop edge levels differ by over 6 dB")
 
+    def test_hand_bell_pcm(self):
+        with wave.open(str(ROOT / "hand_bell.wav")) as clip:
+            self.assertEqual((clip.getnchannels(), clip.getsampwidth(), clip.getframerate()), (1, 2, 48000))
+            self.assertEqual(clip.getnframes(), round(1.3 * 48000))
+            samples = array.array("h", clip.readframes(clip.getnframes()))
+            if sys.byteorder != "little":
+                samples.byteswap()
+            self.assertEqual((samples[0], samples[-1]), (0, 0))
+            self.assertAlmostEqual(max(abs(v) for v in samples) / 32767, 0.34, places=3)
+            # A struck bell decays: the last quarter is much quieter than the first.
+            quarter = len(samples) // 4
+            head = math.sqrt(sum(v * v for v in samples[:quarter]) / quarter)
+            tail = math.sqrt(sum(v * v for v in samples[-quarter:]) / quarter)
+            self.assertLess(tail, head * 0.25)
+
     def test_footstep_pcm(self):
         hashes = set()
         for surface, duration in {"dirt": 0.18, "stone": 0.16, "wood": 0.20}.items():

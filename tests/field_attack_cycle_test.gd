@@ -26,6 +26,9 @@ func _run() -> void:
 		for index: int in range(length * 2):
 			enemy.body.position = enemy.home
 			player.position = enemy.home + Vector3(0, 0, -0.8)
+			if not enemy.caster:
+				enemy.body.global_position = field._approach_position(enemy, player.global_position)
+				enemy.facing = (player.global_position - enemy.body.global_position).normalized()
 			enemy.cooldown = 0.0
 			field.invulnerable = 0.0
 			state.player_hp = state.player_max_hp
@@ -46,6 +49,9 @@ func _run() -> void:
 			assert(not enemy.warning.visible)
 		# A dodged attack still counts, and a cancelled skill restarts the combo.
 		enemy.cooldown = 0.0
+		if not enemy.caster:
+			enemy.body.global_position = field._approach_position(enemy, player.global_position)
+			enemy.facing = (player.global_position - enemy.body.global_position).normalized()
 		field._advance_enemy(enemy, 0.01)
 		field.invulnerable = 1.0
 		var hp: int = state.player_hp
@@ -53,6 +59,9 @@ func _run() -> void:
 		assert(state.player_hp == hp and enemy.attack_cycle == 1)
 		enemy.attack_cycle = basics
 		enemy.cooldown = 0.0
+		if not enemy.caster:
+			enemy.body.global_position = field._approach_position(enemy, player.global_position)
+			enemy.facing = (player.global_position - enemy.body.global_position).normalized()
 		field._advance_enemy(enemy, 0.01)
 		field.skill_pending = true
 		field._damage_enemy(enemy, 1)

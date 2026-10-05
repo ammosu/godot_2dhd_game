@@ -91,9 +91,9 @@ func _art(sprite: Sprite3D, actor: String, pose: String, direction: Vector3) -> 
 	sprite.offset.x = 0.0
 	Grounding.anchor(sprite, frame, float(frame.get_meta("baseline")))
 
-func _damage_enemy(enemy: Dictionary, damage: int) -> void:
+func _damage_enemy(enemy: Dictionary, damage: int, source: Vector3 = Vector3.INF) -> void:
 	var casting: float = enemy.windup
-	super._damage_enemy(enemy, damage)
+	super._damage_enemy(enemy, damage, source)
 	# The boss can be hurt, but normal attacks cannot indefinitely cancel its telegraph.
 	if enemy.hp > 0 and casting > 0:
 		enemy.windup = casting
@@ -242,7 +242,7 @@ func _apply_spell_hit(enemy: Dictionary) -> void:
 
 func _deal_spell_damage(enemy: Dictionary) -> void:
 	if invulnerable <= 0:
-		var damage: int = maxi(1, int(enemy.attack_power) + (6 if enemy.enraged else 0) - GameState.player_defense)
+		var damage: int = allies.incoming_damage(maxi(1, int(enemy.attack_power) + (6 if enemy.enraged else 0) - GameState.player_defense))
 		GameState.damage_player(damage)
 		invulnerable = 0.45
 		_hurt_hero()

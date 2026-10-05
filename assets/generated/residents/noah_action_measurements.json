@@ -1,0 +1,97 @@
+{
+  "source": "noah_action.png",
+  "size": [
+    2000,
+    634
+  ],
+  "frames": [
+    {
+      "direction": "left",
+      "frame": 0,
+      "region": [
+        2,
+        2,
+        356,
+        308
+      ],
+      "reference_height": 305.0
+    },
+    {
+      "direction": "left",
+      "frame": 1,
+      "region": [
+        502,
+        2,
+        321,
+        313
+      ],
+      "reference_height": 305.0
+    },
+    {
+      "direction": "left",
+      "frame": 2,
+      "region": [
+        1002,
+        2,
+        496,
+        305
+      ],
+      "reference_height": 305.0
+    },
+    {
+      "direction": "left",
+      "frame": 3,
+      "region": [
+        1502,
+        2,
+        395,
+        310
+      ],
+      "reference_height": 305.0
+    },
+    {
+      "direction": "right",
+      "frame": 0,
+      "region": [
+        2,
+        319,
+        366,
+        306
+      ],
+      "reference_height": 301.5
+    },
+    {
+      "direction": "right",
+      "frame": 1,
+      "region": [
+        502,
+        319,
+        316,
+        307
+      ],
+      "reference_height": 301.5
+    },
+    {
+      "direction": "right",
+      "frame": 2,
+      "region": [
+        1002,
+        319,
+        451,
+        303
+      ],
+      "reference_height": 301.5
+    },
+    {
+      "direction": "right",
+      "frame": 3,
+      "region": [
+        1502,
+        319,
+        397,
+        305
+      ],
+      "reference_height": 301.5
+    }
+  ]
+}

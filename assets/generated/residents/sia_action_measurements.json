@@ -1,0 +1,97 @@
+{
+  "source": "sia_action.png",
+  "size": [
+    1312,
+    820
+  ],
+  "frames": [
+    {
+      "direction": "left",
+      "frame": 0,
+      "region": [
+        2,
+        2,
+        260,
+        380
+      ],
+      "reference_height": 376.0
+    },
+    {
+      "direction": "left",
+      "frame": 1,
+      "region": [
+        330,
+        2,
+        303,
+        406
+      ],
+      "reference_height": 376.0
+    },
+    {
+      "direction": "left",
+      "frame": 2,
+      "region": [
+        658,
+        2,
+        243,
+        352
+      ],
+      "reference_height": 376.0
+    },
+    {
+      "direction": "left",
+      "frame": 3,
+      "region": [
+        986,
+        2,
+        324,
+        380
+      ],
+      "reference_height": 376.0
+    },
+    {
+      "direction": "right",
+      "frame": 0,
+      "region": [
+        2,
+        412,
+        264,
+        376
+      ],
+      "reference_height": 370.5
+    },
+    {
+      "direction": "right",
+      "frame": 1,
+      "region": [
+        330,
+        412,
+        293,
+        395
+      ],
+      "reference_height": 370.5
+    },
+    {
+      "direction": "right",
+      "frame": 2,
+      "region": [
+        658,
+        412,
+        258,
+        341
+      ],
+      "reference_height": 370.5
+    },
+    {
+      "direction": "right",
+      "frame": 3,
+      "region": [
+        986,
+        412,
+        295,
+        373
+      ],
+      "reference_height": 370.5
+    }
+  ]
+}

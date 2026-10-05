@@ -27,7 +27,7 @@ func _run() -> void:
 			_check(str(layout.get("bus/%d/send" % index)) == "Master", "Child bus must send to Master")
 	audio.connect("cue_played", func(cue: StringName) -> void: _heard.append(cue))
 	var cues: Dictionary = audio.get("CUES")
-	_check(cues.size() == 23, "Expected twenty-three original cues including footsteps")
+	_check(cues.size() == 24, "Expected twenty-four original cues including footsteps and the hand bell")
 	for cue: StringName in cues:
 		var stream := cues[cue] as AudioStreamWAV
 		_check(stream != null and stream.get_length() > 0.1 and stream.get_length() <= 1.6, "Invalid cue duration")

@@ -1,6 +1,9 @@
 extends MeshInstance3D
-## Original open-ring inlay: its northern opening feeds the forgotten road.
+## Original open-ring inlay: the northern opening turns east in Chapter 1.
 ## Pure presentation; GameState owns restoration and persistence.
+
+var _turn: Tween
+
 
 func _ready() -> void:
 	name = "AwakenedRoad"
@@ -37,6 +40,19 @@ func _ready() -> void:
 
 func _sync() -> void:
 	visible = GameState.quest_state == GameState.QuestState.COMPLETE
+	if _turn != null:
+		_turn.kill()
+	rotation.y = -PI / 2.0 if GameState.chapter_stage >= GameState.Chapter.LIGHT_EAST else 0.0
+
+
+func turn_east(duration: float) -> void:
+	if _turn != null:
+		_turn.kill()
+	if duration <= 0.0:
+		rotation.y = -PI / 2.0
+		return
+	_turn = create_tween()
+	_turn.tween_property(self, "rotation:y", -PI / 2.0, duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func _quad(surface: SurfaceTool, a: Vector2, b: Vector2, c: Vector2, d: Vector2) -> void:

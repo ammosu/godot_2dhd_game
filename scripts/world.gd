@@ -81,6 +81,10 @@ var _village_gate_marker: Label3D
 var _village_gate_is_open: bool = false
 var _portal_transition_pending: bool = false
 var _quest_markers: Dictionary = {}
+## Only chapter films return to the player's current exploration location.
+var _chapter_cutscene_return: Dictionary = {}
+## Floating labels a film hid; restored when a film ends without a map reload.
+var _film_hidden: Array[Node3D] = []
 
 var _map_label: Label
 var _quest_label: Label
@@ -233,6 +237,32 @@ func _play_opening() -> CutscenePlayer:
 	return film
 
 
+## Plays a chapter film and returns to where the traveler stood, or to
+## `return_map`/`return_spawn` when the film travels somewhere else.
+## `stay_on_map` films only move the lens: the live map (and any fight) is kept as is.
+func play_chapter_cutscene(shots: Array[Dictionary], finished: Callable, return_map: String = "", return_spawn: String = "default", stay_on_map: bool = false) -> CutscenePlayer:
+	_chapter_cutscene_return = {"map": GameState.current_map, "position": player.global_position}
+	if not return_map.is_empty():
+		_chapter_cutscene_return = {"map": return_map, "spawn": return_spawn}
+	if stay_on_map:
+		_chapter_cutscene_return = {"stay": true, "position": player.global_position}
+	# Apply the road's final presentation under black, even when its event was skipped.
+	for shot: Dictionary in shots:
+		for event: Dictionary in shot.get("events", []):
+			if str(event.get("id", "")) == "light_turns_east":
+				_chapter_cutscene_return["road_east"] = true
+	var film := CutscenePlayer.new()
+	film.host = self
+	film.actor = player
+	film.hidden_layers.assign([$HUD, $MobileControls, $Notices])
+	film.pause_on_focus_loss = not _test_mode
+	add_child(film)
+	film.finished.connect(func(_skipped: bool) -> void: finished.call())
+	_hide_film_clutter()
+	film.play(shots)
+	return film
+
+
 func cutscene_load_map(map_id: String, spawn_id: String) -> void:
 	_load_map(map_id, spawn_id)
 	_hide_film_clutter()
@@ -247,6 +277,8 @@ func _hide_film_clutter() -> void:
 	var health_bar_script: Script = preload("res://scripts/gameplay/world_health_bar.gd")
 	for node: Node in _map_root.find_children("*", "Node3D", true, false):
 		if (node is Label3D and (node as Label3D).billboard != BaseMaterial3D.BILLBOARD_DISABLED) or node.get_script() == health_bar_script:
+			if (node as Node3D).visible:
+				_film_hidden.append(node as Node3D)
 			(node as Node3D).visible = false
 
 
@@ -255,11 +287,35 @@ func cutscene_ground(point: Vector3) -> Vector3:
 	var height := 0.1
 	if landscape != null:
 		height = maxf(height, float(landscape.soil_height(Vector2(point.x, point.z))) + 0.1)
+	else:
+		# Mountain trails and other authored surfaces: drop onto the walkable collision.
+		var query := PhysicsRayQueryParameters3D.create(Vector3(point.x, point.y + 30.0, point.z), Vector3(point.x, point.y - 30.0, point.z))
+		query.collision_mask = 1
+		query.exclude = [player.get_rid()]
+		var hit := get_world_3d().direct_space_state.intersect_ray(query)
+		if not hit.is_empty():
+			height = float((hit.position as Vector3).y) + 0.1
 	return Vector3(point.x, height, point.z)
 
 
 func cutscene_event(event_id: String) -> void:
 	match event_id:
+		"light_turns_east":
+			var road := _map_root.find_child("AwakenedRoad", true, false)
+			if road != null:
+				road.call("turn_east", 2.5)
+		"shard_glow":
+			var glow := OmniLight3D.new()
+			glow.name = "ShardGlow"
+			glow.light_color = Color("d4eeff")
+			glow.omni_range = 5.0
+			glow.light_energy = 0.0
+			_map_root.add_child(glow)
+			glow.global_position = player.global_position + Vector3.UP * 1.6
+			var pulse := glow.create_tween()
+			pulse.tween_property(glow, "light_energy", 3.0, 1.5).set_trans(Tween.TRANS_SINE)
+			pulse.tween_property(glow, "light_energy", 0.0, 2.5).set_trans(Tween.TRANS_SINE)
+			pulse.tween_callback(glow.queue_free)
 		"gate_glow":
 			if not is_instance_valid(_village_gate_light):
 				return
@@ -284,9 +340,33 @@ func cutscene_event(event_id: String) -> void:
 			flash.tween_property(glow, "light_energy", 2.4, 0.7).set_trans(Tween.TRANS_SINE)
 			flash.tween_property(glow, "light_energy", 0.0, 1.8).set_trans(Tween.TRANS_SINE)
 			flash.tween_callback(glow.queue_free)
+		_:
+			ChapterOne.cutscene_event(self, event_id)
 
 
 func cutscene_conclude() -> void:
+	if not _chapter_cutscene_return.is_empty():
+		var destination: Dictionary = _chapter_cutscene_return
+		_chapter_cutscene_return = {}
+		if bool(destination.get("stay", false)):
+			player.global_position = destination.position
+			player.velocity = Vector3.ZERO
+			for node: Node3D in _film_hidden:
+				if is_instance_valid(node):
+					node.visible = true
+			_film_hidden.clear()
+			_refresh_hud()
+			return
+		_load_map(str(destination.map), str(destination.get("spawn", "default")))
+		if bool(destination.get("road_east", false)):
+			var road := _map_root.find_child("AwakenedRoad", true, false)
+			if road != null:
+				road.call("turn_east", 0.0)
+		if destination.has("position"):
+			player.global_position = destination.position
+		player.velocity = Vector3.ZERO
+		($CameraRig as Hd2dCameraRig).snap_to_target()
+		return
 	_load_map("village", "default")
 	player.face_world_position(player.global_position + Vector3.FORWARD)
 
@@ -323,6 +403,7 @@ func _on_map_change_requested(map_id: String, spawn_id: String) -> void:
 
 
 func _load_map(map_id: String, spawn_id: String) -> void:
+	_film_hidden.clear()
 	player.auto_walk.cancel()
 	_cancel_conversation_step()
 	dialogue_ui.clear_illustration()
@@ -869,7 +950,18 @@ func _handle_interaction(interaction_id: String) -> void:
 		return
 	if ChapterOne.handle(self, interaction_id):
 		var speaker := _map_root.get_node_or_null(NodePath(interaction_id.capitalize()))
-		if speaker != null and dialogue_ui.is_open() and interaction_id in ["elder", "rumi", "sia", "ch1_noah"]:
+		if interaction_id == "party_talk":
+			# Frame the nearest companion, so the person talking is the one on screen.
+			var nearest_distance := INF
+			for follower: Node in get_tree().get_nodes_in_group("party_followers"):
+				var distance := (follower as Node3D).global_position.distance_to(player.global_position)
+				if distance < nearest_distance:
+					nearest_distance = distance
+					speaker = follower
+			if speaker != null and dialogue_ui.is_open():
+				_begin_actor_conversation(speaker as Node3D)
+			return
+		if speaker != null and dialogue_ui.is_open() and interaction_id in ["elder", "rumi", "sia", "ch1_noah", "road_traveler", "gate_watch"]:
 			_begin_actor_conversation(speaker as Node3D)
 		return
 	if interaction_id in ["crypt_spring_1", "crypt_cache_2", "crypt_lore_1", "crypt_lore_2"]:
@@ -1197,7 +1289,7 @@ func _add_actor_interactable(interaction_id: String, prompt: String, world_posit
 	actor.add_child(shape_node)
 
 	# Keep the interaction area generous while blocking movement at the feet.
-	if interaction_id in ["elder", "rumi", "noah", "guardian", "road_traveler", "sia", "ch1_noah"]:
+	if interaction_id in ["elder", "rumi", "noah", "guardian", "road_traveler", "sia", "ch1_noah", "gate_watch"]:
 		var body := StaticBody3D.new()
 		body.name = "ActorBody"
 		body.collision_layer = 1
@@ -1216,7 +1308,7 @@ func _add_actor_interactable(interaction_id: String, prompt: String, world_posit
 	if interaction_id in ["noah", "elder", "rumi", "ch1_noah"]:
 		sprite.set_script(preload("res://scripts/gameplay/equipment_actor.gd"))
 		sprite.set("actor_id", "noah" if interaction_id == "ch1_noah" else interaction_id)
-	if interaction_id in ["house_resident", "road_traveler", "sia"]:
+	if interaction_id in ["house_resident", "road_traveler", "sia", "gate_watch"]:
 		if texture_path.contains("/city_residents/"):
 			sprite.set_script(preload("res://scripts/gameplay/city_resident_art.gd"))
 		else:
@@ -1289,7 +1381,8 @@ func _update_quest_markers() -> void:
 				marker.visible = GameState.quest_state in [GameState.QuestState.NOT_STARTED, GameState.QuestState.READY_TO_TURN_IN] \
 					or (GameState.quest_state == GameState.QuestState.COMPLETE and GameState.chapter_stage == GameState.Chapter.LIGHT_EAST)
 			"rumi":
-				marker.visible = not bool(GameState.flags.get("rumi_tip_seen", false))
+				marker.visible = not bool(GameState.flags.get("rumi_tip_seen", false)) \
+					or (GameState.chapter_stage == GameState.Chapter.COMPLETE and int(GameState.inventory.get("starbay_reply", 0)) > 0)
 			"guardian":
 				marker.visible = GameState.quest_state == GameState.QuestState.ACTIVE and not bool(GameState.flags.get("guardian_defeated", false))
 			_:

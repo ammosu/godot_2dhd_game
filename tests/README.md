@@ -47,6 +47,16 @@
 `godot --headless --path . --script tests/chapter_one_test.gd`
 依序走完第一章九個節點：序章前封門不觸發、月燈光路、艾爾坦白、東口諾亞同行、跟隨與追上、封門提示優先於同伴、鐘紋封門、希雅同行與道具交換、書屋隱藏街巷圖、住宅內不跟隨、敲開封門換成傳送門、維爾莫未敗前祭壇不前進、燼色碎片、營火恢復、提燈人插圖結尾、回信交給露米、存檔 v10 往返、v9 遷移與拒絕格式錯誤的 `chapter_stage`。使用獨立 `user://chapter_one_test.json` 並於結束刪除。成功標記 `CHAPTER_ONE_TEST_PASS beats companions seal items ending save_v10 migration`。
 
+## 隊友參戰
+
+`godot --headless --path . --fixed-fps 60 --script tests/field_allies_test.gd`
+第一章諾亞與希雅同行時，在東行舊道與一隻苔原狼交戰：諾亞造成傷害並出現突刺姿勢、旅人重傷時觸發守護（傷害 ×0.6）、希雅敲鈴使用姿勢與音效、同伴命中不觸發旅人停頓，戰鬥結束後同伴回到跟隨狀態。成功標記 `FIELD_ALLIES_TEST_PASS noah_thrust ward sia_bell poses no_hitstop disengage`。
+
+## 第一章過場
+
+`godot --headless --path . --script tests/chapter_one_cutscene_test.gd`
+驗證光路轉東與章末（碎片復甦 → 提燈人 → 藍燈 → 返村交信 → 章末卡）的自然播放、提前跳過、事件中跳過：鎖定輸入、隱藏 HUD、結束後回到正確地圖與位置、光路朝東、階段只在正確時機前進、不寫正式存檔。成功標記 `CHAPTER_ONE_CUTSCENE_TEST_PASS natural skip_early skip_event restore input_lock east glow stages no_save`。
+
 # Playthrough smoke test
 
 地圖防墜落回歸：`godot --headless --path . --script tests/ground_safety_test.gd`。
@@ -827,3 +837,26 @@ Repeat with `gl_compatibility`. Checks wood/gravel presence and the tilted/repai
 村莊道路交界：`godot --headless --path . --script tests/village_road_overlap_test.gd` 檢查廣場、十字路、環村步道與出村道路的所有同高重疊區，每處必須恰有一張路面顯示。村莊建立時由實際 BoxMesh 範圍產生 shader 排除區，先建立的路面擁有交界，保留原本路高與碰撞。成功標記 `VILLAGE_ROAD_OVERLAP_TEST_PASS`；移除 `--headless` 並分別使用 `--rendering-method forward_plus`／`gl_compatibility`，會擷取 `/tmp/village-road-overlap-<renderer>.png`，供東側交界目視檢查。
 
 花草互相閃爍：`godot --headless --path . --script tests/flower_clearance_test.gd` 驗證村莊、東行舊道、螢光森林、商道、星灣城與重載後，直立花叢和草／灌木／批次地被的圓形佔位不相交；成功標記 `FLOWER_CLEARANCE_TEST_PASS`。地圖完成佈置後，`flower_clearance.gd` 以花朵自帶的葉叢為優先，移除會穿入花叢的額外草片，保留花叢、門口淨空、碰撞及存檔。草與花園灌木啟用 nearest-with-mipmaps；地被保留 CPU transform，讓 headless 和實際渲染採用同一配置。有視窗時分別指定 `--rendering-method forward_plus`／`gl_compatibility`，擷取村莊與舊道的 0／45／90 度畫面至 `/tmp/flower-clearance-<renderer>-<map>-<angle>.png`。草量會因花叢佔位降低；新複合花草美術仍必須遵循相同間距規則。
+
+### 第一章戰鬥與對話辨識回歸
+
+- `road_exit_test` / `story_focus_test`：重訪地圖仍顯示抵達通知；抵達未滿兩秒即遇對話時移除通知；較舊導航訊息延後顯示；一般對話也隱藏小地圖和狀態卡，結束後恢復。
+- `field_allies_test`：7 m 內存活巡邏敵人抑制同伴交談提示；希雅鐘聲以自身為中心、平面半徑 5.5 m，治療仍給旅人。
+- `field_readability_test`：近戰分離、死亡敵人排除，以及不同鏡頭角度／縮放下浮字投影至少 28 px 間距。
+- `health_bar_render_test`（需 GPU）：擷取滿血、半血、低血量像素，檢查亮色填條比例；請在 `gl_compatibility` 和 `forward_plus` 各跑一次：
+  `python3 tools/run_tests.py --gpu --renderer gl_compatibility health_bar_render`
+
+第一章 R4 可讀性回歸：`field_allies_test.gd` 涵蓋金色減速環、淡藍守護環的移動／到期／死亡，以及 `enemy.ally_focus` 救援優先目標與最近者回退。`story_focus_test.gd` 驗證道具合併、對話後即播、六秒過期、跨圖丟棄、戰鬥優先與抵達通知保留；`field_readability_test.gd` 驗證透視／正交血條只在重疊時錯開且不累積偏移。`dialogue_framing_test.gd` 檢查說話者全身位於對話框上方、主角分離、遮擋隊友淡出及恢復，`dialogue_occlusion_test.gd` 包含延後註冊的門梁對話遮擋。
+
+第一章 R5 回歸：`dialogue_framing_test.gd` 新增頭胸被遮時更換候選角度、雙方位於對話框上方、所有角度失敗後退至遠高固定鏡位；`dialogue_occlusion_test.gd` 新增無碰撞幾何射線與主角不在樹下時說話者樹冠淡化／恢復。`field_readability_test.gd` 新增按索引分配接敵角度、蝙蝠 1.6 m 站距、血條／敵名／浮字共用避讓矩形及諾亞藍色「槍」字。`enemy_awareness_test.gd` 新增 `ally_focus`／`rescue_target` 存活期間的普通敵人偵測、呼援與同伴支援隔離，以及兩隻事件怪死亡後恢復。攻擊時序測試現在讓敵人站在接敵位置並朝向玩家；自動拾取路徑測試先推進剩餘閃避／收招時間，避免凍結戰鬥計時影響純導航檢查。
+
+第一章 R6 對話回歸：`dialogue_framing_test.gd` 涵蓋雙方水平 25%–75% 安全區及 12 m 遠距對話；`dialogue_occlusion_test.gd` 涵蓋透視／正交鏡頭中擋住說話者或佔據中央的燈罩 Shader 與金屬淡化、共享材質隔離、背景燈具保留及對話後恢復；`story_focus_test.gd` 驗證未滿兩秒的顯示中／排隊中抵達通知立即移除、同幀稍晚抵達訊號抑制、兩秒邊界及其他通知保留。
+
+### R6 combat readability
+
+- `field_occlusion_test.gd`: checks foreground versus background overlap, drawn and relaxed traveler outline frames, target switching, the 28px name-to-bar limit, and slow-symbol expiry/refresh/death.
+- `hit_feedback_test.gd`: checks the 35ms flash expires during hit stop and caps the white blend at 65%.
+- `field_readability_test.gd`: checks unequal sprite widths determine melee separation, and target names reserve space for damage numbers.
+- `hit_outline_render_test.gd` (`--gpu`): checks actual outline pixels remain visible through an opaque foreground sprite.
+
+Run `python3 tools/run_tests.py field combat health hit enemy`; add `--gpu` for the rendered outline, health bar and field checks. Renderer-sensitive checks should also run with `--renderer forward_plus`.

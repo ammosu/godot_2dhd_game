@@ -175,6 +175,8 @@ func _run() -> void:
 	var bat: Dictionary = field.enemies[1]
 	assert(bat.art == "dusk_bat" and bat.hp == 42)
 	player.position = bat.body.position + Vector3(0, 0, -0.8)
+	bat.body.global_position = field._approach_position(bat, player.global_position)
+	bat.facing = (player.global_position - bat.body.global_position).normalized()
 	bat.cooldown = 0.0
 	field._advance_enemy(bat, 0.02)
 	assert(bat.windup > 0 and not bat.warning.visible, "Basic bite has a short startup without a skill warning")

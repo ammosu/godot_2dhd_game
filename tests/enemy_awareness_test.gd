@@ -82,6 +82,25 @@ func _run() -> void:
 	player.position = Vector3(-4, 0.05, 13)
 	field._damage_enemy(scout, 1)
 	assert(scout.state == "chase" and field.enemies[1].state == "chase", "Attacking from behind alerts nearby allies")
+	_reset()
+	player.position = Vector3(-4, 0.05, 7)
+	var event: Dictionary = field.enemies[1]
+	var bat: Dictionary = field.enemies[2]
+	event.ally_focus = true
+	bat.rescue_target = true
+	assert(Awareness.rescue_active(field))
+	assert(not Awareness.detects(field, scout), "Rescue suppresses ordinary sight detection")
+	Awareness.engage(field, event)
+	assert(scout.state == "patrol", "Rescue cannot call unrelated pack helpers")
+	scout.state = "chase"
+	assert(scout not in field.allies._engaged(field), "Companions ignore ordinary enemies during rescue")
+	event.hp = 0
+	assert(Awareness.suppressed(field, scout), "Surviving rescue_target keeps isolation after wolf falls")
+	bat.hp = 0
+	assert(not Awareness.rescue_active(field) and Awareness.detects(field, scout), "Detection resumes after both event enemies fall")
+	scout.state = "patrol"
+	Awareness.engage(field, scout)
+	assert(scout.state == "chase", "Ordinary engagement resumes")
 	print("ENEMY_AWARENESS_TEST_PASS cone proximity walls assistance no_chain memory leash attacked")
 	quit()
 

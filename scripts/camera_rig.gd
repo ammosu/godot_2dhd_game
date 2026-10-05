@@ -23,6 +23,10 @@ var _dialogue_blend: float = 0.0
 var _dialogue_focus: Vector3
 var _dialogue_yaw: float = 0.0
 var _dialogue_distance: float = 6.2
+var _dialogue_elevation: float = 0.4
+## Snap straight to a safe dialogue framing when a talk starts off-screen.
+## Callers that position the lens themselves (scripted shots, tests) turn this off.
+var snap_dialogue_framing: bool = true
 var _combat_target: Node3D
 var _impact_left: float = 0.0
 var _impact_strength: float = 0.0
@@ -54,18 +58,87 @@ func end_combat_shot() -> void:
 func begin_dialogue_shot(partner: Node3D) -> void:
 	if not is_instance_valid(partner) or _target == null:
 		return
-	var separation: Vector3 = partner.global_position - _target.global_position
+	var partner_at: Vector3 = _subject_feet(partner)
+	var separation: Vector3 = partner_at - _target.global_position
 	separation.y = 0.0
-	_dialogue_focus = (_target.global_position + partner.global_position) * 0.5
+	_dialogue_focus = _target.global_position.lerp(partner_at, 0.5)
 	# Frame both characters above the dialogue panel, from the nearest side.
-	_dialogue_focus.y -= 0.55
+	_dialogue_focus.y -= 0.25
 	var side_yaw: float = atan2(separation.z, -separation.x)
 	if absf(wrapf(side_yaw - rotation.y, -PI, PI)) > PI * 0.5:
 		side_yaw += PI
 	_dialogue_yaw = side_yaw if separation.length() > 0.1 else rotation.y
 	_dialogue_distance = clampf(separation.length() * 1.6 + 3.5, 6.2, 10.0)
 	_dialogue_partner = partner
+	_choose_dialogue_angle()
 	_dialogue_active = true
+	# Do not show the first dialogue page over an off-screen speaker while the
+	# exploration camera catches up. Safe starts can retain their smooth blend.
+	if snap_dialogue_framing and not _dialogue_subjects_in_safe_area():
+		_preview_dialogue_camera()
+		_dialogue_occlusion.update([_target, _dialogue_partner], 0.18)
+
+
+func _subject_feet(subject: Node3D) -> Vector3:
+	return (subject.get_parent() as Node3D).global_position if subject is SpriteBase3D else subject.global_position
+
+
+## Test nearby angles before blending, avoiding a camera that hunts every frame.
+func _choose_dialogue_angle() -> void:
+	var saved: Transform3D = camera.global_transform
+	var saved_size: float = camera.size
+	var base_yaw: float = _dialogue_yaw
+	_dialogue_elevation = 0.4
+	camera.set_meta("dialogue_subjects", [_target, _dialogue_partner])
+	var found: bool = false
+	for offset: float in [0.0, -0.18, 0.18, -0.36, 0.36]:
+		_dialogue_yaw = base_yaw + offset
+		_fit_dialogue_safe_area()
+		if _dialogue_subjects_clear():
+			found = true
+			break
+	if not found:
+		_dialogue_yaw = base_yaw
+		_dialogue_distance = maxf(12.0, _dialogue_distance * 1.4)
+		_dialogue_elevation = 0.70
+	_fit_dialogue_safe_area()
+	camera.global_transform = saved
+	camera.size = saved_size
+
+
+func _preview_dialogue_camera() -> void:
+	camera.global_position = _dialogue_focus + Vector3(0, _dialogue_distance * _dialogue_elevation, _dialogue_distance * 0.83).rotated(Vector3.UP, _dialogue_yaw)
+	camera.look_at(_dialogue_focus + Vector3.UP * 0.78)
+	if _indoors:
+		camera.size = _dialogue_distance * 0.64
+
+## Fit the actual projection, including wide separations and narrow viewports.
+func _fit_dialogue_safe_area() -> void:
+	for attempt: int in range(48):
+		_preview_dialogue_camera()
+		if _dialogue_subjects_in_safe_area():
+			return
+		_dialogue_distance *= 1.1
+
+
+func _dialogue_subjects_in_safe_area() -> bool:
+	var viewport: Vector2 = camera.get_viewport().get_visible_rect().size
+	for subject: Node3D in [_target, _dialogue_partner]:
+		for height: float in [0.0, 1.7]:
+			var at: Vector3 = _subject_feet(subject) + Vector3.UP * height
+			var point: Vector2 = camera.unproject_position(at) / viewport
+			if camera.is_position_behind(at) or point.x < 0.27 or point.x > 0.73 or point.y < 0.05 or point.y > 0.68:
+				return false
+	return true
+
+
+func _dialogue_subjects_clear() -> bool:
+	if not _dialogue_subjects_in_safe_area():
+		return false
+	for subject: Node3D in [_target, _dialogue_partner]:
+		if _dialogue_occlusion.blocks_subject(subject):
+			return false
+	return true
 
 
 func _on_state_changed() -> void:
@@ -194,6 +267,8 @@ func _process(delta: float) -> void:
 		rotation.y = desired_yaw
 	_update_camera_local_position()
 	camera.look_at(global_position + Vector3.UP * 0.78, Vector3.UP)
+	if _dialogue_active and is_instance_valid(_dialogue_partner) and not _dialogue_subjects_in_safe_area():
+		_preview_dialogue_camera()
 	var subjects: Array[Node3D] = []
 	if _dialogue_blend > 0.0 and is_instance_valid(_dialogue_partner):
 		subjects.assign([_target, _dialogue_partner])
@@ -207,7 +282,7 @@ func _update_camera_local_position() -> void:
 	if _indoors:
 		# Preserve zoom and dialogue framing without shrinking distant people.
 		camera.size = shot_distance * 0.64
-	var elevation: float = lerpf(lerpf(0.56, 0.70, smoothstep(8.0, 16.0, _target.position.z)) if _dungeon else 0.56, 0.40, shot_weight)
+	var elevation: float = lerpf(lerpf(0.56, 0.70, smoothstep(8.0, 16.0, _target.position.z)) if _dungeon else 0.56, _dialogue_elevation, shot_weight)
 	camera.position = Vector3(0.0, shot_distance * elevation, shot_distance * 0.83)
 
 

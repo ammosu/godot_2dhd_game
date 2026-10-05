@@ -4,8 +4,9 @@ extends RefCounted
 ## touches GameState.
 
 const FlashShader = preload("res://shaders/hit_flash.gdshader")
-## A solid-white silhouette this long after contact; the warm hurt tint follows.
-const FLASH_TIME: float = 0.07
+## Brief partial-white overlay; retain the actor palette through contact.
+const FLASH_TIME: float = 0.035
+const FLASH_BLEND: float = 0.65
 const TREMOR_AMPLITUDE: float = 0.045
 
 ## Freeze length for one landed hit. Heavier hits and finishers hold longer.
@@ -41,7 +42,7 @@ static func tremor(stop_left: float, camera: Camera3D) -> Vector3:
 	var side: float = 1.0 if int(stop_left * 60.0) % 2 == 0 else -1.0
 	return right.normalized() * side * TREMOR_AMPLITUDE
 
-## Solid silhouette overlay; only attached while visible to avoid a permanent extra pass.
+## Partial-white overlay; only attached during the brief contact flash.
 static func apply_flash(sprite: Sprite3D, amount: float) -> void:
 	if amount <= 0.0 or sprite.texture == null:
 		if sprite.material_overlay != null:
@@ -55,5 +56,29 @@ static func apply_flash(sprite: Sprite3D, amount: float) -> void:
 	var atlas := sprite.texture as AtlasTexture
 	material.set_shader_parameter("character_texture", atlas.atlas if atlas != null else sprite.texture)
 	material.set_shader_parameter("alpha_threshold", sprite.alpha_scissor_threshold)
-	material.set_shader_parameter("flash", clampf(amount, 0.0, 1.0))
+	material.set_shader_parameter("flash", clampf(amount, 0.0, 1.0) * FLASH_BLEND)
 	sprite.material_overlay = material
+
+## A separate depth-free edge pass, so normal hit flashes keep depth testing.
+const OUTLINE_SHADER: String = """
+shader_type spatial;
+render_mode unshaded, blend_mix, depth_draw_never, depth_test_disabled, cull_disabled, fog_disabled, shadows_disabled;
+uniform sampler2D character_texture : source_color, filter_nearest;
+void vertex() {
+	vec3 up = vec3(0.0, 1.0, 0.0);
+	vec3 right = normalize(cross(up, INV_VIEW_MATRIX[2].xyz));
+	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(vec4(right * length(MODEL_MATRIX[0].xyz), 0.0), vec4(up * length(MODEL_MATRIX[1].xyz), 0.0), vec4(cross(right, up) * length(MODEL_MATRIX[2].xyz), 0.0), MODEL_MATRIX[3]);
+}
+void fragment() {
+	vec2 step_uv = 2.0 / vec2(textureSize(character_texture, 0));
+	float center = texture(character_texture, UV).a;
+	float edge = 0.0;
+	for (int x = -1; x <= 1; x++) {
+		for (int y = -1; y <= 1; y++) {
+			edge = max(edge, texture(character_texture, UV + vec2(float(x), float(y)) * step_uv).a);
+		}
+	}
+	ALBEDO = vec3(0.65, 0.95, 1.0);
+	ALPHA = max(0.0, edge - center) * 0.75;
+}
+"""

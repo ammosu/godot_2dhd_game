@@ -15,6 +15,7 @@ const Ring = preload("res://scripts/gameplay/combat_ground_ring.gd")
 const DeathEffect = preload("res://scripts/gameplay/enemy_death_effect.gd")
 const Effect = preload("res://scripts/gameplay/world_combat_effect.gd")
 const HitFeedback = preload("res://scripts/gameplay/hit_feedback.gd")
+const Allies = preload("res://scripts/gameplay/field_allies.gd")
 const SPAWNS: Array[Dictionary] = [
 	{"id": "road_wolf_west", "at": Vector3(-4, 0.05, 10), "caster": false},
 	{"id": "road_wolf_ramp", "at": Vector3(2, 0.41, 10.5), "caster": false, "elite": true},
@@ -92,6 +93,8 @@ var camera_distance: float = 15.0
 var recovery_map: String = "village"
 var recovery_spawn: String = "from_east_road"
 var automation := Automation.new()
+var allies := Allies.new()
+var _ward_marker: MeshInstance3D
 var _auto_button: Button
 var _auto_settings_button: Button
 var _auto_options: PanelContainer
@@ -119,6 +122,9 @@ var dodge_direction := Vector3.FORWARD
 var attack_direction := Vector3.FORWARD
 var _effects: Array[Node3D] = []
 var _numbers: Array[Dictionary] = []
+
+var _hero_outline: Sprite3D
+var _last_target: Dictionary = {}
 var _hero_sprite: Sprite3D
 var _hud: Control
 var _buttons: Dictionary[String, Button] = {}
@@ -139,8 +145,14 @@ var _sheathe_left: float = 0.0
 var _hero_gait: float = 0.0
 var _gait_from := Vector3.INF
 var _step_in_total: float = 0.0
+var _location_labels: Array[Label3D] = []
+
+func _process(_delta: float) -> void:
+	_space_numbers()
+	_update_hero_outline()
 
 func _ready() -> void:
+	process_priority = 35
 	if build_terrain:
 		Terrain.build(self)
 	_rig = player.get_parent().get_node("CameraRig") as Hd2dCameraRig
@@ -153,6 +165,8 @@ func _ready() -> void:
 	if build_terrain:
 		var sign := _label(self, "南側・舊道狩獵地\n坡道通往高台", Vector3(-2, 1.4, 7))
 		sign.modulate = Color("d8e9c0")
+		sign.add_to_group("field_location_labels")
+		_location_labels.append(sign)
 	get_window().focus_exited.connect(_pause_focus)
 	get_window().focus_entered.connect(_resume_focus)
 	_wait_for_physics.call_deferred()
@@ -212,6 +226,7 @@ func _spawn_enemy(spawn: Dictionary) -> void:
 	var presentation := Presentation.new()
 	body.add_child(presentation)
 	presentation.setup(body, art, sprite, label, bar)
+	bar.set_meta("field_layout", true)
 	var bat: bool = art == "dusk_bat"
 	# Fixed encounter tiers preserve the value of leveling and better equipment.
 	var elite: bool = bool(spawn.get("elite", false))
@@ -379,6 +394,7 @@ func _physics_process(delta: float) -> void:
 	_hud.visible = GameState.mode == GameState.Mode.EXPLORE
 	_auto_controls.visible = _hud.visible
 	_update_hud()
+	_update_readability()
 	if GameState.mode == GameState.Mode.CUTSCENE:
 		_present_scripted_walk(delta)
 		return
@@ -419,6 +435,8 @@ func _physics_process(delta: float) -> void:
 		_advance_enemy(enemy, delta)
 		if GameState.mode != GameState.Mode.EXPLORE:
 			return
+	allies.step(self, delta)
+	_update_readability()
 	for id: String in loot_nodes.keys():
 		var node: Node3D = loot_nodes[id]
 		if player.global_position.distance_to(node.position) < 1.1 and can_hit(player.global_position, node.position, 1.1):
@@ -430,11 +448,12 @@ func _physics_process(delta: float) -> void:
 	_effects = _effects.filter(func(effect: Node3D) -> bool: return is_instance_valid(effect) and not effect.is_queued_for_deletion())
 	for number: Dictionary in _numbers:
 		number.life -= delta
-		number.node.position.y += delta * 0.8
+		number.anchor.y += delta * 0.8
 		number.node.modulate.a = clampf(float(number.life) * 2.0, 0.0, 1.0)
 		if number.life <= 0:
 			number.node.queue_free()
 	_numbers = _numbers.filter(func(number: Dictionary) -> bool: return number.life > 0)
+	_space_numbers()
 	_advance_hero_gait(delta)
 	_update_stance(delta)
 	_update_hero_art()
@@ -598,7 +617,7 @@ func _update_hero_art() -> void:
 	var shiver: Vector3 = HitFeedback.tremor(_hero_hurt - (HERO_HURT_TIME - HERO_SHIVER_TIME), get_viewport().get_camera_3d())
 	_hero_sprite.position.x = shiver.x
 	_hero_sprite.position.z = shiver.z
-	HitFeedback.apply_flash(_hero_sprite, _hero_flash / 0.03)
+	HitFeedback.apply_flash(_hero_sprite, _hero_flash / HitFeedback.FLASH_TIME)
 
 ## A landed enemy hit: flinch, flash and draw the weapon.
 func _hurt_hero() -> void:
@@ -632,7 +651,8 @@ func _strike() -> void:
 		var at: Vector3 = enemy.body.global_position
 		var offset: Vector3 = at - origin
 		var forward: float = attack_direction.dot((offset * Vector3(1, 0, 1)).normalized())
-		var hit: bool = (skill_pending or forward >= 0.15) and can_hit(origin, at, radius)
+		var hit_reach: float = radius if ranged else maxf(radius, _contact_spacing(enemy) + 0.3)
+		var hit: bool = (skill_pending or forward >= 0.15) and can_hit(origin, at, hit_reach)
 		if ranged:
 			var target_distance: float = at.distance_to(aim)
 			if GameState.player_class == "archer" and skill_pending:
@@ -658,28 +678,38 @@ func _strike() -> void:
 	if landed:
 		GameAudio.play_cue(HitFeedback.impact_cue(GameState.player_class), HitFeedback.impact_pitch())
 
-func _damage_enemy(enemy: Dictionary, damage: int) -> void:
+## A companion's blow: same damage rules, pushed away from the companion and
+## without freezing the traveler's own swing.
+func ally_hit(enemy: Dictionary, damage: int, source: Vector3) -> void:
+	_damage_enemy(enemy, damage, source)
+
+
+func _damage_enemy(enemy: Dictionary, damage: int, source: Vector3 = Vector3.INF) -> void:
 	if int(enemy.hp) <= 0:
 		return
+	var from_ally: bool = source.is_finite()
+	if not from_ally:
+		_last_target = enemy
+	var skill: bool = skill_pending and not from_ally
 	Awareness.engage(self, enemy)
 	enemy.hp = maxi(0, int(enemy.hp) - damage)
 	enemy.hurt = 0.25
 	# The blow interrupts the stride and pushes the body away from the hero;
 	# the push plays out after the hit stop.
 	enemy.move_velocity = Vector3.ZERO
-	var away: Vector3 = (enemy.body.global_position - player.global_position) * Vector3(1, 0, 1)
+	var away: Vector3 = (enemy.body.global_position - (source if from_ally else player.global_position)) * Vector3(1, 0, 1)
 	if not away.is_zero_approx():
-		enemy.knock = away.normalized() * (KNOCKBACK_SKILL if skill_pending else KNOCKBACK_BASIC) * float(enemy.get("weight", 1.0))
+		enemy.knock = away.normalized() * (KNOCKBACK_SKILL if skill else KNOCKBACK_BASIC) * float(enemy.get("weight", 1.0))
 	var lethal: bool = int(enemy.hp) == 0
-	var stop: float = HitFeedback.stop_time(damage, int(enemy.max_hp), skill_pending, lethal)
+	var stop: float = HitFeedback.stop_time(damage, int(enemy.max_hp), skill, lethal)
 	enemy.hit_stop = maxf(float(enemy.get("hit_stop", 0.0)), stop)
-	enemy.flash = stop + HitFeedback.FLASH_TIME
-	if not bool(GameState.class_profile().ranged):
+	enemy.flash = HitFeedback.FLASH_TIME
+	if not from_ally and not bool(GameState.class_profile().ranged):
 		hit_stop = maxf(hit_stop, stop)
-	_rig.add_combat_impact(HitFeedback.shake_strength(damage, int(enemy.max_hp), skill_pending, lethal))
+	_rig.add_combat_impact(HitFeedback.shake_strength(damage, int(enemy.max_hp), skill, lethal))
 	# Light enemies stagger to basic hits; fighters/casters require a skill.
 	# Recovery also prevents fast attacks from permanently suppressing a bat.
-	var interrupt: bool = (enemy.art == "dusk_bat" or skill_pending) and float(enemy.get("stagger_cooldown", 0.0)) <= 0.0
+	var interrupt: bool = (enemy.art == "dusk_bat" or skill) and float(enemy.get("stagger_cooldown", 0.0)) <= 0.0
 	if interrupt and float(enemy.windup) > 0.0:
 		enemy.windup = 0.0
 		enemy.warning.hide()
@@ -687,8 +717,8 @@ func _damage_enemy(enemy: Dictionary, damage: int) -> void:
 		if bool(enemy.get("charged_attack", false)):
 			enemy.attack_cycle = 0
 		enemy.cooldown = maxf(float(enemy.cooldown), 0.55)
-	_number(enemy.body.global_position, str(damage), Color("fff0ad"))
-	var hit_effect: String = "arrow_hit" if GameState.player_class == "archer" else "frost_hit" if GameState.player_class == "mage" else "shadow_hit" if GameState.player_class == "thief" else "impact"
+	_number(enemy.body.global_position, ("槍 %d" % damage) if from_ally else str(damage), Color("9fd4ff") if from_ally else Color("fff0ad"), &"noah" if from_ally else &"hero")
+	var hit_effect: String = "impact" if from_ally else "arrow_hit" if GameState.player_class == "archer" else "frost_hit" if GameState.player_class == "mage" else "shadow_hit" if GameState.player_class == "thief" else "impact"
 	_effect(hit_effect, enemy.body.global_position)
 	if int(enemy.hp) == 0:
 		enemy.state = "dead"
@@ -742,10 +772,12 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 		var target: Vector3 = enemy.home
 		if enemy.state == "chase":
 			target = enemy.last_seen
-			var reach: float = 4.8 if enemy.caster else 1.35
-			if enemy.target_visible and can_hit(at, target, reach):
+			var reach: float = 4.8 if enemy.caster else maxf(1.85 if enemy.art == "dusk_bat" else 1.35, _contact_spacing(enemy) + 0.3)
+			var approach: Vector3 = _approach_position(enemy, target)
+			var in_lane: bool = enemy.caster or at.distance_to(approach) < 0.35
+			if enemy.target_visible and in_lane and can_hit(at, target, reach):
 				if float(enemy.cooldown) == 0:
-					enemy.aim = target if enemy.caster else at + (target - at).normalized() * 0.8
+					enemy.aim = target
 					enemy.facing = (target - at).normalized()
 					enemy.charged_attack = int(enemy.attack_cycle) == int(enemy.basic_attacks)
 					enemy.windup = float(enemy.attack_windup) if enemy.charged_attack else 0.22 if enemy.caster else 0.16
@@ -754,6 +786,8 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 					enemy.warning.position = enemy.aim + Vector3.UP * 0.04
 					enemy.warning.visible = enemy.charged_attack
 				target = at
+			elif not enemy.caster and enemy.target_visible:
+				target = approach
 		elif enemy.state == "return":
 			if at.distance_to(target) < 0.5:
 				enemy.state = "patrol"
@@ -783,7 +817,10 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 				movement = ((path[0] - at) * Vector3(1, 0, 1)).normalized()
 	var slow_factor: float = 0.5 if float(enemy.get("slow", 0.0)) > 0 else 1.0
 	var speed: float = float(enemy.speed) if enemy.state == "chase" else float(enemy.get("patrol_speed", RETURN_SPEED)) if enemy.state == "patrol" else RETURN_SPEED
-	var planar: Vector3 = _smooth_enemy_velocity(enemy, movement * slow_factor * speed, delta)
+	var desired: Vector3 = movement * slow_factor * speed
+	if enemy.state == "chase" and not enemy.caster and not committed and float(enemy.windup) <= 0.0 and float(enemy.hurt) <= 0.0:
+		desired = _separate_enemy_velocity(enemy, desired)
+	var planar: Vector3 = _smooth_enemy_velocity(enemy, desired, delta)
 	var push: Vector3 = _consume_knock(enemy, delta)
 	body.velocity.x = planar.x + push.x
 	body.velocity.z = planar.z + push.z
@@ -802,8 +839,40 @@ func _advance_enemy(enemy: Dictionary, delta: float) -> void:
 	enemy.presentation.advance(clock, pose, float(enemy.hurt), float(enemy.windup), float(enemy.swing))
 	enemy.sprite.position.x = 0.0
 	enemy.sprite.position.z = 0.0
-	HitFeedback.apply_flash(enemy.sprite, float(enemy.flash) / 0.03)
+	HitFeedback.apply_flash(enemy.sprite, float(enemy.flash) / HitFeedback.FLASH_TIME)
 	enemy.label.text = str(enemy.title) + ("  !" if enemy.state == "chase" else "  ↩" if enemy.state == "return" else "")
+
+## Stable slots on both sides of the traveler prevent a single pursuit pile.
+func _approach_position(enemy: Dictionary, center: Vector3) -> Vector3:
+	var index: int = maxi(0, enemies.find(enemy))
+	var angles: Array[float] = [-60.0, 60.0, -120.0, 120.0, -90.0, 90.0]
+	var radius: float = maxf(1.6 if enemy.art == "dusk_bat" else 1.1, _contact_spacing(enemy))
+	var goal: Vector3 = center + Vector3.FORWARD.rotated(Vector3.UP, deg_to_rad(angles[index % angles.size()])) * radius
+	return goal if navigation.contains(goal) else center
+
+## Keep melee approach lanes apart, including when two bodies start coincident.
+func _separate_enemy_velocity(enemy: Dictionary, desired: Vector3) -> Vector3:
+	var result: Vector3 = desired
+	for other: Dictionary in enemies:
+		if other.body == enemy.body or int(other.hp) <= 0:
+			continue
+		var away: Vector3 = (enemy.body.global_position - other.body.global_position) * Vector3(1, 0, 1)
+		var distance: float = away.length()
+		var spacing: float = maxf(1.1, (_sprite_width(enemy.sprite) + _sprite_width(other.sprite)) * 0.5 + 0.12)
+		if distance >= spacing + 0.25:
+			continue
+		var direction: Vector3 = away / distance if distance > 0.001 else Vector3.RIGHT * (1.0 if enemy.body.get_instance_id() > other.body.get_instance_id() else -1.0)
+		# Remove inward motion before applying a soft outward correction.
+		result -= direction * minf(result.dot(direction), 0.0)
+		result += direction * maxf(0.0, spacing + 0.05 - distance) * 6.0
+	var hero_away: Vector3 = (enemy.body.global_position - player.global_position) * Vector3(1, 0, 1)
+	var gap: float = _contact_spacing(enemy)
+	if hero_away.length() < gap:
+		var direction: Vector3 = hero_away.normalized() if not hero_away.is_zero_approx() else Vector3.RIGHT
+		result -= direction * minf(result.dot(direction), 0.0)
+		result += direction * (gap - hero_away.length()) * 6.0
+	return result.limit_length(maxf(desired.length(), 2.0))
+
 
 ## Wander a few metres around home, pausing between walks.
 func _patrol_target(enemy: Dictionary, at: Vector3, delta: float) -> Vector3:
@@ -883,7 +952,7 @@ func _hold_enemy(enemy: Dictionary, tremor_scale: float = 1.0) -> void:
 	var shiver: Vector3 = HitFeedback.tremor(float(enemy.hit_stop), get_viewport().get_camera_3d()) * tremor_scale
 	enemy.sprite.position.x = shiver.x
 	enemy.sprite.position.z = shiver.z
-	HitFeedback.apply_flash(enemy.sprite, 1.0)
+	HitFeedback.apply_flash(enemy.sprite, float(enemy.flash) / HitFeedback.FLASH_TIME)
 
 func _enemy_strike(enemy: Dictionary) -> void:
 	enemy.warning.hide()
@@ -891,11 +960,11 @@ func _enemy_strike(enemy: Dictionary) -> void:
 	# Count released attacks even when dodged; interrupted basics do not count.
 	enemy.attack_cycle = (int(enemy.attack_cycle) + 1) % (int(enemy.basic_attacks) + 1)
 	_effect("bolt" if enemy.caster else "claw", enemy.aim)
-	var reach: float = 5.2 if enemy.caster else 1.8
+	var reach: float = 5.2 if enemy.caster else maxf(1.8, _contact_spacing(enemy) + 0.4)
 	var radius: float = 1.15 if enemy.caster else 0.95
 	if invulnerable <= 0 and can_hit(enemy.body.global_position, player.global_position, reach) and player.global_position.distance_to(enemy.aim) < radius:
 		var power: int = int(enemy.attack_power) if enemy.charged_attack else roundi(float(enemy.attack_power) * 0.75)
-		var damage: int = maxi(1, power - GameState.player_defense)
+		var damage: int = allies.incoming_damage(maxi(1, power - GameState.player_defense))
 		GameState.damage_player(damage)
 		invulnerable = 0.45
 		_hurt_hero()
@@ -984,10 +1053,114 @@ func _label(parent: Node3D, text: String, at: Vector3) -> Label3D:
 	parent.add_child(label)
 	return label
 
-func _number(at: Vector3, text: String, color: Color) -> void:
-	var label := _label(self, text, at + Vector3.UP * 1.5)
+## Screen-relative lanes stay readable when the camera rotates.
+func _number(at: Vector3, text: String, color: Color, source: StringName = &"hero") -> void:
+	var camera := get_viewport().get_camera_3d()
+	var right: Vector3 = camera.global_basis.x if camera != null else Vector3.RIGHT
+	var lane: float = -0.7 if source == &"noah" else 0.7 if source == &"sia" else 0.0
+	var stack: int = 0
+	for number: Dictionary in _numbers:
+		if Vector3(number.origin).distance_to(at) < 0.8:
+			stack += 1
+	var label := _label(self, text, at + right * lane + Vector3.UP * (1.5 + (stack % 4) * 0.24))
 	label.modulate = color
-	_numbers.append({"node": label, "life": 0.8})
+	_numbers.append({"node": label, "life": 0.8, "origin": at, "anchor": label.position})
+	_space_numbers()
+
+## Resolve projected collisions oldest first, including after camera movement.
+func _space_numbers() -> void:
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return
+	var bars: Array[Node] = []
+	for enemy: Dictionary in enemies:
+		bars.append(enemy.bar)
+	# Resolve the target last: its name remains directly above the highest bar
+	# in an overlapping cluster, instead of drifting above unrelated labels.
+	for enemy: Dictionary in enemies:
+		if enemy.label.visible:
+			bars.erase(enemy.bar)
+			bars.append(enemy.bar)
+	var occupied: Array[Rect2] = HealthBar.space_bars(bars, camera)
+	for enemy: Dictionary in enemies:
+		HealthBar.attach_name(enemy.label, enemy.bar, camera, occupied)
+		var status := enemy.get("slow_label") as Label3D
+		if is_instance_valid(status) and status.visible:
+			status.global_position = enemy.bar.global_position + Vector3.UP * 0.35
+			HealthBar.space_label(status, camera, occupied)
+	for number: Dictionary in _numbers:
+		var label: Label3D = number.node
+		if number.life <= 0.0:
+			continue
+		label.position = number.anchor
+		HealthBar.space_label(label, camera, occupied)
+
+
+func has_nearby_enemy(radius: float) -> bool:
+	for enemy: Dictionary in enemies:
+		if int(enemy.hp) > 0 and player.global_position.distance_to(enemy.body.global_position) <= radius:
+			return true
+	return false
+
+
+func is_engaged() -> bool:
+	return not allies._engaged(self).is_empty()
+
+func _update_readability() -> void:
+	_update_status_markers()
+	var engaged: bool = is_engaged()
+	for label: Label3D in _location_labels:
+		label.visible = not engaged
+	var nearest: Dictionary = {}
+	var distance: float = INF
+	for enemy: Dictionary in enemies:
+		if int(enemy.hp) <= 0:
+			continue
+		var candidate: float = player.global_position.distance_squared_to(enemy.body.global_position)
+		if candidate < distance:
+			nearest = enemy
+			distance = candidate
+	if not _last_target.is_empty() and int(_last_target.hp) > 0 and player.global_position.distance_to(_last_target.body.global_position) < 8.0:
+		nearest = _last_target
+	for enemy: Dictionary in enemies:
+		enemy.label.visible = GameState.mode == GameState.Mode.EXPLORE and enemy == nearest and int(enemy.hp) > 0
+
+## Status marks follow the authoritative timers, including refreshes and death.
+func _update_status_markers() -> void:
+	var show_marks: bool = GameState.mode == GameState.Mode.EXPLORE
+	for enemy: Dictionary in enemies:
+		var marker := enemy.get("slow_marker") as MeshInstance3D
+		var slowed: bool = int(enemy.hp) > 0 and float(enemy.get("slow", 0.0)) > 0.0
+		if slowed and not is_instance_valid(marker):
+			marker = _status_marker(0.48, Color("ffe0a0"))
+			enemy.slow_marker = marker
+		var status := enemy.get("slow_label") as Label3D
+		if slowed and not is_instance_valid(status):
+			status = _label(enemy.body, "緩", Vector3.UP * 2.15)
+			status.font_size = 28
+			status.pixel_size = 0.006
+			status.modulate = Color("ffe0a0")
+			status.no_depth_test = true
+			status.render_priority = 13
+			enemy.slow_label = status
+		if is_instance_valid(status):
+			status.visible = slowed and show_marks
+		if is_instance_valid(marker):
+			marker.visible = slowed and show_marks
+			marker.global_position = enemy.body.global_position + Vector3.UP * 0.035
+	if allies.ward_time > 0.0 and not is_instance_valid(_ward_marker):
+		_ward_marker = _status_marker(0.62, Color(0.62, 0.83, 1.0, 0.55))
+	if is_instance_valid(_ward_marker):
+		_ward_marker.visible = allies.ward_time > 0.0 and show_marks
+		_ward_marker.global_position = player.global_position + Vector3.UP * 0.035
+
+
+func _status_marker(radius: float, color: Color) -> MeshInstance3D:
+	var marker := preload("res://scripts/gameplay/combat_ground_ring.gd").new()
+	marker.configure(radius, color, 0.045)
+	add_child(marker)
+	return marker
+
 
 func _effect(kind: String, at: Vector3, radius: float = 1, direction: Vector3 = Vector3.FORWARD) -> Node3D:
 	var effect := Effect.new()
@@ -1137,5 +1310,75 @@ func _exit_tree() -> void:
 		if player.get("field_combat") == self:
 			player.set("field_combat", null)
 		player.get_node("Sprite3D").show()
+	if is_instance_valid(_hero_outline):
+		_hero_outline.queue_free()
 	if is_instance_valid(_hero_sprite):
 		_hero_sprite.queue_free()
+
+## Actual current atlas frame width, including the artist's pixel size and scale.
+static func _sprite_width(sprite: SpriteBase3D) -> float:
+	return sprite.get_item_rect().size.x * sprite.pixel_size * absf(sprite.global_basis.get_scale().x) if _visual_texture(sprite) != null else 0.0
+
+func _contact_spacing(enemy: Dictionary) -> float:
+	var hero: SpriteBase3D = _hero_sprite if _hero_sprite.visible else player.get_node("Sprite3D") as SpriteBase3D
+	return (_sprite_width(enemy.sprite) + _sprite_width(hero)) * 0.5 + 0.12
+
+## Project all four Y-billboard corners, respecting grounding offsets and zoom.
+static func _screen_bounds(sprite: SpriteBase3D, camera: Camera3D) -> Rect2:
+	var rect: Rect2 = sprite.get_item_rect()
+	var right: Vector3 = Vector3.UP.cross(camera.global_basis.z).normalized()
+	var size: Vector3 = sprite.global_basis.get_scale()
+	var bounds := Rect2()
+	var first: bool = true
+	for corner: Vector2 in [rect.position, rect.position + Vector2(rect.size.x, 0), rect.end, rect.position + Vector2(0, rect.size.y)]:
+		var point: Vector3 = sprite.global_position + right * corner.x * sprite.pixel_size * size.x - Vector3.UP * corner.y * sprite.pixel_size * size.y
+		var projected: Vector2 = camera.unproject_position(point)
+		if first:
+			bounds = Rect2(projected, Vector2.ZERO)
+			first = false
+		else:
+			bounds = bounds.expand(projected)
+	return bounds
+
+func _update_hero_outline() -> void:
+	if not is_instance_valid(player) or not is_instance_valid(_hero_sprite):
+		return
+	var camera := get_viewport().get_camera_3d()
+	var hero: SpriteBase3D = _hero_sprite if _hero_sprite.visible else player.get_node("Sprite3D") as SpriteBase3D
+	var occluded: bool = false
+	if camera != null and _visual_texture(hero) != null and GameState.mode == GameState.Mode.EXPLORE and not camera.is_position_behind(hero.global_position):
+		var bounds: Rect2 = _screen_bounds(hero, camera)
+		for enemy: Dictionary in enemies:
+			var visual: Sprite3D = enemy.sprite
+			if int(enemy.hp) > 0 and visual.is_visible_in_tree() and visual.texture != null and camera.to_local(visual.global_position).z > camera.to_local(hero.global_position).z + 0.01 and bounds.intersects(_screen_bounds(visual, camera)):
+				occluded = true
+				break
+	if occluded:
+		if not is_instance_valid(_hero_outline):
+			_hero_outline = Sprite3D.new()
+			_hero_outline.name = "OccludedTravelerOutline"
+			_hero_outline.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			player.add_child(_hero_outline)
+			var shader := Shader.new()
+			shader.code = HitFeedback.OUTLINE_SHADER
+			var material := ShaderMaterial.new()
+			material.shader = shader
+			material.render_priority = 20
+			_hero_outline.material_override = material
+		_hero_outline.transform = hero.transform
+		_hero_outline.texture = _visual_texture(hero)
+		_hero_outline.pixel_size = hero.pixel_size
+		_hero_outline.offset = hero.offset
+		_hero_outline.flip_h = hero.flip_h
+		_hero_outline.billboard = hero.billboard
+		var texture: Texture2D = _visual_texture(hero)
+		var atlas := texture as AtlasTexture
+		(_hero_outline.material_override as ShaderMaterial).set_shader_parameter("character_texture", atlas.atlas if atlas != null else texture)
+	if is_instance_valid(_hero_outline):
+		_hero_outline.visible = occluded
+
+static func _visual_texture(sprite: SpriteBase3D) -> Texture2D:
+	if sprite is Sprite3D:
+		return (sprite as Sprite3D).texture
+	var animated := sprite as AnimatedSprite3D
+	return animated.sprite_frames.get_frame_texture(animated.animation, animated.frame) if animated != null and animated.sprite_frames != null else null

@@ -30,6 +30,7 @@ const WATCH_LAG_SECONDS: float = 0.4
 # Keep each identity's frames resident: rebuilt maps then reuse the same frame
 # textures, so per-texture caches such as foot baselines stay bounded.
 static var _frames_by_identity: Dictionary[String, SpriteFrames] = {}
+static var _actions_by_identity: Dictionary[String, SpriteFrames] = {}
 
 var resident_id: String = "mira"
 var world_heading: Vector3 = Vector3.BACK
@@ -43,6 +44,11 @@ var ground_lift: float = 0.008
 var sprite_frames: SpriteFrames
 var animation: StringName = &"down"
 var pose_index: int = 0
+## Battle pose from <id>_action.tres (0 ready, 1 windup, 2 strike, 3 recover/guard);
+## -1 shows the ordinary walk. Companions only.
+var action_pose: int = -1
+## Screen side the action faces: &"left" or &"right".
+var action_side: StringName = &"left"
 var _walk_time: float = 0.0
 var _conversation_partner: Node3D
 var _turn := SteppedTurn.new()
@@ -138,6 +144,9 @@ func _watched_heading(delta: float) -> Vector3:
 func _update_presentation(delta: float) -> void:
 	if sprite_frames == null:
 		return
+	if action_pose >= 0 and _action_frames() != null:
+		_present_action()
+		return
 	var index: int = _turn.update(_target_heading(delta), get_viewport().get_camera_3d(), delta)
 	animation = Facing.ANIMATIONS[index]
 	var moving_mode: bool = GameState.mode in [GameState.Mode.EXPLORE, GameState.Mode.CUTSCENE]
@@ -160,6 +169,24 @@ func _update_presentation(delta: float) -> void:
 	# One scale per direction avoids pumping between animation frames. Measured
 	# foot metadata keeps every direction planted without modifying source art.
 	Proportions.apply(self, sprite_frames.get_frame_texture(animation, 0), float(texture.get_meta("reference_height")), visible_height)
+	Grounding.anchor(self, texture, float(texture.get_meta("ground_y")))
+	position.y += ground_lift
+
+
+func _action_frames() -> SpriteFrames:
+	if not _actions_by_identity.has(resident_id):
+		var path := "res://assets/generated/residents/" + resident_id + "_action.tres"
+		_actions_by_identity[resident_id] = load(path) as SpriteFrames if ResourceLoader.exists(path) else null
+	return _actions_by_identity[resident_id]
+
+
+func _present_action() -> void:
+	var frames := _action_frames()
+	var next_texture := frames.get_frame_texture(action_side, clampi(action_pose, 0, 3))
+	if texture == next_texture:
+		return
+	texture = next_texture
+	Proportions.apply(self, frames.get_frame_texture(action_side, 0), float(texture.get_meta("reference_height")), visible_height)
 	Grounding.anchor(self, texture, float(texture.get_meta("ground_y")))
 	position.y += ground_lift
 

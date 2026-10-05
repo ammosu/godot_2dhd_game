@@ -15,7 +15,15 @@ func configure(scenery: Node3D, player: Node3D, camera: Camera3D) -> void:
 		_trees.append({"art": art, "alpha": art.modulate.a, "cut": art.alpha_cut, "clear": 1.0})
 
 func obstructs(art: Sprite3D) -> bool:
-	if not art.is_visible_in_tree() or not is_instance_valid(_camera) or not is_instance_valid(_player):
+	if obstructs_subject(art, _player):
+		return true
+	for subject: Node3D in _camera.get_meta("dialogue_subjects", []):
+		if is_instance_valid(subject) and obstructs_subject(art, subject):
+			return true
+	return false
+
+func obstructs_subject(art: Sprite3D, subject: Node3D) -> bool:
+	if not art.is_visible_in_tree() or not is_instance_valid(_camera) or not is_instance_valid(subject):
 		return false
 	var normal := _camera.global_position - art.global_position
 	normal.y = 0
@@ -28,7 +36,7 @@ func obstructs(art: Sprite3D) -> bool:
 	var rect := Rect2(Vector2(bounds.position.x * scale.x, bounds.position.y * scale.y), Vector2(bounds.size.x * scale.x, bounds.size.y * scale.y))
 	for height: float in [0.25, 0.8, 1.45]:
 		for width: float in [-0.25, 0.0, 0.25]:
-			var endpoint := _player.global_position + Vector3.UP * height + _camera.global_basis.x * width
+			var endpoint: Vector3 = (subject.get_parent().global_position if subject is SpriteBase3D else subject.global_position) + Vector3.UP * height + _camera.global_basis.x * width
 			var origin := _camera.global_position
 			if _camera.projection == Camera3D.PROJECTION_ORTHOGONAL:
 				origin = _camera.project_ray_origin(_camera.unproject_position(endpoint))

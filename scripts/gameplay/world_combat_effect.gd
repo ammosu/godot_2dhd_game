@@ -23,6 +23,15 @@ func configure(effect: String, point: Vector3, radius: float, direction: Vector2
 	kind = effect
 	_radius = radius
 	position = point
+	if kind == "bell_wave":
+		sprite.free()
+		lifetime = 0.85
+		_wave = preload("res://scripts/gameplay/combat_ground_ring.gd").new()
+		_wave.configure(radius, Color("ffe0a0"), 0.1)
+		add_child(_wave)
+		_wave.position.y = 0.3
+		_wave.scale = Vector3.ONE * 0.1
+		return
 	add_child(sprite)
 	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
@@ -125,8 +134,12 @@ func advance(delta: float) -> void:
 	if age >= lifetime:
 		queue_free()
 		return
-	_update_frame()
 	var progress: float = age / lifetime
+	if kind == "bell_wave":
+		_wave.scale = Vector3.ONE * lerpf(0.1, 1.0, progress)
+		(_wave.material_override as StandardMaterial3D).albedo_color.a = 1.0 - progress
+		return
+	_update_frame()
 	if _flying:
 		position = _from.lerp(_to, progress)
 		if is_instance_valid(_trail):

@@ -28,6 +28,7 @@ const CUES: Dictionary = {
 	&"spear_thrust": preload("res://assets/generated/audio/spear_thrust.wav"),
 	&"claw_swipe": preload("res://assets/generated/audio/claw_swipe.wav"),
 	&"staff_strike": preload("res://assets/generated/audio/staff_strike.wav"),
+	&"hand_bell": preload("res://assets/generated/audio/hand_bell.wav"),
 }
 const VOICE_COUNT: int = 8
 const SETTINGS_VERSION: int = 1

@@ -7,6 +7,18 @@ const HELP_RANGE: float = 4.0
 const MEMORY_TIME: float = 4.0
 const LEASH_RANGE: float = 9.0
 
+static func is_rescue_enemy(enemy: Dictionary) -> bool:
+	return enemy.has("ally_focus") or enemy.has("rescue_target")
+
+static func rescue_active(field: Node3D) -> bool:
+	for enemy: Dictionary in field.enemies:
+		if int(enemy.hp) > 0 and is_rescue_enemy(enemy):
+			return true
+	return false
+
+static func suppressed(field: Node3D, enemy: Dictionary) -> bool:
+	return not is_rescue_enemy(enemy) and rescue_active(field)
+
 static func clear_sight(field: Node3D, from: Vector3, to: Vector3) -> bool:
 	var ray := PhysicsRayQueryParameters3D.create(from + Vector3.UP * 0.7, to + Vector3.UP * 0.7, 1, [field.player.get_rid()])
 	return field.get_world_3d().direct_space_state.intersect_ray(ray).is_empty()
@@ -15,6 +27,8 @@ static func in_territory(field: Node3D, enemy: Dictionary) -> bool:
 	return field.navigation.contains(field.player.global_position) and field.player.global_position.distance_to(enemy.home) < LEASH_RANGE
 
 static func detects(field: Node3D, enemy: Dictionary) -> bool:
+	if suppressed(field, enemy):
+		return false
 	var offset: Vector3 = field.player.global_position - enemy.body.global_position
 	if offset.length() > SIGHT_RANGE:
 		return false
@@ -23,12 +37,12 @@ static func detects(field: Node3D, enemy: Dictionary) -> bool:
 	return (offset.length() <= CLOSE_RANGE or facing.dot(direction) >= VIEW_DOT) and clear_sight(field, enemy.body.global_position, field.player.global_position)
 
 static func engage(field: Node3D, enemy: Dictionary) -> void:
-	if int(enemy.hp) <= 0 or enemy.state == "chase" or not in_territory(field, enemy):
+	if suppressed(field, enemy) or int(enemy.hp) <= 0 or enemy.state == "chase" or not in_territory(field, enemy):
 		return
 	_begin_chase(field, enemy)
 	# Helpers do not broadcast again: a nearby pack can react, not the whole map.
 	for ally: Dictionary in field.enemies:
-		if ally == enemy or int(ally.hp) <= 0 or ally.state != "patrol" or not in_territory(field, ally):
+		if suppressed(field, ally) or ally == enemy or int(ally.hp) <= 0 or ally.state != "patrol" or not in_territory(field, ally):
 			continue
 		var origin: Vector3 = enemy.body.global_position
 		var target: Vector3 = ally.body.global_position
